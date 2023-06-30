@@ -39,6 +39,8 @@ Gem::Specification.new do |spec|
 
   # Linting code and docs
   spec.add_dependency 'rubocop', '~> 1.53'
+  spec.add_development_dependency 'rubocop-rake'
+  spec.add_development_dependency 'rubocop-rspec'
   spec.add_development_dependency 'yard'
 
   # Makes testing easy via `bundle exec guard`
