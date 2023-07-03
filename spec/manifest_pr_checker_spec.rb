@@ -5,7 +5,7 @@ require_relative 'spec_helper'
 module Danger
   describe Danger::ManifestPRChecker do
     it 'should be a plugin' do
-      expect(Danger::ManifestPRChecker.new(nil)).to be_a Danger::Plugin
+      expect(described_class.new(nil)).to be_a Danger::Plugin
     end
 
     describe 'with Dangerfile' do
