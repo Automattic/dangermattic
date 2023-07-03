@@ -21,13 +21,14 @@ module Danger
 
     UNIT_TESTS_BYPASS_PR_LABEL = 'unit-tests-exemption'
 
-    attr_accessor :classes_exceptions, :subclasses_exceptions
-
-    # Check and warns about missing unit tests for a Git diff, with optional classes/subclasses to ignore and an optional PR label to bypass the checks.
+    # Check and warns about missing unit tests for a Git diff, with optional classes/subclasses to ignore and an
+    # optional PR label to bypass the checks.
     #
-    # @param classes_exceptions [Array<String>] Optional list of regexes matching class names to exclude from the check.
+    # @param classes_exceptions [Array<String>] Optional list of regexes matching class names to exclude from the
+    # check.
     #   Defaults to CLASSES_EXCEPTIONS.
-    # @param subclasses_exceptions [Array<String>] Optional list of regexes matching base class names to exclude from the check.
+    # @param subclasses_exceptions [Array<String>] Optional list of regexes matching base class names to exclude from
+    # the check.
     #   Defaults to SUBCLASSES_EXCEPTIONS.
     # @param bypass_label [String] Optional label to indicate we can bypass the check. Defaults to
     #   UNIT_TESTS_BYPASS_PR_LABEL.
@@ -46,7 +47,11 @@ module Danger
       @classes_exceptions = classes_exceptions
       @subclasses_exceptions = subclasses_exceptions
 
-      list = find_classes_missing_tests(git_diff: git.diff)
+      list = find_classes_missing_tests(
+        git_diff: git.diff,
+        classes_exceptions: classes_exceptions,
+        subclasses_exceptions: subclasses_exceptions
+      )
 
       return if list.empty?
 
@@ -67,7 +72,7 @@ module Danger
 
     # @param [Git::Diff] git_diff the object
     # @return [Array<ClassViolation>] An array of `ClassViolation` objects for each added class that is missing a test
-    def find_classes_missing_tests(git_diff:)
+    def find_classes_missing_tests(git_diff:, classes_exceptions:, subclasses_exceptions:)
       violations = []
       removed_classes = []
       added_test_lines = []
@@ -86,7 +91,14 @@ module Danger
             case GitUtils.change_type(diff_line: line)
             when :added
               matches = line.scan(NON_PRIVATE_CLASS_DETECTOR)
-              matches.reject! { |m| class_match_is_exception?(match: m, file: path) }
+              matches.reject! do |m|
+                class_match_is_exception?(
+                  match: m,
+                  file: path,
+                  classes_exceptions: classes_exceptions,
+                  subclasses_exceptions: subclasses_exceptions
+                )
+              end
               violations += matches.map { |m| ClassViolation.new(m[0], path) }
             when :removed
               matches = line.scan(ANY_CLASS_DETECTOR)
@@ -104,12 +116,12 @@ module Danger
 
     # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
     # @param [String] file the path to the file where that class declaration line was matched
-    def class_match_is_exception?(match:, file:)
-      return true if @classes_exceptions.any? { |re| match[0] =~ re }
+    def class_match_is_exception?(match:, file:, classes_exceptions:, subclasses_exceptions:)
+      return true if classes_exceptions.any? { |re| match[0] =~ re }
 
       subclass_regexp = File.extname(file) == '.java' ? /extends ([A-Z]\w+)/ : /\s*:\s*([A-Z]\w+)/
       subclass = match[1].match(subclass_regexp)&.captures&.first
-      @subclasses_exceptions.any? { |re| subclass =~ re }
+      subclasses_exceptions.any? { |re| subclass =~ re }
     end
 
     def test_file?(path:)
