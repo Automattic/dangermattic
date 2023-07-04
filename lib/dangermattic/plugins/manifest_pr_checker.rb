@@ -13,6 +13,15 @@ module Danger
       )
     end
 
+      # Check if the `Podfile` file was modified without a corresponding `Podfile.lock` update 
+      def check_podfile_lock_updated
+        check_manifest_lock_updated(
+          file_name: 'Podfile',
+          lock_file_name: 'Podfile.lock',
+          instruction: 'Please run `bundle exec pod install`'
+        )
+      end
+    
     # Check if the `Package.swift` file was modified without a corresponding `Package.resolved` update 
     def check_swift_package_resolved_updated
       check_manifest_lock_updated(
