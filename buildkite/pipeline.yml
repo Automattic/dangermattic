@@ -12,7 +12,7 @@ steps:
   #################
   # Build and Test
   #################
-  - group: 🧪 Build and Test"
+  - group: "🧪 Build and Test"
     key: test
     steps:
       - label: "🧪 Build and Test"
