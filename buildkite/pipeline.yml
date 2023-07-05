@@ -1,12 +1,9 @@
 # Nodes with values to reuse in the pipeline.
 common_params:
-  plugins:
-  - &docker_plugin
-    docker#v3.8.0:
-      image: &ruby_version "ruby:3.2.2"
-      propagate-environment: true
-      environment:
-        - "RUBYGEMS_API_KEY"
+  - &common_plugins
+    - &docker_plugin
+      docker#v3.8.0:
+        image: &ruby_version "ruby:3.2.2"
 
 steps:
   #################
@@ -18,13 +15,11 @@ steps:
       - label: "🧪 Build and Test"
         command: |
           echo "--- :rubygems: Setting up Gems"
-          install_gems
+          bundle install
 
           echo "--- :rspec: Run Rspec"
           bundle exec rspec --profile 10 --format progress
-        plugins:
-          - automattic/a8c-ci-toolkit#2.18.1
-          - *docker_plugin
+        plugins: *common_plugins
         agents:
           queue: "default"
 
@@ -35,10 +30,10 @@ steps:
     key: rubocop
     command: |
       echo "--- :rubygems: Setting up Gems"
-      install_gems
+      bundle install
 
       echo "--- :rubocop: Run Rubocop"
       bundle exec rubocop
-    plugins: [*docker_plugin]
+    plugins: *common_plugins
     agents:
       queue: "default"
