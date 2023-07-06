@@ -30,7 +30,7 @@ module Danger
       end
     end
 
-    shared_examples 'PR without view code' do |modified_files|
+    shared_examples 'PR without view code changes' do |modified_files|
       before do
         allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
         allow(@plugin.github).to receive(:pr_body).and_return('Body')
@@ -64,20 +64,44 @@ module Danger
         include_examples 'PR with view code changes', ['SimpleViewHelper.m', 'MyAwesomeButton.m']
       end
 
+      context 'iOS PR has changes in a .xib file' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.m', 'top_bar.xib']
+      end
+
+      context 'iOS PR has changes in a Storyboard' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.m', 'main_screen.storyboard']
+      end
+
       context 'iOS PR has no view changes' do
-        include_examples 'PR without view code', ['SimpleViewHelper.m', 'MyButtonTester.swift']
+        include_examples 'PR without view code changes', ['SimpleViewHelper.m', 'MyButtonTester.swift', 'Version.xcconfig']
       end
 
-      context 'Android PR has view code changes' do
-        include_examples 'view code without screenshots', ['test_view.xml', 'SimpleViewHelper.kt']
+      context 'Android PR has view code changes in Kotlin files' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.kt', 'MySimpleView.kt']
       end
 
-      context 'Android PR has button changes' do
-        include_examples 'view code without screenshots', ['SimpleViewHelper.kt', 'MyAwesomeButton.java']
+      context 'Android PR has button changes in Kotlin files' do
+        include_examples 'PR with view code changes', ['MyAwesomeButton.kt', 'SimpleViewHelper.java']
+      end
+
+      context 'Android PR has view code changes in Java files' do
+        include_examples 'PR with view code changes', ['TestView.java', 'SimpleViewHelper.kt']
+      end
+
+      context 'Android PR has button changes in Java files' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.kt', 'MyAwesomeButton.java']
+      end
+
+      context 'Android PR has view code changes in a XML file' do
+        include_examples 'PR with view code changes', ['test_view.xml', 'SimpleViewHelper.kt', 'strings.xml']
+      end
+
+      context 'Android PR has button changes in a XML file' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.kt', 'strings.xml', 'my_awesome_button.xml']
       end
 
       context 'Android PR has no view changes' do
-        include_examples 'PR without view code', ['SimpleViewHelper.java', 'MyButtonTester.kt']
+        include_examples 'PR without view code changes', ['SimpleViewHelper.java', 'values.xml', 'MyButtonTester.kt']
       end
     end
   end
