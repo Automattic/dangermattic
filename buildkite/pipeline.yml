@@ -2,8 +2,8 @@
 common_params:
   - &common_plugins
     - &docker_plugin
-      docker#v3.8.0:
-        image: &ruby_version "ruby:3.2.2"
+      docker#v5.7.0:
+        image: "public.ecr.aws/docker/library/ruby:3.2.2"
 
 steps:
   #################
