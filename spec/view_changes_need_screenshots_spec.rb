@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::ViewCodePRChecker do
+  describe Danger::ViewChangesNeedScreenshots do
     it 'should be a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -45,7 +45,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.view_code_pr_checker
+        @plugin = @dangerfile.view_changes_need_screenshots
       end
 
       context 'iOS PR has view code changes in Swift files' do

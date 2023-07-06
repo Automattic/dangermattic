@@ -2,7 +2,7 @@
 
 module Danger
   # Plugin to detect View files in a PR but without having accompanying screenshots.
-  class ViewCodePRChecker < Plugin
+  class ViewChangesNeedScreenshots < Plugin
     VIEW_EXTENSIONS_IOS = /(View|Button)\.(swift|m)$|\.xib$|\.storyboard$/.freeze
     VIEW_EXTENSIONS_ANDROID = /(?i)(View|Button)\.(java|kt|xml)$/.freeze
 
