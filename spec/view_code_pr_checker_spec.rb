@@ -8,7 +8,7 @@ module Danger
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
 
-    shared_examples 'view code without screenshots' do |modified_files|
+    shared_examples 'PR with view code changes' do |modified_files|
       before do
         allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
       end
