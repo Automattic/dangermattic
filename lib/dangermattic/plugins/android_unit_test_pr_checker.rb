@@ -4,14 +4,13 @@ require_relative 'utils/git_utils'
 
 module Danger
   # Plugin to detect classes without Unit Tests in a PR.
-  class UnitTestPRChecker < Plugin
+  class AndroidUnitTestPRChecker < Plugin
     ANY_CLASS_DETECTOR = /class ([A-Z]\w+)\s*(.*?)\s*{/.freeze
     NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class ([A-Z]\w+)\s*(.*?)\s*{/.freeze
 
     CLASSES_EXCEPTIONS = [
       /ViewHolder$/,
       /Module$/,
-      /ViewController$/
     ].freeze
 
     SUBCLASSES_EXCEPTIONS = [
@@ -125,7 +124,7 @@ module Danger
     end
 
     def test_file?(path:)
-      GitUtils.android_test_file?(path: path) || GitUtils.ios_test_file?(path: path)
+      GitUtils.android_test_file?(path: path)
     end
   end
 end
