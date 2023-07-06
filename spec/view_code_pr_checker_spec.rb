@@ -48,12 +48,20 @@ module Danger
         @plugin = @dangerfile.view_code_pr_checker
       end
 
-      context 'iOS PR has view code changes' do
-        include_examples 'view code without screenshots', ['TestView.swift', 'SimpleViewHelper.m']
+      context 'iOS PR has view code changes in Swift files' do
+        include_examples 'PR with view code changes', ['TestView.swift', 'SimpleViewHelper.m']
       end
 
-      context 'iOS PR has button changes' do
-        include_examples 'view code without screenshots', ['SimpleViewHelper.m', 'MyAwesomeButton.swift']
+      context 'iOS PR has button changes in Swift files' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.m', 'MyAwesomeButton.swift']
+      end
+
+      context 'iOS PR has view code changes in ObjC files' do
+        include_examples 'PR with view code changes', ['TestView.m', 'SimpleViewHelper.m']
+      end
+
+      context 'iOS PR has button changes in ObjC files' do
+        include_examples 'PR with view code changes', ['SimpleViewHelper.m', 'MyAwesomeButton.m']
       end
 
       context 'iOS PR has no view changes' do

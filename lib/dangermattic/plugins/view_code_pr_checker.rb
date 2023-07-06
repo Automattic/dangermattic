@@ -3,7 +3,7 @@
 module Danger
   # Plugin to detect View files in a PR but without having accompanying screenshots.
   class ViewCodePRChecker < Plugin
-    VIEW_EXTENSIONS_IOS = /(View|Button)\.swift$|\.xib$|\.storyboard$/.freeze
+    VIEW_EXTENSIONS_IOS = /(View|Button)\.(swift|m)$|\.xib$|\.storyboard$/.freeze
     VIEW_EXTENSIONS_ANDROID = /(?i)(View|Button)\.(java|kt|xml)$/.freeze
 
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
