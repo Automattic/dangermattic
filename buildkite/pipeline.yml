@@ -1,3 +1,6 @@
+agents:
+  queue: "default"
+
 # Nodes with values to reuse in the pipeline.
 common_params:
   - &common_plugins
@@ -20,8 +23,6 @@ steps:
           echo "--- :rspec: Run Rspec"
           bundle exec rspec --profile 10 --format progress
         plugins: *common_plugins
-        agents:
-          queue: "default"
 
   #################
   # Lint
@@ -35,5 +36,3 @@ steps:
       echo "--- :rubocop: Run Rubocop"
       bundle exec rubocop
     plugins: *common_plugins
-    agents:
-      queue: "default"
