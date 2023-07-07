@@ -1,0 +1,38 @@
+agents:
+  queue: "default"
+
+# Nodes with values to reuse in the pipeline.
+common_params:
+  - &common_plugins
+    - &docker_plugin
+      docker#v5.7.0:
+        image: "public.ecr.aws/docker/library/ruby:3.2.2"
+
+steps:
+  #################
+  # Build and Test
+  #################
+  - group: "🧪 Build and Test"
+    key: test
+    steps:
+      - label: "🧪 Build and Test"
+        command: |
+          echo "--- :rubygems: Setting up Gems"
+          bundle install
+
+          echo "--- :rspec: Run Rspec"
+          bundle exec rspec --profile 10 --format progress
+        plugins: *common_plugins
+
+  #################
+  # Lint
+  #################
+  - label: "🧹 Lint (Rubocop)"
+    key: rubocop
+    command: |
+      echo "--- :rubygems: Setting up Gems"
+      bundle install
+
+      echo "--- :rubocop: Run Rubocop"
+      bundle exec rubocop
+    plugins: *common_plugins
