@@ -23,13 +23,12 @@ module Danger
           'File2.kt' => 'class Abcdef(name: String) { public void testMe() { println(''); } }'
         }
 
-        run_in_repo_with_diff(changes_dict: changes_dict) do |git|
-          allow(@dangerfile.git).to receive(:diff).and_return(git.diff)
+        diff = generate_changes_diff(changes_dict)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
-          @plugin.check_missing_tests
+        @plugin.check_missing_tests
 
-          expect(@dangerfile.status_report[:errors].count).to eq 2
-        end
+        expect(@dangerfile.status_report[:errors].count).to eq 2
       end
 
       it 'does nothing when a PR has only tests' do
@@ -38,13 +37,12 @@ module Danger
           'project/src/androidTest/java/org/test/UtilsTest.kt' => 'class UtilsTest { void testMe() {} }'
         }
 
-        run_in_repo_with_diff(changes_dict: changes_dict) do |git|
-          allow(@dangerfile.git).to receive(:diff).and_return(git.diff)
+        diff = generate_changes_diff(changes_dict)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
-          @plugin.check_missing_tests
+        @plugin.check_missing_tests
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-        end
+        expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does not show that a PR with a tests bypass label is missing tests' do
@@ -54,14 +52,13 @@ module Danger
           'File2.kt' => 'class Abcdef(name: String) { public void testMe() { println(''); } }'
         }
 
-        run_in_repo_with_diff(changes_dict: changes_dict) do |git|
-          allow(@dangerfile.git).to receive(:diff).and_return(git.diff)
-          allow(@plugin.github).to receive(:pr_labels).and_return(['unit-tests-exemption'])
+        diff = generate_changes_diff(changes_dict)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+        allow(@plugin.github).to receive(:pr_labels).and_return(['unit-tests-exemption'])
 
-          @plugin.check_missing_tests
+        @plugin.check_missing_tests
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-        end
+        expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does not show that a PR with a custom bypass label is missing tests' do
@@ -71,16 +68,15 @@ module Danger
           'File2.kt' => 'class Abcdef(name: String) { public void testMe() { println(''); } }'
         }
 
-        run_in_repo_with_diff(changes_dict: changes_dict) do |git|
-          bypass_label = 'ignore-no-tests'
+        bypass_label = 'ignore-no-tests'
 
-          allow(@dangerfile.git).to receive(:diff).and_return(git.diff)
-          allow(@plugin.github).to receive(:pr_labels).and_return([bypass_label])
+        diff = generate_changes_diff(changes_dict)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+        allow(@plugin.github).to receive(:pr_labels).and_return([bypass_label])
 
-          @plugin.check_missing_tests(bypass_label: bypass_label)
+        @plugin.check_missing_tests(bypass_label: bypass_label)
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-        end
+        expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does not show that a PR with custom classes / subclasses patterns are missing tests' do
@@ -98,38 +94,30 @@ module Danger
           'File2.kt' => 'class AbcdefViewHelper(name: String) { public void testMe() { println(''); } }'
         }
 
-        run_in_repo_with_diff(changes_dict: changes_dict) do |git|
-          allow(@dangerfile.git).to receive(:diff).and_return(git.diff)
+        diff = generate_changes_diff(changes_dict)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
-          @plugin.check_missing_tests(classes_exceptions: exceptions, subclasses_exceptions: subclasses_exceptions)
+        @plugin.check_missing_tests(classes_exceptions: exceptions, subclasses_exceptions: subclasses_exceptions)
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-        end
+        expect(@dangerfile.status_report[:errors]).to be_empty
       end
     end
 
-    def run_in_repo_with_diff(changes_dict:)
-      Dir.mktmpdir do |dir|
-        Dir.chdir dir do
-          `git init -b master`
+    def generate_changes_diff(changes_dict)
+      diff_lines = changes_dict.map do |file_path, content|
+        diff_str = <<~PATCH
+        diff --git a/#{file_path} b/#{file_path}
+        index 790344f..fd48a22 100644
+        --- a/#{file_path}
+        +++ b/#{file_path}
+        @@ -1 +1 @@
+        -Initial #{file_path} content.
+        \\ No newline at end of file
+        +#{content}
+        \\ No newline at end of file
+        PATCH
 
-          changes_dict.each do |key, _value|
-            file_path = "#{dir}/#{key}"
-            FileUtils.mkdir_p(File.dirname(file_path))
-            File.open(file_path, 'w') { |f| f.write "Initial #{key} content." }
-          end
-
-          `git add .`
-          `git commit -m "add files"`
-
-          # adds changes to the previously commited files to create a diff
-          changes_dict.each do |key, value|
-            File.open("#{dir}/#{key}", 'w') { |f| f.write(value) }
-          end
-
-          g = Git.open('.')
-          yield g
-        end
+        OpenStruct.new(type: 'modified', path: file_path, patch: diff_str)
       end
     end
   end
