@@ -22,7 +22,8 @@ module Danger
       end
 
       it 'does nothing when a PR with view code changes has screenshots' do
-        allow(@plugin.github).to receive(:pr_body).and_return('PR [![Alt text](https://myimages.com/boo)](https://digitalocean.com) Body')
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return('PR [![Alt text](https://myimages.com/boo)](https://digitalocean.com) Body')
 
         @plugin.view_changes_need_screenshots
 
@@ -36,7 +37,7 @@ module Danger
         allow(@plugin.github).to receive(:pr_body).and_return('Body')
         @plugin.view_changes_need_screenshots
       end
-    
+
       it 'does nothing' do
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
@@ -73,7 +74,8 @@ module Danger
       end
 
       context 'iOS PR has no view changes' do
-        include_examples 'PR without view code changes', ['SimpleViewHelper.m', 'MyButtonTester.swift', 'Version.xcconfig']
+        include_examples 'PR without view code changes',
+                         ['SimpleViewHelper.m', 'MyButtonTester.swift', 'Version.xcconfig']
       end
 
       context 'Android PR has view code changes in Kotlin files' do

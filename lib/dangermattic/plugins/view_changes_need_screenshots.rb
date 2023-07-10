@@ -3,8 +3,8 @@
 module Danger
   # Plugin to detect View files in a PR but without having accompanying screenshots.
   class ViewChangesNeedScreenshots < Plugin
-    VIEW_EXTENSIONS_IOS = /(View|Button)\.(swift|m)$|\.xib$|\.storyboard$/.freeze
-    VIEW_EXTENSIONS_ANDROID = /(?i)(View|Button)\.(java|kt|xml)$/.freeze
+    VIEW_EXTENSIONS_IOS = /(View|Button)\.(swift|m)$|\.xib$|\.storyboard$/
+    VIEW_EXTENSIONS_ANDROID = /(?i)(View|Button)\.(java|kt|xml)$/
 
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
     # displaying a warning if view files have been modified but no screenshot is included.
