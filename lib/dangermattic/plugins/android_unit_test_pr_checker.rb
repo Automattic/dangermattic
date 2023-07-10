@@ -5,12 +5,12 @@ require_relative 'utils/git_utils'
 module Danger
   # Plugin to detect classes without Unit Tests in a PR.
   class AndroidUnitTestPRChecker < Plugin
-    ANY_CLASS_DETECTOR = /class ([A-Z]\w+)\s*(.*?)\s*{/.freeze
-    NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class ([A-Z]\w+)\s*(.*?)\s*{/.freeze
+    ANY_CLASS_DETECTOR = /class ([A-Z]\w+)\s*(.*?)\s*{/
+    NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class ([A-Z]\w+)\s*(.*?)\s*{/
 
     CLASSES_EXCEPTIONS = [
       /ViewHolder$/,
-      /Module$/,
+      /Module$/
     ].freeze
 
     SUBCLASSES_EXCEPTIONS = [
@@ -43,9 +43,6 @@ module Danger
     #   check_missing_tests(bypass_label: 'BypassTestCheck')
     def check_missing_tests(classes_exceptions: CLASSES_EXCEPTIONS, subclasses_exceptions: SUBCLASSES_EXCEPTIONS,
                             bypass_label: UNIT_TESTS_BYPASS_PR_LABEL)
-      @classes_exceptions = classes_exceptions
-      @subclasses_exceptions = subclasses_exceptions
-
       list = find_classes_missing_tests(
         git_diff: git.diff,
         classes_exceptions: classes_exceptions,

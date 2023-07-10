@@ -18,11 +18,11 @@ module Danger
 
       it 'shows the right number of errors when a PR adding new classes that do not have corresponding tests' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(''); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
           'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
-          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println('') } }',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(''); } }',
+          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println("") } }',
+          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }',
           'TestsINeedThem2.kt' => 'public open class TestsINeedThem2 { fun testMe2() { } }'
         }
 
@@ -36,14 +36,14 @@ module Danger
 
       it 'does not show errors when new classes have corresponding tests' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(''); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
           'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { sut.main([]) } }',
           'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
           'project/src/androidTest/java/org/test/PolygonTest.kt' => 'class PolygonTest { fun drawTest() {}',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(''); } }',
+          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }',
           'project/src/androidTest/java/org/test/TestsINeedThemTests.java' => 'class TestsINeedThemTests { public void testMe() {} }',
-          'MyNewClass.java' => 'final class MyNewClass { public void testMe() { System.out.println(''); } }',
-          'project/src/androidTest/java/org/test/MyNewClass.java' => 'class MyNewClass { public void testMe() {} }',
+          'MyNewClass.java' => 'final class MyNewClass { public void testMe() { System.out.println(""); } }',
+          'project/src/androidTest/java/org/test/MyNewClass.java' => 'class MyNewClass { public void testMe() {} }'
         }
 
         diff = generate_add_diff(changes_dict)
@@ -56,9 +56,9 @@ module Danger
 
       it 'does not show errors when we are deleting classes' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(''); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
           'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(''); } }',
+          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }'
         }
 
         diff = generate_deleted_diff(changes_dict)
@@ -71,7 +71,7 @@ module Danger
 
       it 'show errors when we remove test classes for classes we refactored' do
         added_classes = {
-          'Abc.kt' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(''); } }',
+          'Abc.kt' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
           'Polygon.kt' => 'data class Polygon(sides: Int) { fun draw() {} }',
           'TestsINeedThem.kt' => 'public open class TestsINeedThem { fun testMe2() { } }'
         }
@@ -79,7 +79,7 @@ module Danger
         removed_tests = {
           'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { sut.main([]) } }',
           'project/src/androidTest/java/org/test/PolygonTest.java' => 'class PolygonTest { void drawTest() {}',
-          'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe() {} }',
+          'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe() {} }'
         }
 
         diff = generate_add_diff(added_classes) + generate_deleted_diff(removed_tests)
@@ -126,8 +126,8 @@ module Danger
 
       it 'does not show that a PR with the tests bypass label is missing tests' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(''); } }',
-          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println(''); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
+          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println(""); } }',
           'TestsINeedThem2.kt' => 'public open class TestsINeedThem2 { fun testMe2() { } }'
         }
 
@@ -142,9 +142,9 @@ module Danger
 
       it 'does not show errors when a PR without tests with a custom bypass label is missing tests' do
         changes_dict = {
-          'File1.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(''); } }',
+          'File1.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
-          'File2.kt' => 'class Abcdef(name: String) { public fun testMe() { println(''); } }'
+          'File2.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
         }
 
         bypass_label = 'ignore-no-tests'
@@ -168,12 +168,12 @@ module Danger
         ].freeze
 
         changes_dict = {
-          'File1.java' => 'import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(''); } }',
+          'File1.java' => 'import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(""); } }',
           'AbcWrangler.java' => 'import java.utils.*;\n\n abstract class AbcWrangler extends BaseViewWrangler { public abstract void wrangle(); }',
           'KotlinWrangler.kt' => 'abstract class KotlinWrangler: BaseViewWrangler { abstract fun wrangle(); }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { void testMethod() {} }',
-          'AbcdefViewHelper.kt' => 'class AbcdefViewHelper(name: String) { fun testMe() { println(''); } }',
-          'AbcdefgViewHelper.java' => 'public final class AbcdefgViewHelper { public static void testMe() { System.out.println(''); } }'
+          'AbcdefViewHelper.kt' => 'class AbcdefViewHelper(name: String) { fun testMe() { println(""); } }',
+          'AbcdefgViewHelper.java' => 'public final class AbcdefgViewHelper { public static void testMe() { System.out.println(""); } }'
         }
 
         diff = generate_add_diff(changes_dict)
@@ -186,35 +186,35 @@ module Danger
     end
 
     def generate_add_diff(changes_dict)
-      diff_lines = changes_dict.map do |file_path, content|
+      changes_dict.map do |file_path, content|
         diff_str = <<~PATCH
-        diff --git a/#{file_path} b/#{file_path}
-        new file mode 100644
-        index 0000000..fd48a22
-        --- /dev/null
-        +++ b/#{file_path}
-        @@ -0,0 +1 @@
-        +#{content}
-        \\ No newline at end of file
+          diff --git a/#{file_path} b/#{file_path}
+          new file mode 100644
+          index 0000000..fd48a22
+          --- /dev/null
+          +++ b/#{file_path}
+          @@ -0,0 +1 @@
+          +#{content}
+          \\ No newline at end of file
         PATCH
-    
+
         OpenStruct.new(type: 'added', path: file_path, patch: diff_str)
       end
     end
 
     def generate_deleted_diff(changes_dict)
-      diff_lines = changes_dict.map do |file_path, content|
+      changes_dict.map do |file_path, content|
         diff_str = <<~PATCH
-        diff --git a/#{file_path} b/#{file_path}
-        deleted file mode 100644
-        index fd48a22..0000000
-        --- a/#{file_path}
-        +++ /dev/null
-        @@ -1 +0,0 @@
-        -#{content}
-        \\ No newline at end of file
+          diff --git a/#{file_path} b/#{file_path}
+          deleted file mode 100644
+          index fd48a22..0000000
+          --- a/#{file_path}
+          +++ /dev/null
+          @@ -1 +0,0 @@
+          -#{content}
+          \\ No newline at end of file
         PATCH
-    
+
         OpenStruct.new(type: 'deleted', path: file_path, patch: diff_str)
       end
     end
