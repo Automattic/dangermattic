@@ -38,7 +38,7 @@ module Danger
       lock_modified = git.modified_files.include?(lock_file_name)
       
       if manifest_modified && !lock_modified
-        failure("#{file_name} was changed without updating #{lock_file_name}. #{instruction}.")
+        warn("#{file_name} was changed without updating #{lock_file_name}. #{instruction}.")
       end
     end
   end
