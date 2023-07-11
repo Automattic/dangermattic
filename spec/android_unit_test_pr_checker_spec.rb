@@ -198,7 +198,7 @@ module Danger
           \\ No newline at end of file
         PATCH
 
-        OpenStruct.new(type: 'added', path: file_path, patch: diff_str)
+        OpenStruct.new(type: 'new', path: file_path, patch: diff_str)
       end
     end
 
