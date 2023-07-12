@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::AndroidUnitTestPRChecker do
+  describe Danger::AndroidUnitTestChecker do
     it 'should be a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -11,7 +11,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.android_unit_test_pr_checker
+        @plugin = @dangerfile.android_unit_test_checker
 
         allow(@plugin.github).to receive(:pr_labels).and_return(['my_label'])
       end
