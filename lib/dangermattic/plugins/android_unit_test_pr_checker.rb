@@ -106,9 +106,9 @@ module Danger
 
       # We only want newly added classes, not if class signature was modified or line was moved
       violations.reject! { |v| removed_classes.include?(v.classname) }
-      # For each remaining candidate, only keep the ones _not_ used in a new test
 
-      violations.select { |v| added_test_lines.none? { |line| line =~ /\b#{v.classname}(Tests?)?\b/ } }
+      # For each remaining candidate, only keep the ones _not_ used in a new test
+      violations.select { |v| added_test_lines.none? { |line| line =~ /\b#{v.classname}\b/ } }
     end
 
     # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
