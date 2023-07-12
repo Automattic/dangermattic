@@ -37,13 +37,13 @@ module Danger
       it 'does not show errors when new classes have corresponding tests' do
         changes_dict = {
           'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { sut.main([]) } }',
-          'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
-          'project/src/androidTest/java/org/test/PolygonTest.kt' => 'class PolygonTest { fun drawTest() {}',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/TestsINeedThemTests.java' => 'class TestsINeedThemTests { public void testMe() {} }',
+          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { Abc.main([]) } }',
+          'Polygon.kt' => 'open class Polygon: Shape { override fun draw() { } }',
+          'project/src/androidTest/java/org/test/PolygonTest.kt' => 'class PolygonTest { fun testDraw() { Polygon().draw() } }',
+          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void writeMeATest() { System.out.println(""); } }',
+          'project/src/androidTest/java/org/test/AnotherTestClass.java' => 'class AnotherTestClass { public void testWriteMeATest() { new TestsINeedThem().writeMeATest() } }',
           'MyNewClass.java' => 'final class MyNewClass { public void testMe() { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/MyNewClass.java' => 'class MyNewClass { public void testMe() {} }'
+          'project/src/androidTest/java/org/test/TestMyNewClass.java' => 'class TestMyNewClass { public void testMe() { new MyNewClass().testMe() } }'
         }
 
         diff = generate_add_diff(changes_dict)
@@ -77,9 +77,9 @@ module Danger
         }
 
         removed_tests = {
-          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { sut.main([]) } }',
-          'project/src/androidTest/java/org/test/PolygonTest.java' => 'class PolygonTest { void drawTest() {}',
-          'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe() {} }'
+          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void testAbc() { Abc.main([]) } }',
+          'project/src/androidTest/java/org/test/PolygonTest.java' => 'class PolygonTest { void testDraw() { Polygon(sides = 5).draw() }',
+          'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe2() { TestsINeedThem().testMe2() } }'
         }
 
         diff = generate_add_diff(added_classes) + generate_deleted_diff(removed_tests)
@@ -142,9 +142,9 @@ module Danger
 
       it 'does not show errors when a PR without tests with a custom bypass label is missing tests' do
         changes_dict = {
-          'File1.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
-          'File2.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
+          'Abcdef.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
         }
 
         bypass_label = 'ignore-no-tests'
@@ -168,7 +168,7 @@ module Danger
         ].freeze
 
         changes_dict = {
-          'File1.java' => 'import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(""); } }',
+          'Abc.java' => 'import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(""); } }',
           'AbcWrangler.java' => 'import java.utils.*;\n\n abstract class AbcWrangler extends BaseViewWrangler { public abstract void wrangle(); }',
           'KotlinWrangler.kt' => 'abstract class KotlinWrangler: BaseViewWrangler { abstract fun wrangle(); }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { void testMethod() {} }',
