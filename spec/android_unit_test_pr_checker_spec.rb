@@ -199,6 +199,44 @@ module Danger
 
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
+
+      it 'does nothing when a PR moves code around and' do
+        shape_dict = {
+          'Shape.kt' => '"open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"',
+        }
+
+        polygon_test_diff_str = <<~PATCH
+          diff --git a/PolygonTest.kt b/PolygonTest.kt
+          index 8c2bed6..ae81c49 100644
+          --- a/PolygonTest.kt
+          +++ b/PolygonTest.kt
+          @@ -1,8 +1,9 @@
+          -class PolygonTest {
+          -  val sut10: Shape = Polygon(sides = 10)
+          -  val sut5: Shape = Polygon(sides = 5)
+          -  
+          -  fun testDraw() {
+          -    Polygon(sides = 5).draw()
+          +class ShapesTest {
+          +  fun testPentagon() {
+          +    draw(Polygon(sides = 5))
+          +  }
+          +
+          +  private fun draw(shape: Shape) {
+          +    shape.draw()
+            }
+          }
+        PATCH
+
+        shape_diff = generate_add_diff(shape_dict)
+        polygon_diff = OpenStruct.new(type: 'modified', path: 'project/src/androidTest/java/shapes/PolygonTest.kt', patch: polygon_test_diff_str)
+
+        allow(@dangerfile.git).to receive(:diff).and_return(shape_diff + [polygon_diff])
+
+        @plugin.check_missing_tests
+
+        expect(@dangerfile.status_report[:errors]).to be_empty
+      end
     end
 
     def generate_add_diff(changes_dict)
