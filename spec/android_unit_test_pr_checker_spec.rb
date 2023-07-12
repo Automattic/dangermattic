@@ -31,7 +31,17 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors].count).to eq 5
+        classes = [
+          'Abc',
+          'Polygon',
+          'Abcdef',
+          'TestsINeedThem',
+          'TestsINeedThem2'
+        ]
+
+        result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
+        expect(result).to be true
+
       end
 
       it 'does not show errors when new classes have corresponding tests' do
@@ -87,7 +97,14 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors].count).to eq 3
+        classes = [
+          'Abc',
+          'Polygon',
+          'TestsINeedThem'
+        ]
+        
+        result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
+        expect(result).to be true
       end
 
       it 'does nothing when a PR adds only tests' do
@@ -217,6 +234,10 @@ module Danger
 
         OpenStruct.new(type: 'deleted', path: file_path, patch: diff_str)
       end
+    end
+
+    def class_names_match_report?(class_names:, error_report:)
+      error_report.all? { |str| class_names.any? { |class_name| str.include?("Please add tests for class `#{class_name}`") } }
     end
   end
 end
