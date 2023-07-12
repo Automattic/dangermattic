@@ -31,17 +31,16 @@ module Danger
 
         @plugin.check_missing_tests
 
-        classes = [
-          'Abc',
-          'Polygon',
-          'Abcdef',
-          'TestsINeedThem',
-          'TestsINeedThem2'
+        classes = %w[
+          Abc
+          Polygon
+          Abcdef
+          TestsINeedThem
+          TestsINeedThem2
         ]
 
         result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
         expect(result).to be true
-
       end
 
       it 'does not show errors when new classes have corresponding tests' do
@@ -97,12 +96,12 @@ module Danger
 
         @plugin.check_missing_tests
 
-        classes = [
-          'Abc',
-          'Polygon',
-          'TestsINeedThem'
+        classes = %w[
+          Abc
+          Polygon
+          TestsINeedThem
         ]
-        
+
         result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
         expect(result).to be true
       end
@@ -237,7 +236,11 @@ module Danger
     end
 
     def class_names_match_report?(class_names:, error_report:)
-      error_report.all? { |str| class_names.any? { |class_name| str.include?("Please add tests for class `#{class_name}`") } }
+      error_report.all? do |str|
+        class_names.any? do |class_name|
+          str.include?("Please add tests for class `#{class_name}`")
+        end
+      end
     end
   end
 end
