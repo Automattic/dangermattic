@@ -8,29 +8,29 @@ module Danger
     ANY_CLASS_DETECTOR = /class ([A-Z]\w+)\s*(.*?)\s*{/
     NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class ([A-Z]\w+)\s*(.*?)\s*{/
 
-    CLASSES_EXCEPTIONS = [
+    DEFAULT_CLASSES_EXCEPTIONS = [
       /ViewHolder$/,
       /Module$/
     ].freeze
 
-    SUBCLASSES_EXCEPTIONS = [
+    DEFAULT_SUBCLASSES_EXCEPTIONS = [
       /(Fragment|Activity)\b/,
       /RecyclerView/
     ].freeze
 
-    UNIT_TESTS_BYPASS_PR_LABEL = 'unit-tests-exemption'
+    DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL = 'unit-tests-exemption'
 
     # Check and warns about missing unit tests for a Git diff, with optional classes/subclasses to ignore and an
     # optional PR label to bypass the checks.
     #
     # @param classes_exceptions [Array<String>] Optional list of regexes matching class names to exclude from the
     # check.
-    #   Defaults to CLASSES_EXCEPTIONS.
+    #   Defaults to DEFAULT_CLASSES_EXCEPTIONS.
     # @param subclasses_exceptions [Array<String>] Optional list of regexes matching base class names to exclude from
     # the check.
-    #   Defaults to SUBCLASSES_EXCEPTIONS.
+    #   Defaults to DEFAULT_SUBCLASSES_EXCEPTIONS.
     # @param bypass_label [String] Optional label to indicate we can bypass the check. Defaults to
-    #   UNIT_TESTS_BYPASS_PR_LABEL.
+    #   DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL.
     # @return [void]
     #
     # @example Check missing unit tests
@@ -41,8 +41,8 @@ module Danger
     #
     # @example Check missing unit tests with a custom bypass label
     #   check_missing_tests(bypass_label: 'BypassTestCheck')
-    def check_missing_tests(classes_exceptions: CLASSES_EXCEPTIONS, subclasses_exceptions: SUBCLASSES_EXCEPTIONS,
-                            bypass_label: UNIT_TESTS_BYPASS_PR_LABEL)
+    def check_missing_tests(classes_exceptions: DEFAULT_CLASSES_EXCEPTIONS, subclasses_exceptions: DEFAULT_SUBCLASSES_EXCEPTIONS,
+                            bypass_label: DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL)
       list = find_classes_missing_tests(
         git_diff: git.diff,
         classes_exceptions: classes_exceptions,
