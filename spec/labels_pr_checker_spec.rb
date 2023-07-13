@@ -20,7 +20,7 @@ module Danger
 
         @plugin.check_labels
 
-        expect(@dangerfile.status_report[:warnings].count).to eq 1
+        expect(@dangerfile.status_report[:warnings]).to eq(['PR is missing at least one label.'])
       end
 
       it 'does nothing when a PR has at least one label' do
@@ -33,23 +33,23 @@ module Danger
       end
 
       it 'returns an error when a PR has a \'do not merge\' label' do
-        pr_labels = ['DO NOT MERGE']
-        allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+        pr_label = 'DO NOT MERGE'
+        allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
         @plugin.check_labels
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
-        expect(@dangerfile.status_report[:errors].count).to eq 1
+        expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with '#{pr_label}' label."])
       end
 
       it 'returns an error when a PR has a \'not ready for merge\' label' do
-        pr_labels = ['NOT READY FOR MERGE']
-        allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+        pr_label = 'NOT READY FOR MERGE'
+        allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
         @plugin.check_labels
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
-        expect(@dangerfile.status_report[:errors].count).to eq 1
+        expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with '#{pr_label}' label."])
       end
     end
   end
