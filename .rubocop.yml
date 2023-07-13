@@ -2,6 +2,52 @@ require:
   - rubocop-rake
   - rubocop-rspec
 
-
 AllCops:
   NewCops: enable
+
+Gemspec/DevelopmentDependencies:
+  EnforcedStyle: gemspec
+
+########## Metrics / Max Lengths Rules
+
+Layout/LineLength:
+  Max: 300
+
+Metrics/AbcSize:
+  Max: 140
+
+Metrics/BlockLength:
+  Max: 80
+  Exclude:
+   - spec/**/*_spec.rb
+   - spec/**/shared_examples_*.rb
+
+Metrics/ClassLength:
+  Max: 300
+
+Metrics/MethodLength:
+  Max: 150
+
+Metrics/ModuleLength:
+  Max: 300
+
+Metrics/ParameterLists:
+  Max: 10
+
+########## Metrics / Complexity
+
+Metrics/CyclomaticComplexity:
+  Max: 20
+
+Metrics/PerceivedComplexity:
+  Max: 20
+
+########## RSpec Rules
+
+# We are not strict to the point that we want to enforce super-short `it '…' do … end` blocks in our specs.
+RSpec/ExampleLength:
+  Enabled: false
+
+# Same for number of let/subject
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false

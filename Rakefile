@@ -8,6 +8,7 @@ RSpec::Core::RakeTask.new(:specs)
 
 task default: :specs
 
+desc 'Runs all tasks: :specs, :rubocop and :spec_docs'
 task :spec do
   Rake::Task['specs'].invoke
   Rake::Task['rubocop'].invoke
@@ -15,9 +16,7 @@ task :spec do
 end
 
 desc 'Run RuboCop on the lib/specs directory'
-RuboCop::RakeTask.new(:rubocop) do |task|
-  task.patterns = ['lib/**/*.rb', 'spec/**/*.rb']
-end
+RuboCop::RakeTask.new(:rubocop)
 
 desc 'Ensure that the plugin passes `danger plugins lint`'
 task :spec_docs do
