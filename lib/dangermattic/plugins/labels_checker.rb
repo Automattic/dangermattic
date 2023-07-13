@@ -8,6 +8,15 @@ module Danger
     DEFAULT_REQUIRED_LABELS = [/.*\S.*/].freeze
 
     # Checks if a PR is missing labels or is marked as 'do not merge'.
+    #
+    # @param do_not_merge_label [String] The label indicating that a merge should not be performed.
+    #   Defaults to DEFAULT_DO_NOT_MERGE_LABEL if not provided.
+    # @param required_labels [Array<String>] The list of labels that must be present for a merge operation to proceed.
+    #   Defaults to an empty array if not provided.
+    # @param required_labels_warning [String] The warning message displayed if the required labels are not present.
+    #   Defaults to DEFAULT_LABELS_WARNING if not provided.
+    #
+    # @return [void]
     def check(do_not_merge_label: DEFAULT_DO_NOT_MERGE_LABEL, required_labels: DEFAULT_REQUIRED_LABELS,
               required_labels_warning: DEFAULT_LABELS_WARNING)
       github_labels = danger.github.pr_labels
