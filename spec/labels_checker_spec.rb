@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::LabelsPRChecker do
+  describe Danger::LabelsChecker do
     it 'should be a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -11,7 +11,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.labels_pr_checker
+        @plugin = @dangerfile.labels_checker
       end
 
       it 'returns a warning when a PR does not have labels' do

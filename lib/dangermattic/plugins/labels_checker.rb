@@ -2,7 +2,7 @@
 
 module Danger
   # Plugin to check for labels in a PR.
-  class LabelsPRChecker < Plugin
+  class LabelsChecker < Plugin
     DEFAULT_DO_NOT_MERGE_LABEL = 'Do Not Merge'
     DEFAULT_LABELS_WARNING = 'Please add the required labels for this project.'
     DEFAULT_REQUIRED_LABELS = [/.*\S.*/].freeze
