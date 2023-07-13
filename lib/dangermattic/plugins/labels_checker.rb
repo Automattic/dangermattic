@@ -5,7 +5,7 @@ module Danger
   class LabelsChecker < Plugin
     DEFAULT_DO_NOT_MERGE_LABELS = [
       'Do Not Merge'
-    ]
+    ].freeze
 
     # Checks if a PR is missing labels or is marked with labels for not merging.
     # If labels are missing, the plugin will emit a warning. If a label indicating that the PR should not be merged is present,
@@ -28,7 +28,7 @@ module Danger
       end
 
       unless missing_required_labels.empty?
-        missing_labels_str_list = missing_required_labels.map { |regex| regex.source }
+        missing_labels_str_list = missing_required_labels.map(&:source)
         warn(required_labels_warning || "PR is missing label(s) matching: #{csv_markdown_list(missing_labels_str_list)}")
       end
 
@@ -43,7 +43,7 @@ module Danger
     private
 
     def csv_markdown_list(items)
-      items.map { |item| "`#{item}`" }.join(", ")
+      items.map { |item| "`#{item}`" }.join(', ')
     end
   end
 end
