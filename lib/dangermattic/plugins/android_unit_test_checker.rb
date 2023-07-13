@@ -44,9 +44,9 @@ module Danger
     def check_missing_tests(classes_exceptions: DEFAULT_CLASSES_EXCEPTIONS, subclasses_exceptions: DEFAULT_SUBCLASSES_EXCEPTIONS,
                             bypass_label: DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL)
       list = find_classes_missing_tests(
-        git_diff: git.diff,
-        classes_exceptions: classes_exceptions,
-        subclasses_exceptions: subclasses_exceptions
+        git.diff,
+        classes_exceptions,
+        subclasses_exceptions
       )
 
       return if list.empty?
@@ -68,15 +68,15 @@ module Danger
 
     # @param [Git::Diff] git_diff the object
     # @return [Array<ClassViolation>] An array of `ClassViolation` objects for each added class that is missing a test
-    def find_classes_missing_tests(git_diff:, classes_exceptions:, subclasses_exceptions:)
+    def find_classes_missing_tests(git_diff, classes_exceptions, subclasses_exceptions)
       violations = []
       removed_classes = []
       added_test_lines = []
 
       # Parse the diff of each file, storing test lines for test files, and added/removed classes for non-test files
       git_diff.each do |file_diff|
-        path = file_diff.path
-        if test_file?(path: path)
+        file_path = file_diff.path
+        if test_file?(path: file_path)
           # Store added test lines from test files
           added_test_lines += file_diff.patch.each_line.select do |line|
             GitUtils.change_type(diff_line: line) == :added
@@ -89,13 +89,13 @@ module Danger
               matches = line.scan(NON_PRIVATE_CLASS_DETECTOR)
               matches.reject! do |m|
                 class_match_is_exception?(
-                  match: m,
-                  file: path,
-                  classes_exceptions: classes_exceptions,
-                  subclasses_exceptions: subclasses_exceptions
+                  m,
+                  file_path,
+                  classes_exceptions,
+                  subclasses_exceptions
                 )
               end
-              violations += matches.map { |m| ClassViolation.new(m[0], path) }
+              violations += matches.map { |m| ClassViolation.new(m[0], file_path) }
             when :removed
               matches = line.scan(ANY_CLASS_DETECTOR)
               removed_classes += matches.map { |m| m[0] }
@@ -114,7 +114,7 @@ module Danger
 
     # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
     # @param [String] file the path to the file where that class declaration line was matched
-    def class_match_is_exception?(match:, file:, classes_exceptions:, subclasses_exceptions:)
+    def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[0] =~ re }
 
       subclass_regexp = File.extname(file) == '.java' ? /extends ([A-Z]\w+)/ : /\s*:\s*([A-Z]\w+)/
@@ -123,7 +123,7 @@ module Danger
     end
 
     def test_file?(path:)
-      GitUtils.android_test_file?(path: path)
+      path.match? %r{/(test|androidTest).*\.(java|kt)$}
     end
   end
 end

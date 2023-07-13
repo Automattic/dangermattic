@@ -4,7 +4,7 @@ require_relative 'spec_helper'
 
 module Danger
   describe Danger::AndroidUnitTestChecker do
-    it 'should be a plugin' do
+    it 'is a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
 
@@ -14,6 +14,8 @@ module Danger
         @plugin = @dangerfile.android_unit_test_checker
 
         allow(@plugin.github).to receive(:pr_labels).and_return(['my_label'])
+
+        stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
       end
 
       it 'shows the right number of errors when a PR adding new classes that do not have corresponding tests' do
@@ -163,23 +165,23 @@ module Danger
           'Abcdef.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
         }
 
-        bypass_label = 'ignore-no-tests'
+        ignore_label = 'ignore-no-tests'
 
         diff = generate_add_diff(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
-        allow(@plugin.github).to receive(:pr_labels).and_return([bypass_label])
+        allow(@plugin.github).to receive(:pr_labels).and_return([ignore_label])
 
-        @plugin.check_missing_tests(bypass_label: bypass_label)
+        @plugin.check_missing_tests(bypass_label: ignore_label)
 
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does not show that a PR adding custom classes / subclasses patterns are missing tests' do
-        exceptions = [
+        classes_to_ignore = [
           /ViewHelper$/
         ].freeze
 
-        subclasses_exceptions = [
+        subclasses_to_ignore = [
           /BaseViewWrangler/
         ].freeze
 
@@ -195,14 +197,14 @@ module Danger
         diff = generate_add_diff(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
-        @plugin.check_missing_tests(classes_exceptions: exceptions, subclasses_exceptions: subclasses_exceptions)
+        @plugin.check_missing_tests(classes_exceptions: classes_to_ignore, subclasses_exceptions: subclasses_to_ignore)
 
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does nothing when a PR moves code around and' do
         shape_dict = {
-          'Shape.kt' => '"open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"',
+          'Shape.kt' => '"open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"'
         }
 
         polygon_test_diff_str = <<~PATCH
@@ -214,7 +216,7 @@ module Danger
           -class PolygonTest {
           -  val sut10: Shape = Polygon(sides = 10)
           -  val sut5: Shape = Polygon(sides = 5)
-          -  
+          -
           -  fun testDraw() {
           -    Polygon(sides = 5).draw()
           +class ShapesTest {
@@ -229,7 +231,7 @@ module Danger
         PATCH
 
         shape_diff = generate_add_diff(shape_dict)
-        polygon_diff = OpenStruct.new(type: 'modified', path: 'project/src/androidTest/java/shapes/PolygonTest.kt', patch: polygon_test_diff_str)
+        polygon_diff = GitDiffStruct.new('modified', 'project/src/androidTest/java/shapes/PolygonTest.kt', polygon_test_diff_str)
 
         allow(@dangerfile.git).to receive(:diff).and_return(shape_diff + [polygon_diff])
 
@@ -252,7 +254,7 @@ module Danger
           \\ No newline at end of file
         PATCH
 
-        OpenStruct.new(type: 'new', path: file_path, patch: diff_str)
+        GitDiffStruct.new('new', file_path, diff_str)
       end
     end
 
@@ -269,7 +271,7 @@ module Danger
           \\ No newline at end of file
         PATCH
 
-        OpenStruct.new(type: 'deleted', path: file_path, patch: diff_str)
+        GitDiffStruct.new('deleted', file_path, diff_str)
       end
     end
 
