@@ -15,8 +15,8 @@ module Danger
       pr_has_screenshots = github.pr_body =~ %r{https?://\S*\.(gif|jpg|jpeg|png|svg)}
       pr_has_screenshots ||= github.pr_body =~ /!\[(.*?)\]\((.*?)\)/
 
-      warning = 'View files have been modified, but no screenshot is included in the pull request.' \
-                ' Consider adding some for clarity.'
+      warning = 'View files have been modified, but no screenshot is included in the pull request. ' \
+                'Consider adding some for clarity.'
       warn(warning) if view_files_modified && !pr_has_screenshots
     end
   end

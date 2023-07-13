@@ -4,7 +4,7 @@ require_relative 'spec_helper'
 
 module Danger
   describe Danger::ViewChangesNeedScreenshots do
-    it 'should be a plugin' do
+    it 'is a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
 
