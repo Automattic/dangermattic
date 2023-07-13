@@ -22,22 +22,22 @@ module Danger
     def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_warning: nil)
       github_labels = danger.github.pr_labels
 
-      # warn if a PR matches any of the
-      missing_required_labels = required_labels.reject do |required_label|
-        github_labels.any? { |pr_label| pr_label =~ required_label }
-      end
-
-      unless missing_required_labels.empty?
-        missing_labels_str_list = missing_required_labels.map(&:source)
-        warn(required_labels_warning || "PR is missing label(s) matching: #{csv_markdown_list(missing_labels_str_list)}")
-      end
-
-      # A PR shouldn't be merged with the 'DO NOT MERGE' label.
+      # A PR shouldn't be merged with the 'DO NOT MERGE' label
       found_labels = github_labels.select do |github_label|
         do_not_merge_labels.any? { |label| github_label.casecmp?(label) }
       end
 
       failure("This PR is tagged with #{csv_markdown_list(found_labels)} label(s).") unless found_labels.empty?
+
+      # warn if a PR is missing any of the required labels
+      missing_required_labels = required_labels.reject do |required_label|
+        github_labels.any? { |pr_label| pr_label =~ required_label }
+      end
+
+      return if missing_required_labels.empty?
+
+      missing_labels_str_list = missing_required_labels.map(&:source)
+      warn(required_labels_warning || "PR is missing label(s) matching: #{csv_markdown_list(missing_labels_str_list)}")
     end
 
     private
