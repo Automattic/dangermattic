@@ -5,6 +5,12 @@ require:
 AllCops:
   NewCops: enable
 
+########## Gemspec Rules
+
+# Disabling this as all the gem publishing will be done within CI and doesn't allow for user input such as an MFA code.
+Gemspec/RequireMFA:
+  Enabled: false
+
 Gemspec/DevelopmentDependencies:
   EnforcedStyle: gemspec
 
