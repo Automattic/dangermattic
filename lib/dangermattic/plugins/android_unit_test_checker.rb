@@ -66,7 +66,9 @@ module Danger
 
     ClassViolation = Struct.new(:classname, :file)
 
-    # @param [Git::Diff] git_diff the object
+    # @param [Git::Diff] the git diff object
+    # @param [Array<String>] Regexes matching class names to exclude from the check.
+    # @param [Array<String>] Regexes matching base class names to exclude from the check
     # @return [Array<ClassViolation>] An array of `ClassViolation` objects for each added class that is missing a test
     def find_classes_missing_tests(git_diff, classes_exceptions, subclasses_exceptions)
       violations = []
@@ -114,6 +116,9 @@ module Danger
 
     # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
     # @param [String] file the path to the file where that class declaration line was matched
+    # @param [Array<String>] Regexes matching class names to exclude from the check.
+    # @param [Array<String>] Regexes matching base class names to exclude from the check
+    # @return [void]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[0] =~ re }
 
