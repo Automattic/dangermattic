@@ -27,7 +27,7 @@ module Danger
         do_not_merge_labels.any? { |label| github_label.casecmp?(label) }
       end
 
-      failure("This PR is tagged with #{csv_markdown_list(found_labels)} label(s).") unless found_labels.empty?
+      failure("This PR is tagged with #{markdown_list_string(found_labels)} label(s).") unless found_labels.empty?
 
       # warn if a PR is missing any of the required labels
       missing_required_labels = required_labels.reject do |required_label|
@@ -36,13 +36,13 @@ module Danger
 
       return if missing_required_labels.empty?
 
-      missing_labels_str_list = missing_required_labels.map(&:source)
-      warn(required_labels_warning || "PR is missing label(s) matching: #{csv_markdown_list(missing_labels_str_list)}")
+      missing_labels_list = missing_required_labels.map(&:source)
+      warn(required_labels_warning || "PR is missing label(s) matching: #{markdown_list_string(missing_labels_list)}")
     end
 
     private
 
-    def csv_markdown_list(items)
+    def markdown_list_string(items)
       items.map { |item| "`#{item}`" }.join(', ')
     end
   end
