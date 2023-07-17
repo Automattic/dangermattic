@@ -21,7 +21,7 @@ module Danger
 
           @plugin.check_gemfile_lock_updated
 
-          expected_warning = ['Gemfile was changed without updating Gemfile.lock. Please run `bundle install` or `bundle update <updated_gem>`.']
+          expected_warning = ['Gemfile was changed without updating its corresponding Gemfile.lock. Please run `bundle install` or `bundle update <updated_gem>`.']
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -51,7 +51,7 @@ module Danger
 
           @plugin.check_podfile_lock_updated
 
-          expected_warning = ['Podfile was changed without updating Podfile.lock. Please run `bundle exec pod install`.']
+          expected_warning = ['Podfile was changed without updating its corresponding Podfile.lock. Please run `bundle exec pod install`.']
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -70,19 +70,31 @@ module Danger
 
           @plugin.check_podfile_lock_updated
 
-          expected_warning = ['Podfile was changed without updating Podfile.lock. Please run `bundle exec pod install`.']
+          expected_warning = ['./path/to/Podfile was changed without updating its corresponding Podfile.lock. Please run `bundle exec pod install`.']
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
-        it 'returns no warnings when both custom located Podfile and the Podfile.lock were updated' do
-          modified_files = ['./my/path/to/Podfile', './my/path/to/Podfile.lock']
+        it 'returns multiple warnings when a PR changed a custom located Podfile but not the corresponding Podfile.lock' do
+          modified_files = ['./dir1/Podfile', './dir2/Podfile', './dir3/Podfile', './dir1/Podfile.lock']
+          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+          @plugin.check_podfile_lock_updated
+
+          expected_warnings = [
+            './dir2/Podfile was changed without updating its corresponding Podfile.lock. Please run `bundle exec pod install`.',
+            './dir3/Podfile was changed without updating its corresponding Podfile.lock. Please run `bundle exec pod install`.'
+          ]
+          expect(@dangerfile.status_report[:warnings]).to eq expected_warnings
+        end
+
+        it 'returns no warnings when both custom located Podfile`s and their corresponding Podfile.lock were updated' do
+          modified_files = ['./my/path/to/Podfile', './another/path/to/Podfile', './my/path/to/Podfile.lock', './another/path/to/Podfile.lock']
           allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
 
           @plugin.check_podfile_lock_updated
 
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
-
 
         it 'returns no warnings when only the Podfile.lock was updated' do
           modified_files = ['Podfile.lock']
@@ -101,7 +113,7 @@ module Danger
 
           @plugin.check_swift_package_resolved_updated
 
-          expected_warning = ['Package.swift was changed without updating Package.resolved. Please resolve the Swift packages in Xcode.']
+          expected_warning = ['Package.swift was changed without updating its corresponding Package.resolved. Please resolve the Swift packages in Xcode.']
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 

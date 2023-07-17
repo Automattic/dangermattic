@@ -41,12 +41,16 @@ module Danger
     private
 
     def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:)
-      manifest_modified_file = git.modified_files.find { |f| f.end_with?(file_name) }
-      lock_modified = git.modified_files.any? { |f| f.end_with?(lock_file_name) && manifest_modified_file && File.dirname(f) == File.dirname(manifest_modified_file) }
+      # Find all the modified manifest files
+      manifest_modified_files = git.modified_files.select { |f| File.basename(f) == file_name }
 
-      return unless manifest_modified_file && !lock_modified
+      # For each manifest file, check if the corresponding lockfile (in the same dir) was also modified
+      manifest_modified_files.each do |manifest_file|
+        lockfile_modified = git.modified_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
+        next if lockfile_modified
 
-      warn("#{file_name} was changed without updating #{lock_file_name}. #{instruction}.")
+        warn("#{manifest_file} was changed without updating its corresponding #{lock_file_name}. #{instruction}.")
+      end
     end
   end
 end
