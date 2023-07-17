@@ -18,7 +18,7 @@ module Danger
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
       end
 
-      it 'shows the right number of errors when a PR adding new classes that do not have corresponding tests' do
+      it 'shows the right errors when a PR adds new classes that do not have corresponding tests' do
         changes_dict = {
           'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
