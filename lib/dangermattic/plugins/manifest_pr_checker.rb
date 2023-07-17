@@ -3,7 +3,6 @@
 module Danger
   # Plugin to check if the Gemfile.lock was updated when changing the Gemfile in a PR.
   class ManifestPRChecker < Plugin
-
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.
     def check_all_manifest_lock_updated
@@ -42,10 +41,10 @@ module Danger
     private
 
     def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:)
-      manifest_modified = git.modified_files.include?(file_name)
-      lock_modified = git.modified_files.include?(lock_file_name)
+      manifest_modified_file = git.modified_files.find { |f| f.end_with?(file_name) }
+      lock_modified = git.modified_files.any? { |f| f.end_with?(lock_file_name) && manifest_modified_file && File.dirname(f) == File.dirname(manifest_modified_file) }
 
-      return unless manifest_modified && !lock_modified
+      return unless manifest_modified_file && !lock_modified
 
       warn("#{file_name} was changed without updating #{lock_file_name}. #{instruction}.")
     end

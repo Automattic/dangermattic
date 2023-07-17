@@ -64,6 +64,26 @@ module Danger
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
+        it 'returns a warning when a PR changed a custom located Podfile but not the corresponding Podfile.lock' do
+          modified_files = ['./path/to/Podfile', './my/Podfile.lock']
+          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+          @plugin.check_podfile_lock_updated
+
+          expected_warning = ['Podfile was changed without updating Podfile.lock. Please run `bundle exec pod install`.']
+          expect(@dangerfile.status_report[:warnings]).to eq expected_warning
+        end
+
+        it 'returns no warnings when both custom located Podfile and the Podfile.lock were updated' do
+          modified_files = ['./my/path/to/Podfile', './my/path/to/Podfile.lock']
+          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+          @plugin.check_podfile_lock_updated
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+        end
+
+
         it 'returns no warnings when only the Podfile.lock was updated' do
           modified_files = ['Podfile.lock']
           allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
