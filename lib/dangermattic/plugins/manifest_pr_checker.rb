@@ -3,6 +3,15 @@
 module Danger
   # Plugin to check if the Gemfile.lock was updated when changing the Gemfile in a PR.
   class ManifestPRChecker < Plugin
+
+    # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
+    # lock file changes.
+    def check_all_manifest_lock_updated
+      check_gemfile_lock_updated
+      check_podfile_lock_updated
+      check_swift_package_resolved_updated
+    end
+
     # Check if the `Gemfile` file was modified without a corresponding `Gemfile.lock` update
     def check_gemfile_lock_updated
       check_manifest_lock_updated(
