@@ -13,7 +13,7 @@ module Danger
     #
     # @param do_not_merge_labels [String] The possible labels indicating that a merge should not be allowed.
     #   Defaults to DEFAULT_DO_NOT_MERGE_LABELS if not provided.
-    # @param required_labels [Array<String>] The list of RegExes that will prevent the merge if any matching label is present in the PR.
+    # @param required_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that we want to be required on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param required_labels_warning [String] The warning message displayed if the required labels are not present.
     #   Defaults to showing the provided label regexes.
