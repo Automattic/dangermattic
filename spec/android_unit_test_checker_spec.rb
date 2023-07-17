@@ -41,8 +41,7 @@ module Danger
           TestsINeedThem2
         ]
 
-        result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
-        expect(result).to be true
+        expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
       it 'does not show errors when new classes have corresponding tests' do
@@ -104,8 +103,7 @@ module Danger
           TestsINeedThem
         ]
 
-        result = class_names_match_report?(class_names: classes, error_report: @dangerfile.status_report[:errors])
-        expect(result).to be true
+        expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
       it 'does nothing when a PR adds only tests' do
@@ -275,11 +273,10 @@ module Danger
       end
     end
 
-    def class_names_match_report?(class_names:, error_report:)
-      error_report.all? do |str|
-        class_names.any? do |class_name|
-          str.include?("Please add tests for class `#{class_name}`")
-        end
+    def expect_class_names_match_report(class_names:, error_report:)
+      expect(class_names.length).to eq(error_report.length)
+      class_names.zip(error_report).each do |cls, error|
+        expect(error).to include "Please add tests for class `#{cls}`"
       end
     end
   end
