@@ -202,7 +202,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does nothing when a PR moves code around and' do
+      it 'does nothing when a PR moves code around with both additions and removals in the diff' do
         shape_dict = {
           'Shape.kt' => '"open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"'
         }
