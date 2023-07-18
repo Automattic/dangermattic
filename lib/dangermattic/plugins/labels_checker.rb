@@ -13,13 +13,18 @@ module Danger
     #
     # @param do_not_merge_labels [String] The possible labels indicating that a merge should not be allowed.
     #   Defaults to DEFAULT_DO_NOT_MERGE_LABELS if not provided.
-    # @param required_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that we want to be required on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
+    # @param required_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that are *required* on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
-    # @param required_labels_warning [String] The warning message displayed if the required labels are not present.
+    # @param required_labels_error [String] The error message displayed if the required labels are not present.
+    #   Defaults to showing the provided label regexes.
+    # @param recommended_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that we want a PR to have,
+    # with a warning if it doesn't (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
+    #   Defaults to an empty array if not provided.
+    # @param recommended_labels_warning [String] The warning message displayed if the recommended labels are not present.
     #   Defaults to showing the provided label regexes.
     #
     # @return [void]
-    def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_warning: nil)
+    def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_error: nil, recommended_labels: [], recommended_labels_warning: nil)
       github_labels = danger.github.pr_labels
 
       # A PR shouldn't be merged with the 'DO NOT MERGE' label
@@ -29,18 +34,31 @@ module Danger
 
       failure("This PR is tagged with #{markdown_list_string(found_labels)} label(s).") unless found_labels.empty?
 
-      # warn if a PR is missing any of the required labels
-      missing_required_labels = required_labels.reject do |required_label|
-        github_labels.any? { |pr_label| pr_label =~ required_label }
-      end
+      # fail if a PR is missing any of the required labels
+      check_missing_labels(labels: github_labels, expected_labels: required_labels, fail_on_missing: true, custom_message: required_labels_error)
 
-      return if missing_required_labels.empty?
-
-      missing_labels_list = missing_required_labels.map(&:source)
-      warn(required_labels_warning || "PR is missing label(s) matching: #{markdown_list_string(missing_labels_list)}")
+      # warn if a PR is missing any of the recommended labels
+      check_missing_labels(labels: github_labels, expected_labels: recommended_labels, fail_on_missing: false, custom_message: recommended_labels_warning)
     end
 
     private
+
+    def check_missing_labels(labels:, expected_labels:, fail_on_missing:, custom_message: nil)
+      missing_expected_labels = expected_labels.reject do |required_label|
+        labels.any? { |label| label =~ required_label }
+      end
+
+      return if missing_expected_labels.empty?
+
+      missing_labels_list = missing_expected_labels.map(&:source)
+      message = custom_message || "PR is missing label(s) matching: #{markdown_list_string(missing_labels_list)}"
+
+      if fail_on_missing
+        failure(message)
+      else
+        warn(message)
+      end
+    end
 
     def markdown_list_string(items)
       items.map { |item| "`#{item}`" }.join(', ')

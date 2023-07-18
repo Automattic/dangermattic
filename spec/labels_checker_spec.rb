@@ -14,89 +14,159 @@ module Danger
         @plugin = @dangerfile.labels_checker
       end
 
-      it 'returns a warning when a PR does not have at least one label' do
-        allow(@plugin.github).to receive(:pr_labels).and_return([])
+      context 'with required labels' do
+        it 'returns a custom error when a PR does not have at least one label' do
+          allow(@plugin.github).to receive(:pr_labels).and_return([])
 
-        warning = 'PR is missing at least one label.'
-        @plugin.check(required_labels: [/.*/], required_labels_warning: warning)
+          error = 'PR is missing at least one label.'
+          @plugin.check(required_labels: [/.*/], required_labels_error: error)
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
-        expect(@dangerfile.status_report[:warnings]).to eq([warning])
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to eq([error])
+        end
+
+        it 'does nothing when a PR has at least one label' do
+          pr_labels = ['my-label']
+          allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+
+          @plugin.check(required_labels: [/.*/])
+
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+        end
+
+        it 'returns an error containing the required labels when a PR does not meet the label requirements' do
+          pr_label = 'random other label'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
+
+          @plugin.check(
+            required_labels: [/feature: .*/]
+          )
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to eq(['PR is missing label(s) matching: `feature: .*`'])
+        end
+
+        it 'returns a custom error when a PR has custom label requirements' do
+          pr_label = 'random other label'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
+
+          custom_labels_error = "Please add at least one label in the 'feature: myFeatureName' format."
+
+          @plugin.check(
+            required_labels: [/feature: .*/],
+            required_labels_error: custom_labels_error
+          )
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to eq([custom_labels_error])
+        end
+
+        it 'does nothing when custom required labels are correctly set in the PR' do
+          pr_labels = [
+            'feature: time travel',
+            'type: prototype'
+          ]
+          allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+
+          @plugin.check(
+            required_labels: [/feature: .*/, /type: .*/]
+          )
+
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+        end
       end
 
-      it 'does nothing when a PR has at least one label' do
-        pr_labels = ['my-label']
-        allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+      context 'with recommended labels' do
+        it 'returns a warning containing the recommended labels when a PR does not meet the label requirements' do
+          pr_label = 'random other label'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
-        @plugin.check(required_labels: [/.*/])
+          @plugin.check(
+            recommended_labels: [/feature: .*/]
+          )
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to eq(['PR is missing label(s) matching: `feature: .*`'])
+        end
+
+        it 'returns a custom warning when a PR has custom label requirements' do
+          pr_label = 'random other label'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
+
+          custom_labels_warning = "Please add at least one label in the 'feature: myFeatureName' format."
+
+          @plugin.check(
+            recommended_labels: [/feature: .*/],
+            recommended_labels_warning: custom_labels_warning
+          )
+
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to eq([custom_labels_warning])
+        end
+
+        it 'does nothing when custom recommended labels are correctly set in the PR' do
+          pr_labels = [
+            '[feature]: time travel',
+            '[type]: prototype'
+          ]
+          allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
+
+          @plugin.check(
+            recommended_labels: [/\[feature\]: .*/, /\[type\]: .*/]
+          )
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to be_empty
+        end
       end
 
-      it 'returns an error when a PR has a \'do not merge\' label' do
-        pr_label = 'DO NOT MERGE'
+      context 'with \'do not merge\' labels' do
+        it 'returns an error when a PR has a \'do not merge\' label' do
+          pr_label = 'DO NOT MERGE'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
+
+          @plugin.check
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
+        end
+
+        it 'returns an error when a PR has a custom label for not merging' do
+          pr_label = 'please dont merge'
+          allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
+
+          labels = ['blocked', pr_label]
+          @plugin.check(
+            do_not_merge_labels: labels
+          )
+
+          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
+        end
+      end
+
+      it 'returns the right errors and warning when combining the check parameters' do
+        pr_label = 'blocked'
         allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
-        @plugin.check
-
-        expect(@dangerfile.status_report[:warnings]).to be_empty
-        expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
-      end
-
-      it 'returns an error when a PR has a custom label for not merging' do
-        pr_label = 'please dont merge'
-        allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
-
-        allowed_labels = [pr_label, 'blocked']
-        @plugin.check(
-          do_not_merge_labels: allowed_labels
-        )
-
-        expect(@dangerfile.status_report[:warnings]).to be_empty
-        expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
-      end
-
-      it 'returns a warning when a PR has custom label requirements' do
-        pr_label = 'random other label'
-        allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
-
-        @plugin.check(
-          required_labels: [/feature: .*/]
-        )
-
-        expect(@dangerfile.status_report[:errors]).to be_empty
-        expect(@dangerfile.status_report[:warnings]).to eq(['PR is missing label(s) matching: `feature: .*`'])
-      end
-
-      it 'returns a custom warning when a PR has custom label requirements' do
-        pr_label = 'random other label'
-        allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
-
+        custom_labels_error = "Please add at least one label in the 'type: issueType' format."
         custom_labels_warning = "Please add at least one label in the 'feature: myFeatureName' format."
 
         @plugin.check(
-          required_labels: [/feature: .*/],
-          required_labels_warning: custom_labels_warning
+          do_not_merge_labels: [pr_label],
+          required_labels: [/type: .*/],
+          required_labels_error: custom_labels_error,
+          recommended_labels: [/feature: .*/],
+          recommended_labels_warning: custom_labels_warning
         )
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
         expect(@dangerfile.status_report[:warnings]).to eq([custom_labels_warning])
-      end
-
-      it 'does nothing when custom labels are correctly set in the PR' do
-        pr_labels = [
-          'feature: time travel',
-          'type: prototype'
-        ]
-        allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
-
-        @plugin.check(
-          required_labels: [/feature: .*/, /type: .*/]
+        expect(@dangerfile.status_report[:errors]).to contain_exactly(
+          "This PR is tagged with `#{pr_label}` label(s).",
+          custom_labels_error
         )
-
-        expect(@dangerfile.status_report[:errors]).to be_empty
-        expect(@dangerfile.status_report[:warnings]).to be_empty
       end
     end
   end
