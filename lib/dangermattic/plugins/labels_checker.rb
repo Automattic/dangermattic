@@ -16,12 +16,12 @@ module Danger
     # @param required_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that are *required* on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param required_labels_error [String] The error message displayed if the required labels are not present.
-    #   Defaults to showing the provided label regexes.
+    #   Defaults to a generic message that includes the missing label's regexes.
     # @param recommended_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that we want a PR to have,
     # with a warning if it doesn't (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param recommended_labels_warning [String] The warning message displayed if the recommended labels are not present.
-    #   Defaults to showing the provided label regexes.
+    #   Defaults to a generic message that includes the missing label's regexes.
     #
     # @return [void]
     def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_error: nil, recommended_labels: [], recommended_labels_warning: nil)
