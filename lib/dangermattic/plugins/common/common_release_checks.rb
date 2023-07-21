@@ -3,7 +3,7 @@
 module Danger
   # Plugin performing a generic checks related to releases. Can be used directly or via specialised plugins as `AndroidReleaseCheck` and `IosReleaseCheck`.
   class CommonReleaseChecks < Plugin
-    INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
+    DEFAULT_INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
 
     # Check if certain files have been modified, returning a warning or failure message based on the branch type.
     #
@@ -71,16 +71,26 @@ module Danger
       end
     end
 
-    # Check if there are changes to the internal release notes file in the release branch and emit a warning.
-    def check_internal_release_notes_changed
+    # Check if there are changes to the internal release notes file in the release branch and emit a warning if that's the case.
+    #
+    # @param release_notes_file [String] (optional) The path to the internal release notes file.
+    #        Defaults to the `DEFAULT_INTERNAL_RELEASE_NOTES` constant if not provided.
+    #
+    # @example Checking for changes in the default internal release notes file:
+    #   check_internal_release_notes_changed
+    #
+    # @example Checking for changes in a custom internal release notes file at a specific path:
+    #   check_internal_release_notes_changed(release_notes_file: '/path/to/internal_release_notes.txt')
+    #
+    def check_internal_release_notes_changed(release_notes_file: DEFAULT_INTERNAL_RELEASE_NOTES)
       warning = <<~WARNING
-        This PR contains changes to `RELEASE-NOTES.txt`.
+        This PR contains changes to `#{release_notes_file}`.
         Note that these changes won't affect the final version of the release notes as this version is in code freeze.
         Please, get in touch with a release manager if you want to update the final release notes.
       WARNING
 
       check_file_changed(
-        file_comparison: ->(path) { path.end_with?(INTERNAL_RELEASE_NOTES) },
+        file_comparison: ->(path) { path == release_notes_file },
         message: warning,
         on_release: true,
         fail_on_error: false
