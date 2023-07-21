@@ -9,7 +9,7 @@ module Danger
                 'Instead create a new model version and merge back to develop soon.'
 
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { path.end_with?('.xcdatamodeld') },
+        file_comparison: ->(path) { File.extname(path) == '.xcdatamodeld' },
         message: warning,
         on_release: true
       )
