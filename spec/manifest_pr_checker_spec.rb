@@ -74,7 +74,7 @@ module Danger
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
-        it 'returns multiple warnings when a PR changed a custom located Podfile but not the corresponding Podfile.lock' do
+        it 'returns multiple warnings when a PR changed multiple custom located Podfiles but not the corresponding Podfile.lock' do
           modified_files = ['./dir1/Podfile', './dir2/Podfile', './dir3/Podfile', './dir1/Podfile.lock']
           allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
 
