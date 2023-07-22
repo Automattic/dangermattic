@@ -27,7 +27,7 @@ module Danger
       commit_references = []
       podfile_lock_dependencies = podfile_lock_data[PODFILE_LOCK_DEPENDENCIES_ENTRY]
       podfile_lock_dependencies&.each do |dependency|
-        commit_references << dependency if dependency.match?(/\(from `\S+`, commit `\S+`\)/)
+        commit_references << dependency if podfile_lock_commit_reference?(line: dependency)
       end
 
       return if commit_references.empty?
@@ -41,9 +41,15 @@ module Danger
 
       git_utils.check_added_diff_lines(
         file_selector: ->(path) { path.end_with?(PODFILE_LOCK) },
-        line_matcher: ->(line) { line.match?(/\(from `\S+`, commit `\S+`\)/) },
+        line_matcher: ->(line) { podfile_lock_commit_reference?(line:) },
         message: warning_message
       )
+    end
+
+    private
+
+    def podfile_lock_commit_reference?(line:)
+      line.match?(/\(from `\S+`, commit `\S+`\)/)
     end
   end
 end
