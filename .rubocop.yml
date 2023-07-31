@@ -5,6 +5,9 @@ require:
 AllCops:
   NewCops: enable
 
+Style/HashSyntax:
+  EnforcedShorthandSyntax: either
+
 ########## Gemspec Rules
 
 # Disabling this as all the gem publishing will be done within CI and doesn't allow for user input such as an MFA code.
@@ -57,3 +60,6 @@ RSpec/ExampleLength:
 # Same for number of let/subject
 RSpec/MultipleMemoizedHelpers:
   Enabled: false
+
+RSpec/MultipleExpectations:
+  Max: 2
