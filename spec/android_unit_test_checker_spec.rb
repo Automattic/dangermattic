@@ -56,7 +56,7 @@ module Danger
           'project/src/androidTest/java/org/test/TestMyNewClass.java' => 'class TestMyNewClass { public void testMe() { new MyNewClass().testMe() } }'
         }
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -66,12 +66,12 @@ module Danger
 
       it 'does not show errors when we are deleting classes' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
+          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(\"\"); } }",
           'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
           'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }'
         }
 
-        diff = generate_deleted_diff(changes_dict)
+        diff = generate_delete_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -81,7 +81,7 @@ module Danger
 
       it 'show errors when we remove test classes for classes we refactored' do
         added_classes = {
-          'Abc.kt' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
+          'Abc.kt' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(\"\"); } }",
           'Polygon.kt' => 'data class Polygon(sides: Int) { fun draw() {} }',
           'TestsINeedThem.kt' => 'public open class TestsINeedThem { fun testMe2() { } }'
         }
@@ -92,7 +92,7 @@ module Danger
           'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe2() { TestsINeedThem().testMe2() } }'
         }
 
-        diff = generate_add_diff(added_classes) + generate_deleted_diff(removed_tests)
+        diff = generate_add_diff_from_dict(added_classes) + generate_delete_diff_from_dict(removed_tests)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -113,7 +113,7 @@ module Danger
           'project/src/androidTest/java/org/test/MyHelperTest.java' => 'public class MyHelperTest { public void testMe() {} }'
         }
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -124,7 +124,7 @@ module Danger
       it 'does nothing when a PR adds classes that dont need tests' do
         changes_dict = {
           'project/src/android/java/org/activities/MyActivity.kt' => 'class MyActivity: Activity { fun myActivity() {} }',
-          'project/src/android/java/org/activities/MyJavaActivity.java' => 'class MyJavaActivity extends Activity { public void myJavaActivity() {} }',
+          'project/src/android/java/org/activities/MyJavaActivity.java' => "class\nMyJavaActivity\nextends\nActivity { public void myJavaActivity() {} }",
           'project/src/android/java/org/fragments/MyFragment.kt' => 'class MyFragment: Fragment { override fun onBackPressed() {} }',
           'project/src/android/java/org/fragments/MyNewJavaFragment.java' => 'public class MyNewJavaFragment extends Fragment { public void myFragment() {} }',
           'project/src/android/java/org/module/MyModule.java' => 'public class MyModule { public void module() {} }',
@@ -132,7 +132,7 @@ module Danger
           'project/src/android/java/org/view/MyViewHolder.kt' => 'class MyViewHolder { fun testMe() {} }'
         }
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -142,12 +142,12 @@ module Danger
 
       it 'does not show that a PR with the tests bypass label is missing tests' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
+          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(\"\"); } }",
           'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println(""); } }',
           'TestsINeedThem2.kt' => 'public open class TestsINeedThem2 { fun testMe2() { } }'
         }
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
         allow(@plugin.github).to receive(:pr_labels).and_return(['unit-tests-exemption'])
 
@@ -158,14 +158,14 @@ module Danger
 
       it 'does not show errors when a PR without tests with a custom bypass label is missing tests' do
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
+          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(\"\"); } }",
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
           'Abcdef.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
         }
 
         ignore_label = 'ignore-no-tests'
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
         allow(@plugin.github).to receive(:pr_labels).and_return([ignore_label])
 
@@ -184,15 +184,15 @@ module Danger
         ].freeze
 
         changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(""); } }',
-          'AbcWrangler.java' => 'import java.utils.*;\n\n abstract class AbcWrangler extends BaseViewWrangler { public abstract void wrangle(); }',
+          'Abc.java' => "import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(\"\"); } }",
+          'AbcWrangler.java' => "import java.utils.*;\n\n abstract class AbcWrangler extends BaseViewWrangler { public abstract void wrangle(); }",
           'KotlinWrangler.kt' => 'abstract class KotlinWrangler: BaseViewWrangler { abstract fun wrangle(); }',
           'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { void testMethod() {} }',
           'AbcdefViewHelper.kt' => 'class AbcdefViewHelper(name: String) { fun testMe() { println(""); } }',
           'AbcdefgViewHelper.java' => 'public final class AbcdefgViewHelper { public static void testMe() { System.out.println(""); } }'
         }
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_dict(changes_dict)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests(classes_exceptions: classes_to_ignore, subclasses_exceptions: subclasses_to_ignore)
@@ -202,7 +202,7 @@ module Danger
 
       it 'does nothing when a PR moves code around with both additions and removals in the diff' do
         shape_dict = {
-          'Shape.kt' => '"open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"'
+          'Shape.kt' => "open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"
         }
 
         polygon_test_diff_str = <<~PATCH
@@ -228,7 +228,7 @@ module Danger
           }
         PATCH
 
-        shape_diff = generate_add_diff(shape_dict)
+        shape_diff = generate_add_diff_from_dict(shape_dict)
         polygon_diff = GitDiffStruct.new('modified', 'project/src/androidTest/java/shapes/PolygonTest.kt', polygon_test_diff_str)
 
         allow(@dangerfile.git).to receive(:diff).and_return(shape_diff + [polygon_diff])
@@ -239,38 +239,66 @@ module Danger
       end
     end
 
-    def generate_add_diff(changes_dict)
-      changes_dict.map do |file_path, content|
-        diff_str = <<~PATCH
-          diff --git a/#{file_path} b/#{file_path}
-          new file mode 100644
-          index 0000000..fd48a22
-          --- /dev/null
-          +++ b/#{file_path}
-          @@ -0,0 +1 @@
-          +#{content}
-          \\ No newline at end of file
-        PATCH
+    def generate_add_diff_from_fixtures(paths)
+      paths.map do |path|
+        content = fixture(File.join('android_unit_test_checker', path))
+        diff_str = generate_add_diff(file_path: path, content: content)
 
+        GitDiffStruct.new('new', path, diff_str)
+      end
+    end
+
+    def generate_delete_diff_from_fixtures(paths)
+      paths.map do |path|
+        content = fixture(File.join('android_unit_test_checker', path))
+        diff_str = generate_delete_diff(file_path: path, content: content)
+
+        GitDiffStruct.new('deleted', path, diff_str)
+      end
+    end
+
+    def generate_add_diff_from_dict(changes_dict)
+      changes_dict.map do |file_path, content|
+        diff_str = generate_add_diff(file_path: file_path, content: content)
         GitDiffStruct.new('new', file_path, diff_str)
       end
     end
 
-    def generate_deleted_diff(changes_dict)
+    def generate_delete_diff_from_dict(changes_dict)
       changes_dict.map do |file_path, content|
-        diff_str = <<~PATCH
-          diff --git a/#{file_path} b/#{file_path}
-          deleted file mode 100644
-          index fd48a22..0000000
-          --- a/#{file_path}
-          +++ /dev/null
-          @@ -1 +0,0 @@
-          -#{content}
-          \\ No newline at end of file
-        PATCH
-
+        diff_str = generate_delete_diff(file_path: file_path, content: content)
         GitDiffStruct.new('deleted', file_path, diff_str)
       end
+    end
+
+    def generate_delete_diff(file_path:, content:)
+      <<~PATCH
+        diff --git a/#{file_path} b/#{file_path}
+        deleted file mode 100644
+        index fd48a22..0000000
+        --- a/#{file_path}
+        +++ /dev/null
+        @@ -1 +0,0 @@
+        #{prefix_text_lines(content: content, prefix: '-')}
+        \\ No newline at end of file
+      PATCH
+    end
+
+    def generate_add_diff(file_path:, content:)
+      <<~PATCH
+        diff --git a/#{file_path} b/#{file_path}
+        new file mode 100644
+        index 0000000..fd48a22
+        --- /dev/null
+        +++ b/#{file_path}
+        @@ -0,0 +1 @@
+        #{prefix_text_lines(content: content, prefix: '+')}
+        \\ No newline at end of file
+      PATCH
+    end
+
+    def prefix_text_lines(content:, prefix:)
+      content.lines.map { |line| "#{prefix}#{line.chomp}" }.join("\n")
     end
 
     def expect_class_names_match_report(class_names:, error_report:)
