@@ -4,9 +4,9 @@ module Danger
   # Plugin to check the size of a Pull Request content and text body.
   class PRSizeChecker < Plugin
     DEFAULT_MAX_DIFF_SIZE = 500
-    DEFAULT_DIFF_SIZE_MESSAGE = 'Please keep the Pull Request small, breaking it down into multiple ones if necessary'
-    DEFAULT_MIN_PR_BODY_MESSAGE = 'Please provide a summary of the changes in the Pull Request description'
+    DEFAULT_DIFF_SIZE_MESSAGE = "This PR is larger than #{DEFAULT_MAX_DIFF_SIZE} lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.".freeze
     DEFAULT_MIN_PR_BODY = 10
+    DEFAULT_MIN_PR_BODY_MESSAGE = "The PR description appears very short, less than #{DEFAULT_MIN_PR_BODY} characters long. Please provide a summary of your changes in the PR description.".freeze
 
     # Check the size of the PR diff against a specified maximum size.
     #

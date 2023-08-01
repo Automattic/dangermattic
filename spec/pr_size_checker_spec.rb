@@ -32,12 +32,13 @@ module Danger
             type_hash[type]
           end
 
-          it 'returns a warning when using default parameters in a PR that has larger diff than the default maximum' do
+          it 'reports a warning when using default parameters in a PR that has larger diff than the default maximum' do
             allow(@plugin.git).to receive(diff_counter_for_type).and_return(501)
 
             @plugin.check_diff_size(type: type)
 
-            expect(@dangerfile.status_report[:warnings]).to eq ['Please keep the Pull Request small, breaking it down into multiple ones if necessary']
+            expect(@dangerfile.status_report[:errors]).to be_empty
+            expect(@dangerfile.status_report[:warnings]).to eq ['This PR is larger than 500 lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.']
           end
 
           it 'does nothing when using default parameters in a PR that has equal diff than the default maximum' do
@@ -58,18 +59,19 @@ module Danger
             expect(@dangerfile.status_report[:warnings]).to be_empty
           end
 
-          it 'returns an error using a custom message and a custom pr body size' do
+          it 'reports an error using a custom message and a custom PR body size' do
             allow(@plugin.git).to receive(diff_counter_for_type).and_return(600)
 
             custom_message = 'diff size custom message'
             @plugin.check_diff_size(type: type, max_size: 599, message: custom_message, fail_on_error: true)
 
+            expect(@dangerfile.status_report[:warnings]).to be_empty
             expect(@dangerfile.status_report[:errors]).to eq [custom_message]
           end
         end
 
         shared_examples 'using a file selector to filter and count the changes in a diff' do |type, max_sizes|
-          it 'returns a warning when using a files filter that will result in a diff that is too large' do
+          it 'reports a warning when using a files filter that will result in a diff that is too large' do
             prepare_diff_with_test_files
 
             @plugin.check_diff_size(
@@ -78,10 +80,11 @@ module Danger
               max_size: max_sizes[0]
             )
 
-            expect(@dangerfile.status_report[:warnings]).to eq ['Please keep the Pull Request small, breaking it down into multiple ones if necessary']
+            expect(@dangerfile.status_report[:errors]).to be_empty
+            expect(@dangerfile.status_report[:warnings]).to eq ['This PR is larger than 500 lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.']
           end
 
-          it 'returns a warning when using a files filter that will result in a diff that is too large, with a custom error' do
+          it 'reports an error when using a files filter that will result in a diff that is too large, with a custom error' do
             prepare_diff_with_test_files
 
             custom_message = 'diff size too large custom file filter and error message'
@@ -106,6 +109,7 @@ module Danger
               max_size: max_sizes[2]
             )
 
+            expect(@dangerfile.status_report[:errors]).to be_empty
             expect(@dangerfile.status_report[:warnings]).to be_empty
           end
         end
@@ -155,31 +159,34 @@ module Danger
       end
 
       context 'when checking a PR body size' do
-        it 'returns a warning when using default parameters in a PR that has a smaller body text length than the default minimum' do
-          allow(@plugin.github).to receive(:pr_body).and_return('pr body')
+        it 'reports a warning when using default parameters in a PR that has a smaller body text length than the default minimum' do
+          allow(@plugin.github).to receive(:pr_body).and_return('PR body')
 
           @plugin.check_pr_body
 
-          expect(@dangerfile.status_report[:warnings]).to eq ['Please provide a summary of the changes in the Pull Request description']
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to eq ['The PR description appears very short, less than 10 characters long. Please provide a summary of your changes in the PR description.']
         end
 
-        it 'does nothing when using default parameters in a PR that has a bigger pr body text length than the default minimum' do
-          allow(@plugin.github).to receive(:pr_body).and_return('some test pr body')
+        it 'does nothing when using default parameters in a PR that has a bigger PR body text length than the default minimum' do
+          allow(@plugin.github).to receive(:pr_body).and_return('some test PR body')
 
           @plugin.check_pr_body
 
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
-        it 'returns an error when using default parameters in a PR that has an equal pr body text length than the default minimum' do
+        it 'reports a warning when using default parameters in a PR that has an equal PR body text length than the default minimum' do
           allow(@plugin.github).to receive(:pr_body).and_return('some test-')
 
           @plugin.check_pr_body
 
-          expect(@dangerfile.status_report[:warnings]).to eq ['Please provide a summary of the changes in the Pull Request description']
+          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to eq ['The PR description appears very short, less than 10 characters long. Please provide a summary of your changes in the PR description.']
         end
 
-        it 'returns an error when using a custom message and a custom minimum pr body text length' do
+        it 'reports an error when using a custom message and a custom minimum PR body text length' do
           allow(@plugin.github).to receive(:pr_body).and_return('still too short message')
 
           custom_message = 'Custom error message'
