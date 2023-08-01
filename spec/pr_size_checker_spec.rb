@@ -71,33 +71,35 @@ module Danger
         end
 
         shared_examples 'using a file selector to filter and count the changes in a diff' do |type, max_sizes|
-          it 'reports a warning when using a files filter that will result in a diff that is too large' do
-            prepare_diff_with_test_files
+          context 'when using a files filter that will regard the diff as too large' do
+            it 'reports a warning' do
+              prepare_diff_with_test_files
 
-            @plugin.check_diff_size(
-              file_selector: ->(path) { File.dirname(path).start_with?('src/test/java') },
-              type: type,
-              max_size: max_sizes[0]
-            )
+              @plugin.check_diff_size(
+                file_selector: ->(path) { File.dirname(path).start_with?('src/test/java') },
+                type: type,
+                max_size: max_sizes[0]
+              )
 
-            expect(@dangerfile.status_report[:errors]).to be_empty
-            expect(@dangerfile.status_report[:warnings]).to eq ['This PR is larger than 500 lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.']
-          end
+              expect(@dangerfile.status_report[:errors]).to be_empty
+              expect(@dangerfile.status_report[:warnings]).to eq ['This PR is larger than 500 lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.']
+            end
 
-          it 'reports an error when using a files filter that will result in a diff that is too large, with a custom error' do
-            prepare_diff_with_test_files
+            it 'reports a custom error' do
+              prepare_diff_with_test_files
 
-            custom_message = 'diff size too large custom file filter and error message'
-            @plugin.check_diff_size(
-              file_selector: ->(path) { File.extname(path) == '.java' },
-              type: type,
-              max_size: max_sizes[1],
-              message: custom_message,
-              fail_on_error: true
-            )
+              custom_message = 'diff size too large custom file filter and error message'
+              @plugin.check_diff_size(
+                file_selector: ->(path) { File.extname(path) == '.java' },
+                type: type,
+                max_size: max_sizes[1],
+                message: custom_message,
+                fail_on_error: true
+              )
 
-            expect(@dangerfile.status_report[:warnings]).to be_empty
-            expect(@dangerfile.status_report[:errors]).to eq [custom_message]
+              expect(@dangerfile.status_report[:warnings]).to be_empty
+              expect(@dangerfile.status_report[:errors]).to eq [custom_message]
+            end
           end
 
           it 'does nothing when a files filter is used but the max size is greater than or equal to the diff size' do
