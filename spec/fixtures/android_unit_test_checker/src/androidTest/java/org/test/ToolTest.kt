@@ -1,0 +1,5 @@
+class ToolTest {
+    fun testMethod() {
+        
+    }
+}
