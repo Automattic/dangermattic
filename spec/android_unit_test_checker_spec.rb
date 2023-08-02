@@ -19,44 +19,48 @@ module Danger
       end
 
       it 'shows the right errors when a PR adds new classes that do not have corresponding tests' do
-        changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(""); } }',
-          'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
-          'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
-          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println("") } }',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }',
-          'TestsINeedThem2.kt' => 'public open class TestsINeedThem2 { fun testMe2() { } }'
-        }
+        added_files = %w[
+          src/main/java/org/wordpress/util/config/BloggingPromptsFeatureConfig.kt
+          Abc.java
+          src/androidTest/java/org/test/ToolTest.kt
+          Polygon.kt
+          Abcdef.kt
+          TestsINeedThem.java
+          TestsINeedThem2.kt
+        ]
 
-        diff = generate_add_diff(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
+
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
 
         classes = %w[
+          BloggingPromptsFeatureConfig
           Abc
           Polygon
           Abcdef
           TestsINeedThem
           TestsINeedThem2
+          TestsINeedThem2AnotherClass
         ]
 
         expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
       it 'does not show errors when new classes have corresponding tests' do
-        changes_dict = {
-          'Abc.java' => 'import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void abcTest() { Abc.main([]) } }',
-          'Polygon.kt' => 'open class Polygon: Shape { override fun draw() { } }',
-          'project/src/androidTest/java/org/test/PolygonTest.kt' => 'class PolygonTest { fun testDraw() { Polygon().draw() } }',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void writeMeATest() { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/AnotherTestClass.java' => 'class AnotherTestClass { public void testWriteMeATest() { new TestsINeedThem().writeMeATest() } }',
-          'MyNewClass.java' => 'final class MyNewClass { public void testMe() { System.out.println(""); } }',
-          'project/src/androidTest/java/org/test/TestMyNewClass.java' => 'class TestMyNewClass { public void testMe() { new MyNewClass().testMe() } }'
-        }
+        added_files = %w[
+          Abc.java
+          src/androidTest/java/org/test/AbcTests.java
+          Polygon.kt
+          src/androidTest/java/org/test/PolygonTest.kt
+          TestsINeedThem.java
+          src/androidTest/java/org/test/AnotherTestClass.java
+          MyNewClass.java
+          src/androidTest/java/org/test/TestMyNewClass.java
+        ]
 
-        diff = generate_add_diff_from_dict(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -65,13 +69,13 @@ module Danger
       end
 
       it 'does not show errors when we are deleting classes' do
-        changes_dict = {
-          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(\"\"); } }",
-          'Polygon.kt' => 'abstract class Polygon { abstract fun draw() }',
-          'TestsINeedThem.java' => 'public final class TestsINeedThem { public void testMe() { System.out.println(""); } }'
-        }
+        deleted_files = %w[
+          Abc.java
+          Polygon.kt
+          TestsINeedThem.java
+        ]
 
-        diff = generate_delete_diff_from_dict(changes_dict)
+        diff = generate_delete_diff_from_fixtures(deleted_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -80,19 +84,19 @@ module Danger
       end
 
       it 'show errors when we remove test classes for classes we refactored' do
-        added_classes = {
-          'Abc.kt' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { System.out.println(\"\"); } }",
-          'Polygon.kt' => 'data class Polygon(sides: Int) { fun draw() {} }',
-          'TestsINeedThem.kt' => 'public open class TestsINeedThem { fun testMe2() { } }'
-        }
+        added_files = %w[
+          Abc.java
+          Polygon.kt
+          TestsINeedThem.kt
+        ]
 
-        removed_tests = {
-          'project/src/androidTest/java/org/test/AbcTests.java' => 'class AbcTests { public void testAbc() { Abc.main([]) } }',
-          'project/src/androidTest/java/org/test/PolygonTest.java' => 'class PolygonTest { void testDraw() { Polygon(sides = 5).draw() }',
-          'project/src/androidTest/java/org/test/TestsINeedThem.java' => 'class TestsINeedThem { public void testMe2() { TestsINeedThem().testMe2() } }'
-        }
+        removed_files = %w[
+          src/androidTest/java/org/test/AbcTests.java
+          src/androidTest/java/org/test/PolygonTest.kt
+          src/test/java/org/test/TestsINeedThem.java
+        ]
 
-        diff = generate_add_diff_from_dict(added_classes) + generate_delete_diff_from_dict(removed_tests)
+        diff = generate_add_diff_from_fixtures(added_files) + generate_delete_diff_from_fixtures(removed_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -107,13 +111,13 @@ module Danger
       end
 
       it 'does nothing when a PR adds only tests' do
-        changes_dict = {
-          'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
-          'project/src/androidTest/java/org/test/UtilsTest.kt' => 'class UtilsTest { fun testMe() {} }',
-          'project/src/androidTest/java/org/test/MyHelperTest.java' => 'public class MyHelperTest { public void testMe() {} }'
-        }
+        added_files = %w[
+          src/androidTest/java/org/test/AbcTests.java
+          src/androidTest/java/org/test/PolygonTest.kt
+          src/test/java/org/test/TestsINeedThem.java
+        ]
 
-        diff = generate_add_diff_from_dict(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -122,17 +126,17 @@ module Danger
       end
 
       it 'does nothing when a PR adds classes that dont need tests' do
-        changes_dict = {
-          'project/src/android/java/org/activities/MyActivity.kt' => 'class MyActivity: Activity { fun myActivity() {} }',
-          'project/src/android/java/org/activities/MyJavaActivity.java' => "class\nMyJavaActivity\nextends\nActivity { public void myJavaActivity() {} }",
-          'project/src/android/java/org/fragments/MyFragment.kt' => 'class MyFragment: Fragment { override fun onBackPressed() {} }',
-          'project/src/android/java/org/fragments/MyNewJavaFragment.java' => 'public class MyNewJavaFragment extends Fragment { public void myFragment() {} }',
-          'project/src/android/java/org/module/MyModule.java' => 'public class MyModule { public void module() {} }',
-          'project/src/android/java/org/view/MyRecyclerView.java' => 'public class MyRecyclerView extends RecyclerView { public List<Items> list() {} }',
-          'project/src/android/java/org/view/MyViewHolder.kt' => 'class MyViewHolder { fun testMe() {} }'
-        }
+        added_files = %w[
+          src/android/java/org/activities/MyActivity.kt
+          src/android/java/org/activities/MyJavaActivity.java
+          src/android/java/org/fragments/MyFragment.kt
+          src/android/java/org/fragments/MyNewJavaFragment.java
+          src/android/java/org/module/MyModule.java
+          src/android/java/org/view/MyRecyclerView.java
+          src/android/java/org/view/ActionCardViewHolder.kt
+        ]
 
-        diff = generate_add_diff_from_dict(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
         @plugin.check_missing_tests
@@ -141,13 +145,13 @@ module Danger
       end
 
       it 'does not show that a PR with the tests bypass label is missing tests' do
-        changes_dict = {
-          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(\"\"); } }",
-          'Abcdef.kt' => 'class Abcdef(name: String) { fun testMe() { println(""); } }',
-          'TestsINeedThem2.kt' => 'public open class TestsINeedThem2 { fun testMe2() { } }'
-        }
+        added_files = %w[
+          Abc.java
+          Abcdef.kt
+          TestsINeedThem2.kt
+        ]
 
-        diff = generate_add_diff_from_dict(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
         allow(@plugin.github).to receive(:pr_labels).and_return(['unit-tests-exemption'])
 
@@ -157,15 +161,15 @@ module Danger
       end
 
       it 'does not show errors when a PR without tests with a custom bypass label is missing tests' do
-        changes_dict = {
-          'Abc.java' => "import java.utils.*;\n\n public class Abc { public static void main(String[] args) { println(\"\"); } }",
-          'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { fun testMethod() {} }',
-          'Abcdef.kt' => 'class Abcdef(name: String) { public fun testMe() { println(""); } }'
-        }
+        added_files = %w[
+          Abc.java
+          src/androidTest/java/org/test/AnotherTestClass.java
+          Abcdef.kt
+        ]
 
         ignore_label = 'ignore-no-tests'
 
-        diff = generate_add_diff_from_dict(changes_dict)
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
         allow(@plugin.github).to receive(:pr_labels).and_return([ignore_label])
 
@@ -174,36 +178,46 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show that a PR adding custom classes / subclasses patterns are missing tests' do
+      it 'does not show that a PR adding custom classes patterns are missing tests' do
+        added_files = %w[
+          src/androidTest/java/org/test/ToolTest.kt
+          AnotherViewHelper.kt
+          AbcdefgViewHelper.java
+        ]
+
+        diff = generate_add_diff_from_fixtures(added_files)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+
         classes_to_ignore = [
           /ViewHelper$/
         ].freeze
 
-        subclasses_to_ignore = [
-          /BaseViewWrangler/
-        ].freeze
+        @plugin.check_missing_tests(classes_exceptions: classes_to_ignore)
 
-        changes_dict = {
-          'Abc.java' => "import java.utils.*;\n\n public class Abc extends BaseViewWrangler { public static void main(String[] args) { println(\"\"); } }",
-          'AbcWrangler.java' => "import java.utils.*;\n\n abstract class AbcWrangler extends BaseViewWrangler { public abstract void wrangle(); }",
-          'KotlinWrangler.kt' => 'abstract class KotlinWrangler: BaseViewWrangler { abstract fun wrangle(); }',
-          'project/src/androidTest/java/org/test/ToolTest.kt' => 'class ToolTest { void testMethod() {} }',
-          'AbcdefViewHelper.kt' => 'class AbcdefViewHelper(name: String) { fun testMe() { println(""); } }',
-          'AbcdefgViewHelper.java' => 'public final class AbcdefgViewHelper { public static void testMe() { System.out.println(""); } }'
-        }
+        expect(@dangerfile.status_report[:errors]).to be_empty
+      end
 
-        diff = generate_add_diff_from_dict(changes_dict)
+      it 'does not show that a PR adding custom subclasses patterns are missing tests' do
+        added_files = %w[
+          AbcFeatureConfig.java
+          src/androidTest/java/org/test/AnotherTestClass.java
+          src/main/java/org/wordpress/util/config/BloggingPromptsFeatureConfig.kt
+        ]
+
+        diff = generate_add_diff_from_fixtures(added_files)
         allow(@dangerfile.git).to receive(:diff).and_return(diff)
 
-        @plugin.check_missing_tests(classes_exceptions: classes_to_ignore, subclasses_exceptions: subclasses_to_ignore)
+        subclasses_to_ignore = [
+          /FeatureConfig$/
+        ].freeze
+
+        @plugin.check_missing_tests(subclasses_exceptions: subclasses_to_ignore)
 
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
       it 'does nothing when a PR moves code around with both additions and removals in the diff' do
-        shape_dict = {
-          'Shape.kt' => "open class Polygon(sides: Int): Shape {\n  override fun draw() {\n    for (i in 1..sides) draw()\n  }\n}\n\nabstract class Shape {\n  abstract fun draw()\n}"
-        }
+        shape_file = 'Shape.kt'
 
         polygon_test_diff_str = <<~PATCH
           diff --git a/PolygonTest.kt b/PolygonTest.kt
@@ -228,7 +242,7 @@ module Danger
           }
         PATCH
 
-        shape_diff = generate_add_diff_from_dict(shape_dict)
+        shape_diff = generate_add_diff_from_fixtures([shape_file])
         polygon_diff = GitDiffStruct.new('modified', 'project/src/androidTest/java/shapes/PolygonTest.kt', polygon_test_diff_str)
 
         allow(@dangerfile.git).to receive(:diff).and_return(shape_diff + [polygon_diff])
@@ -254,20 +268,6 @@ module Danger
         diff_str = generate_delete_diff(file_path: path, content: content)
 
         GitDiffStruct.new('deleted', path, diff_str)
-      end
-    end
-
-    def generate_add_diff_from_dict(changes_dict)
-      changes_dict.map do |file_path, content|
-        diff_str = generate_add_diff(file_path: file_path, content: content)
-        GitDiffStruct.new('new', file_path, diff_str)
-      end
-    end
-
-    def generate_delete_diff_from_dict(changes_dict)
-      changes_dict.map do |file_path, content|
-        diff_str = generate_delete_diff(file_path: file_path, content: content)
-        GitDiffStruct.new('deleted', file_path, diff_str)
       end
     end
 
