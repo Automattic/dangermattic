@@ -35,6 +35,8 @@ module Danger
     # @param subclasses_exceptions [Array<String>] Optional list of regexes matching base class names to exclude from
     # the check.
     #   Defaults to DEFAULT_SUBCLASSES_EXCEPTIONS.
+    # @param path_exceptions [Array<String>] Optional list of file paths to exclude from the check.
+    #   Defaults to [].
     # @param bypass_label [String] Optional label to indicate we can bypass the check. Defaults to
     #   DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL.
     # @return [void]
@@ -42,17 +44,20 @@ module Danger
     # @example Check missing unit tests
     #   check_missing_tests()
     #
-    # @example Check missing unit tests excluding certain classes and subclasses
-    #   check_missing_tests(classes_exceptions: [/ViewHolder$/], subclasses_exceptions: [/RecyclerView/])
+    # @example Check missing unit tests excluding certain classes, subclasses and paths:
+    #   check_missing_tests(classes_exceptions: [/ViewHolder$/], subclasses_exceptions: [/RecyclerView/], path_exceptions: ['*.java', 'org/app/ui/**'])
     #
     # @example Check missing unit tests with a custom bypass label
     #   check_missing_tests(bypass_label: 'BypassTestCheck')
-    def check_missing_tests(classes_exceptions: DEFAULT_CLASSES_EXCEPTIONS, subclasses_exceptions: DEFAULT_SUBCLASSES_EXCEPTIONS,
+    def check_missing_tests(classes_exceptions: DEFAULT_CLASSES_EXCEPTIONS,
+                            subclasses_exceptions: DEFAULT_SUBCLASSES_EXCEPTIONS,
+                            path_exceptions: [],
                             bypass_label: DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL)
       list = find_classes_missing_tests(
-        git.diff,
-        classes_exceptions,
-        subclasses_exceptions
+        git_diff: git.diff,
+        classes_exceptions: classes_exceptions,
+        subclasses_exceptions: subclasses_exceptions,
+        path_exceptions: path_exceptions
       )
 
       return if list.empty?
@@ -72,11 +77,12 @@ module Danger
 
     ClassViolation = Struct.new(:classname, :file)
 
-    # @param [Git::Diff] the git diff object
-    # @param [Array<String>] Regexes matching class names to exclude from the check.
-    # @param [Array<String>] Regexes matching base class names to exclude from the check
+    # @param git_diff [Git::Diff] the git diff object
+    # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
+    # @param subclasses_exceptions [Array<String>] Regexes matching base class names to exclude from the check
+    # @param path_exceptions [Array<String>] Regexes matching base class names to exclude from the check
     # @return [Array<ClassViolation>] An array of `ClassViolation` objects for each added class that is missing a test
-    def find_classes_missing_tests(git_diff, classes_exceptions, subclasses_exceptions)
+    def find_classes_missing_tests(git_diff:, classes_exceptions:, subclasses_exceptions:, path_exceptions:)
       violations = []
       removed_classes = []
       added_test_lines = []
@@ -84,6 +90,9 @@ module Danger
       # Parse the diff of each file, storing test lines for test files, and added/removed classes for non-test files
       git_diff.each do |file_diff|
         file_path = file_diff.path
+
+        next if path_exceptions.any? { |exception| File.fnmatch?(exception, file_path) }
+
         if test_file?(path: file_path)
           # Store added test lines from test files
           added_test_lines += file_diff.patch.each_line.select do |line|

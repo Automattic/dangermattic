@@ -178,11 +178,12 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not report that a PR adding classes that need tests but with custom classes exception patterns are missing tests' do
+      it 'does not report that added classes that need tests but with custom classes exception patterns are missing tests' do
         added_files = %w[
           src/androidTest/java/org/test/ToolTest.kt
           AnotherViewHelper.kt
           AbcdefgViewHelper.java
+          TestsINeedThem.java
         ]
 
         diff = generate_add_diff_from_fixtures(added_files)
@@ -194,12 +195,14 @@ module Danger
 
         @plugin.check_missing_tests(classes_exceptions: classes_to_ignore)
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        classes = ['TestsINeedThem']
+        expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
-      it 'does not report that a PR adding classes that need tests but with custom subclasses exception patterns are missing tests' do
+      it 'does not report that added classes that need tests but with custom subclasses exception patterns are missing tests' do
         added_files = %w[
           AbcFeatureConfig.java
+          src/main/java/org/wordpress/android/widgets/NestedWebView.kt
           src/androidTest/java/org/test/AnotherTestClass.java
           src/main/java/org/wordpress/util/config/BloggingPromptsFeatureConfig.kt
         ]
@@ -213,7 +216,26 @@ module Danger
 
         @plugin.check_missing_tests(subclasses_exceptions: subclasses_to_ignore)
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        classes = ['NestedWebView']
+        expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
+      end
+
+      it 'does not report that added classes with a path filter are missing tests' do
+        added_files = %w[
+          AbcFeatureConfig.java
+          AnotherViewHelper.kt
+          src/main/java/org/wordpress/util/config/BloggingPromptsFeatureConfig.kt
+        ]
+
+        diff = generate_add_diff_from_fixtures(added_files)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+
+        path_exceptions = ['src/main/java/org/wordpress/**', '*.java']
+
+        @plugin.check_missing_tests(path_exceptions: path_exceptions)
+
+        classes = ['AnotherViewHelper']
+        expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
       it 'does nothing when a PR moves code around with both additions and removals in the diff' do
