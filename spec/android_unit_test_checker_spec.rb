@@ -18,7 +18,7 @@ module Danger
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
       end
 
-      it 'shows the right errors when a PR adds new classes that do not have corresponding tests' do
+      it 'reports the right errors when a PR adds new classes that do not have corresponding tests' do
         added_files = %w[
           src/main/java/org/wordpress/util/config/BloggingPromptsFeatureConfig.kt
           Abc.java
@@ -48,7 +48,7 @@ module Danger
         expect_class_names_match_report(class_names: classes, error_report: @dangerfile.status_report[:errors])
       end
 
-      it 'does not show errors when new classes have corresponding tests' do
+      it 'does not report errors when new classes have corresponding tests' do
         added_files = %w[
           Abc.java
           src/androidTest/java/org/test/AbcTests.java
@@ -68,7 +68,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show errors when we are deleting classes' do
+      it 'does not report errors when we are deleting classes' do
         deleted_files = %w[
           Abc.java
           Polygon.kt
@@ -83,7 +83,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'show errors when we remove test classes for classes we refactored' do
+      it 'report errors when we remove test classes for classes we refactored' do
         added_files = %w[
           Abc.java
           Polygon.kt
@@ -144,7 +144,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show that a PR with the tests bypass label is missing tests' do
+      it 'does not report that a PR with the tests bypass label is missing tests' do
         added_files = %w[
           Abc.java
           Abcdef.kt
@@ -160,7 +160,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show errors when a PR without tests with a custom bypass label is missing tests' do
+      it 'does not report errors when a PR without tests with a custom bypass label is missing tests' do
         added_files = %w[
           Abc.java
           src/androidTest/java/org/test/AnotherTestClass.java
@@ -178,7 +178,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show that a PR adding custom classes patterns are missing tests' do
+      it 'does not report that a PR adding classes that need tests but with custom classes exception patterns are missing tests' do
         added_files = %w[
           src/androidTest/java/org/test/ToolTest.kt
           AnotherViewHelper.kt
@@ -197,7 +197,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'does not show that a PR adding custom subclasses patterns are missing tests' do
+      it 'does not report that a PR adding classes that need tests but with custom subclasses exception patterns are missing tests' do
         added_files = %w[
           AbcFeatureConfig.java
           src/androidTest/java/org/test/AnotherTestClass.java

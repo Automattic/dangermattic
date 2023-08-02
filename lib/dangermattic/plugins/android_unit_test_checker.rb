@@ -5,17 +5,23 @@ require_relative 'utils/git_utils'
 module Danger
   # Plugin to detect classes without Unit Tests in a PR.
   class AndroidUnitTestChecker < Plugin
-    ANY_CLASS_DETECTOR = /class ([A-Z]\w+)\s*(.*?)\s*{/
-    NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class ([A-Z]\w+)\s*(.*?)\s*{/
-
+    ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
+    NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class\s+([A-Z]\w+)\s*(.*?)\s*{/m
     DEFAULT_CLASSES_EXCEPTIONS = [
       /ViewHolder$/,
-      /Module$/
+      /Module$/,
+      /Button$/
     ].freeze
 
     DEFAULT_SUBCLASSES_EXCEPTIONS = [
       /(Fragment|Activity)\b/,
-      /RecyclerView/
+      /RecyclerView/,
+      /^BroadcastReceiver$/,
+      /^ContentProvider$/,
+      /Service$/,
+      /View$/,
+      /ViewGroup$/,
+      /Layout$/
     ].freeze
 
     DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL = 'unit-tests-exemption'
@@ -84,25 +90,17 @@ module Danger
             GitUtils.change_type(diff_line: line) == :added
           end
         else
-          # Detect added and removed classes in non-test files
-          file_diff.patch.each_line do |line|
-            case GitUtils.change_type(diff_line: line)
-            when :added
-              matches = line.scan(NON_PRIVATE_CLASS_DETECTOR)
-              matches.reject! do |m|
-                class_match_is_exception?(
-                  m,
-                  file_path,
-                  classes_exceptions,
-                  subclasses_exceptions
-                )
-              end
-              violations += matches.map { |m| ClassViolation.new(m[0], file_path) }
-            when :removed
-              matches = line.scan(ANY_CLASS_DETECTOR)
-              removed_classes += matches.map { |m| m[0] }
-            end
-          end
+          # Detect added classes (violations) and removed classes in non-test files
+          patch = file_diff.patch
+
+          violations += find_violations(
+            path: file_path,
+            diff_patch: patch,
+            classes_exceptions: classes_exceptions,
+            subclasses_exceptions: subclasses_exceptions
+          )
+
+          removed_classes += find_removed_classes(diff_patch: patch)
         end
       end
 
@@ -114,6 +112,38 @@ module Danger
       violations.select { |v| added_test_lines.none? { |line| line =~ /\b#{v.classname}\b/ } }
     end
 
+    # Finds added classes that potentially will require a test (violations) in the given file based on the changes in the diff patch.
+    #
+    # @param path [String] The file in the diff to check for violations.
+    # @param diff_patch [String] The diff patch containing the changes to the file.
+    # @param classes_exceptions [Array<String>] An array of class names that are exceptions and should be ignored.
+    # @param subclasses_exceptions [Array<String>] An array of class names whose subclasses should be ignored as well.
+    # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
+    def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
+      added_lines = GitUtils.added_lines(diff_patch: diff_patch)
+      matches = added_lines.scan(NON_PRIVATE_CLASS_DETECTOR)
+      matches.reject! do |m|
+        class_match_is_exception?(
+          m,
+          path,
+          classes_exceptions,
+          subclasses_exceptions
+        )
+      end
+
+      matches.map { |m| ClassViolation.new(m[0], path) }
+    end
+
+    # Finds the names of removed classes based on the removals the diff patch.
+    #
+    # @param diff_patch [String] The diff patch containing the changes to the file.
+    # @return [Array<String>] An array with the class names of the classes that were removed in the diff.
+    def find_removed_classes(diff_patch:)
+      removed_lines = GitUtils.removed_lines(diff_patch: diff_patch)
+      matches = removed_lines.scan(ANY_CLASS_DETECTOR)
+      matches.map { |m| m[0] }
+    end
+
     # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
     # @param [String] file the path to the file where that class declaration line was matched
     # @param [Array<String>] Regexes matching class names to exclude from the check.
@@ -122,8 +152,8 @@ module Danger
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[0] =~ re }
 
-      subclass_regexp = File.extname(file) == '.java' ? /extends ([A-Z]\w+)/ : /\s*:\s*([A-Z]\w+)/
-      subclass = match[1].match(subclass_regexp)&.captures&.first
+      subclass_regexp = File.extname(file) == '.java' ? /extends\s+([A-Z]\w+)/m : /\s*:\s*([A-Z]\w+)/m
+      subclass = match[1].scan(subclass_regexp)&.last&.last
       subclasses_exceptions.any? { |re| subclass =~ re }
     end
 
