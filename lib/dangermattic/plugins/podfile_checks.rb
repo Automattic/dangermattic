@@ -7,8 +7,8 @@ module Danger
   PODFILE_LOCK_DEPENDENCIES_ENTRY = 'DEPENDENCIES'
   DEFAULT_PODFILE_LOCK_PATH = './Podfile.lock'
 
-  # Plugin for miscellaneous iOS checks.
-  class IosMiscChecks < Plugin
+  # Plugin for checks on the Cocoapods' Podfile.
+  class PodfileChecks < Plugin
     # Check if the Podfile.lock contains any references to commit hashes and raise a failure if it does.
     #
     # @param podfile_lock_path [String] (optional) The path to the Podfile.lock file.

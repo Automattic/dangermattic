@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Danger
-  # Plugin for miscellaneous checks for Android.
-  class AndroidMiscChecks < Plugin
+  # Plugin for checking the strings.xml localisation files for Android.
+  class AndroidStringsChecks < Plugin
     # Check if translatable strings reference another string resource in 'strings.xml' files in a pull request.
     def check_strings_do_not_refer_resource
       warning_message = "This PR adds a translatable entry which references another string resource; this usually causes issues with translations.\n" \
