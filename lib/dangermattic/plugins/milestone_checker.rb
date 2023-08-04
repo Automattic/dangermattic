@@ -5,18 +5,16 @@ module Danger
   class MilestoneChecker < Plugin
     DEFAULT_WARNING_DAYS = 5
 
+    # Checks if the pull request is assigned to a milestone.
+    def check_milestone_set
+      warn('PR is not assigned to a milestone.', sticky: false) if milestone.nil?
+    end
+
     # Checks if the pull request's milestone is expiring within a certain number of days.
     #
-    # @param needs_milestone [Boolean] Whether a milestone is required for the pull request.
-    # If true, will report a warning when there is no milestone assigned to the pull request.
     # @param warning_days [Integer] Number of days to warn before the milestone due date (default: DEFAULT_WARNING_DAYS).
-    def check_milestone_due_date(needs_milestone: true, warning_days: DEFAULT_WARNING_DAYS)
-      milestone = github.pr_json['milestone']
-
-      if milestone.nil?
-        warn('PR is not assigned to a milestone.', sticky: false) if needs_milestone
-        return
-      end
+    def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS)
+      return if milestone.nil?
 
       milestone_due_date = milestone['due_on']
       return unless github.pr_json['state'] != 'closed' && milestone_due_date
@@ -37,6 +35,10 @@ module Danger
       message_text += 'Please make sure to get it merged by then or assign it to a later expiring milestone.'
 
       warn(message_text)
+    end
+
+    def milestone
+      github.pr_json['milestone']
     end
   end
 end
