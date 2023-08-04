@@ -4,9 +4,9 @@ module Danger
   # Plugin to check the size of a Pull Request content and text body.
   class PRSizeChecker < Plugin
     DEFAULT_MAX_DIFF_SIZE = 500
-    DEFAULT_DIFF_SIZE_MESSAGE = "This PR is larger than #{DEFAULT_MAX_DIFF_SIZE} lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.".freeze
+    DEFAULT_DIFF_SIZE_MESSAGE_FORMAT = 'This PR is larger than %d lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.'
     DEFAULT_MIN_PR_BODY = 10
-    DEFAULT_MIN_PR_BODY_MESSAGE = "The PR description appears very short, less than #{DEFAULT_MIN_PR_BODY} characters long. Please provide a summary of your changes in the PR description.".freeze
+    DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT = 'The PR description appears very short, less than %d characters long. Please provide a summary of your changes in the PR description.'
 
     # Check the size of the PR diff against a specified maximum size.
     #
@@ -15,7 +15,7 @@ module Danger
     # @param max_size [Integer] The maximum allowed size for the diff. (default: DEFAULT_MAX_DIFF_SIZE)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
     # @param fail_on_error [Boolean] If true, fail the PR check when the diff size exceeds the maximum (default: false).
-    def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: DEFAULT_DIFF_SIZE_MESSAGE, fail_on_error: false)
+    def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), fail_on_error: false)
       case type
       when :insertions
         if insertions_size(file_selector: file_selector) > max_size
@@ -36,7 +36,7 @@ module Danger
     #
     # @param min_length [Integer] The minimum allowed length for the PR body. (default: DEFAULT_MIN_PR_BODY)
     # @param fail_on_error [Boolean] If true, fail the PR check when the PR body length is too small. (default: false)
-    def check_pr_body(min_length: DEFAULT_MIN_PR_BODY, message: DEFAULT_MIN_PR_BODY_MESSAGE, fail_on_error: false)
+    def check_pr_body(min_length: DEFAULT_MIN_PR_BODY, message: format(DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, min_length), fail_on_error: false)
       return if danger.github.pr_body.length > min_length
 
       fail_on_error ? failure(message) : warn(message)
