@@ -10,7 +10,7 @@ module Danger
       warn('PR is not assigned to a milestone.', sticky: false) if milestone.nil?
     end
 
-    # Checks if the pull request's milestone is expiring within a certain number of days.
+    # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
     # @param warning_days [Integer] Number of days to warn before the milestone due date (default: DEFAULT_WARNING_DAYS).
     def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS)
@@ -26,13 +26,13 @@ module Danger
       time_before_due_date = due_date.to_time.to_i - today.to_time.to_i
       return unless time_before_due_date <= warning_threshold
 
-      message_text = "This PR is assigned to the milestone [#{milestone['title']}](#{milestone['html_url']}) "
+      message_text = "This PR is assigned to the milestone [#{milestone['title']}](#{milestone['html_url']}). "
       message_text += if time_before_due_date.positive?
-                        "which is expiring in less than #{warning_days} days.\n"
+                        "This milestone is due in less than #{warning_days} days.\n"
                       else
-                        "which has already expired.\n"
+                        "The due date for this milestone has already passed.\n"
                       end
-      message_text += 'Please make sure to get it merged by then or assign it to a later expiring milestone.'
+      message_text += 'Please make sure to get it merged by then or assign it to a milestone with a later deadline.'
 
       warn(message_text)
     end

@@ -24,10 +24,10 @@ module Danger
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
-        it "does nothing when a PR has a milestone set" do
+        it 'does nothing when a PR has a milestone set' do
           pr_json = {
             'milestone' => {
-              'title' => 'Release Day',
+              'title' => 'Release Day'
             }
           }
 
@@ -57,7 +57,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
-          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com) which is expiring in less than 5 days.\nPlease make sure to get it merged by then or assign it to a later expiring milestone."]
+          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 5 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -98,7 +98,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
-          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com) which has already expired.\nPlease make sure to get it merged by then or assign it to a later expiring milestone."]
+          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). The due date for this milestone has already passed.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -119,7 +119,7 @@ module Danger
 
           @plugin.check_milestone_due_date(warning_days: 10)
 
-          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com) which is expiring in less than 10 days.\nPlease make sure to get it merged by then or assign it to a later expiring milestone."]
+          expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 10 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
