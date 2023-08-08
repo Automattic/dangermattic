@@ -156,12 +156,38 @@ module Danger
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
-        it "does nothing when a PR doesn't have a milestone" do
+        it "reports a warning when asked to do so when a PR doesn't have a milestone set" do
           allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_due_date
+          @plugin.check_milestone_due_date(if_no_milestone: :warn)
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expected_warning = ['PR is not assigned to a milestone.']
+          expect(@dangerfile.status_report[:warnings]).to eq expected_warning
+        end
+
+        it "reports an error when asked to do so when a PR doesn't have a milestone set" do
+          allow(@plugin.github).to receive(:pr_json).and_return({})
+
+          @plugin.check_milestone_due_date(if_no_milestone: :error)
+
+          expected_error = ['PR is not assigned to a milestone.']
+          expect(@dangerfile.status_report[:errors]).to eq expected_error
+        end
+
+        it "does nothing when asked to do so when a PR doesn't have a milestone set" do
+          allow(@plugin.github).to receive(:pr_json).and_return({})
+
+          @plugin.check_milestone_due_date(if_no_milestone: :none)
+
+          expect(@dangerfile.status_report[:errors]).to be_empty
+        end
+
+        it "does nothing when nil is used and a PR doesn't have a milestone set" do
+          allow(@plugin.github).to receive(:pr_json).and_return({})
+
+          @plugin.check_milestone_due_date(if_no_milestone: nil)
+
+          expect(@dangerfile.status_report[:errors]).to be_empty
         end
       end
     end

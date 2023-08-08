@@ -6,15 +6,29 @@ module Danger
     DEFAULT_WARNING_DAYS = 5
 
     # Checks if the pull request is assigned to a milestone.
-    def check_milestone_set
-      warn('PR is not assigned to a milestone.', sticky: false) if milestone.nil?
+    def check_milestone_set(fail_on_error: false)
+      return unless milestone.nil?
+
+      message = 'PR is not assigned to a milestone.'
+      if fail_on_error
+        failure(message, sticky: false)
+      else
+        warn(message, sticky: false)
+      end
     end
 
     # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
     # @param warning_days [Integer] Number of days to warn before the milestone due date (default: DEFAULT_WARNING_DAYS).
-    def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS)
-      return if milestone.nil?
+    # @param if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
+    #                 - :warn (default): Reports a warning.
+    #                 - :error: Reports an error.
+    #                 - :none or nil: Takes no action.
+    def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS, if_no_milestone: :warn)
+      if milestone.nil?
+        check_milestone_set(fail_on_error: if_no_milestone == :error)
+        return
+      end
 
       milestone_due_date = milestone['due_on']
       return unless github.pr_json['state'] != 'closed' && milestone_due_date
