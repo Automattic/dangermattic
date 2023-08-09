@@ -15,27 +15,58 @@ module Danger
       end
 
       describe '#check_milestone_set' do
-        it "reports a warning when a PR doesn't have a milestone set" do
-          allow(@plugin.github).to receive(:pr_json).and_return({})
+        context 'when there is no milestone set' do
+          it "reports a warning when a PR doesn't have a milestone set" do
+            allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_set
+            @plugin.check_milestone_set
 
-          expected_warning = ['PR is not assigned to a milestone.']
-          expect(@dangerfile.status_report[:warnings]).to eq expected_warning
+            expected_warning = ['PR is not assigned to a milestone.']
+            expect(@dangerfile.status_report[:errors]).to be_empty
+            expect(@dangerfile.status_report[:warnings]).to eq expected_warning
+          end
+
+          it "reports an error when a PR doesn't have a milestone set" do
+            allow(@plugin.github).to receive(:pr_json).and_return({})
+
+            @plugin.check_milestone_set(fail_on_error: true)
+
+            expected_error = ['PR is not assigned to a milestone.']
+            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile.status_report[:errors]).to eq expected_error
+          end
         end
 
-        it 'does nothing when a PR has a milestone set' do
-          pr_json = {
-            'milestone' => {
-              'title' => 'Release Day'
+        context 'when there is a milestone set' do
+          it 'does nothing when a PR has a milestone set' do
+            pr_json = {
+              'milestone' => {
+                'title' => 'Release Day'
+              }
             }
-          }
 
-          allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
+            allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
 
-          @plugin.check_milestone_set
+            @plugin.check_milestone_set
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile.status_report[:errors]).to be_empty
+          end
+
+          it 'does nothing when an error is expected but the PR has a milestone set' do
+            pr_json = {
+              'milestone' => {
+                'title' => 'Release Day'
+              }
+            }
+
+            allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
+
+            @plugin.check_milestone_set(fail_on_error: true)
+
+            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile.status_report[:errors]).to be_empty
+          end
         end
       end
 
@@ -58,6 +89,7 @@ module Danger
           @plugin.check_milestone_due_date
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 5 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -78,6 +110,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
@@ -99,6 +132,7 @@ module Danger
           @plugin.check_milestone_due_date
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). The due date for this milestone has already passed.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -120,6 +154,7 @@ module Danger
           @plugin.check_milestone_due_date(warning_days: 10)
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 10 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -136,6 +171,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
@@ -153,6 +189,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to be_empty
         end
 
@@ -162,6 +199,7 @@ module Danger
           @plugin.check_milestone_due_date(if_no_milestone: :warn)
 
           expected_warning = ['PR is not assigned to a milestone.']
+          expect(@dangerfile.status_report[:errors]).to be_empty
           expect(@dangerfile.status_report[:warnings]).to eq expected_warning
         end
 
@@ -171,6 +209,7 @@ module Danger
           @plugin.check_milestone_due_date(if_no_milestone: :error)
 
           expected_error = ['PR is not assigned to a milestone.']
+          expect(@dangerfile.status_report[:warnings]).to be_empty
           expect(@dangerfile.status_report[:errors]).to eq expected_error
         end
 
@@ -179,6 +218,7 @@ module Danger
 
           @plugin.check_milestone_due_date(if_no_milestone: :none)
 
+          expect(@dangerfile.status_report[:warnings]).to be_empty
           expect(@dangerfile.status_report[:errors]).to be_empty
         end
 
@@ -187,6 +227,7 @@ module Danger
 
           @plugin.check_milestone_due_date(if_no_milestone: nil)
 
+          expect(@dangerfile.status_report[:warnings]).to be_empty
           expect(@dangerfile.status_report[:errors]).to be_empty
         end
       end
