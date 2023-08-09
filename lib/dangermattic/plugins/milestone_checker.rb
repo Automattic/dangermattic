@@ -10,10 +10,11 @@ module Danger
       return unless milestone.nil?
 
       message = 'PR is not assigned to a milestone.'
+      sticky = false
       if fail_on_error
-        failure(message, sticky: false)
+        failure(message, sticky: sticky)
       else
-        warn(message, sticky: false)
+        warn(message, sticky: sticky)
       end
     end
 
