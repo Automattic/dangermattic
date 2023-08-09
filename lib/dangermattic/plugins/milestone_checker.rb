@@ -26,7 +26,12 @@ module Danger
     #                 - :none or nil: Takes no action.
     def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS, if_no_milestone: :warn)
       if milestone.nil?
-        check_milestone_set(fail_on_error: if_no_milestone == :error)
+        case if_no_milestone
+        when :warn
+          check_milestone_set(fail_on_error: false)
+        when :error
+          check_milestone_set(fail_on_error: true)
+        end
         return
       end
 
