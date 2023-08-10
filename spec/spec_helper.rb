@@ -62,7 +62,7 @@ end
 
 # custom matchers
 
-RSpec::Matchers.define :contain_warnings do |expected_warnings|
+RSpec::Matchers.define :report_warnings do |expected_warnings|
   match do |dangerfile|
     dangerfile.status_report[:warnings].eql?(expected_warnings) &&
       dangerfile.status_report[:errors]&.empty?
@@ -73,7 +73,7 @@ RSpec::Matchers.define :contain_warnings do |expected_warnings|
   end
 end
 
-RSpec::Matchers.define :contain_errors do |expected_errors|
+RSpec::Matchers.define :report_errors do |expected_errors|
   match do |dangerfile|
     dangerfile.status_report[:errors].eql?(expected_errors) &&
       dangerfile.status_report[:warnings]&.empty?
@@ -84,7 +84,7 @@ RSpec::Matchers.define :contain_errors do |expected_errors|
   end
 end
 
-RSpec::Matchers.define :contain_empty_report do
+RSpec::Matchers.define :do_not_report do
   match do |dangerfile|
     dangerfile.status_report[:errors]&.empty? &&
       dangerfile.status_report[:warnings]&.empty?
