@@ -3,7 +3,7 @@
 module Danger
   # Plugin for performing checks on a milestone associated with a pull request.
   class MilestoneChecker < Plugin
-    DEFAULT_WARNING_DAYS = 5
+    DEFAULT_DAYS_THRESHOLD = 5
 
     # Checks if the pull request is assigned to a milestone.
     def check_milestone_set(fail_on_error: false)
@@ -20,12 +20,12 @@ module Danger
 
     # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
-    # @param warning_days [Integer] Number of days to warn before the milestone due date (default: DEFAULT_WARNING_DAYS).
+    # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
     # @param if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
     #                 - :warn (default): Reports a warning.
     #                 - :error: Reports an error.
     #                 - :none or nil: Takes no action.
-    def check_milestone_due_date(warning_days: DEFAULT_WARNING_DAYS, if_no_milestone: :warn)
+    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, if_no_milestone: :warn)
       if milestone.nil?
         case if_no_milestone
         when :warn
@@ -42,13 +42,13 @@ module Danger
       today = DateTime.now
       due_date = DateTime.parse(milestone_due_date)
 
-      warning_threshold = warning_days * 24 * 60 * 60
+      seconds_threshold = days_before_due * 24 * 60 * 60
       time_before_due_date = due_date.to_time.to_i - today.to_time.to_i
-      return unless time_before_due_date <= warning_threshold
+      return unless time_before_due_date <= seconds_threshold
 
       message_text = "This PR is assigned to the milestone [#{milestone['title']}](#{milestone['html_url']}). "
       message_text += if time_before_due_date.positive?
-                        "This milestone is due in less than #{warning_days} days.\n"
+                        "This milestone is due in less than #{days_before_due} days.\n"
                       else
                         "The due date for this milestone has already passed.\n"
                       end

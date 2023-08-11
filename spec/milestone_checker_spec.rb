@@ -151,7 +151,7 @@ module Danger
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
           allow(DateTime).to receive(:now).and_return(date_nine_days_before_due)
 
-          @plugin.check_milestone_due_date(warning_days: 10)
+          @plugin.check_milestone_due_date(days_before_due: 10)
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 10 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
           expect(@dangerfile.status_report[:errors]).to be_empty
