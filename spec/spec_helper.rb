@@ -59,3 +59,38 @@ def testing_dangerfile
   env = Danger::EnvironmentManager.new(testing_env)
   Danger::Dangerfile.new(env, testing_ui)
 end
+
+# custom matchers
+
+RSpec::Matchers.define :report_warnings do |expected_warnings|
+  match do |dangerfile|
+    dangerfile.status_report[:warnings].eql?(expected_warnings) &&
+      dangerfile.status_report[:errors]&.empty?
+  end
+
+  failure_message do |dangerfile|
+    "expected warnings '#{expected_warnings}' to be reported, got instead:\n- Warnings: #{dangerfile.status_report[:warnings]}\n- Errors: #{dangerfile.status_report[:errors]}"
+  end
+end
+
+RSpec::Matchers.define :report_errors do |expected_errors|
+  match do |dangerfile|
+    dangerfile.status_report[:errors].eql?(expected_errors) &&
+      dangerfile.status_report[:warnings]&.empty?
+  end
+
+  failure_message do |dangerfile|
+    "expected errors '#{expected_errors}' to be reported, got instead:\n- Errors: #{dangerfile.status_report[:errors]}\n- Warnings: #{dangerfile.status_report[:warnings]}"
+  end
+end
+
+RSpec::Matchers.define :do_not_report do
+  match do |dangerfile|
+    dangerfile.status_report[:errors]&.empty? &&
+      dangerfile.status_report[:warnings]&.empty?
+  end
+
+  failure_message do |dangerfile|
+    "expected no warnings or errors to be reported, got instead:\n#{dangerfile.status_report}"
+  end
+end
