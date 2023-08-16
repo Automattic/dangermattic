@@ -36,8 +36,7 @@ module Danger
         return
       end
 
-      milestone_due_date = milestone['due_on']
-      return unless github.pr_json['state'] != 'closed' && milestone_due_date
+      return unless pr_state != 'closed' && milestone_due_date
 
       today = DateTime.now
       due_date = DateTime.parse(milestone_due_date)
@@ -46,7 +45,7 @@ module Danger
       time_before_due_date = due_date.to_time.to_i - today.to_time.to_i
       return unless time_before_due_date <= seconds_threshold
 
-      message_text = "This PR is assigned to the milestone [#{milestone['title']}](#{milestone['html_url']}). "
+      message_text = "This PR is assigned to the milestone [#{milestone_title}](#{milestone_url}). "
       message_text += if time_before_due_date.positive?
                         "This milestone is due in less than #{days_before_due} days.\n"
                       else
@@ -57,8 +56,26 @@ module Danger
       warn(message_text)
     end
 
+    private
+
     def milestone
       github.pr_json['milestone']
+    end
+
+    def milestone_due_date
+      milestone['due_on']
+    end
+
+    def milestone_title
+      milestone['title']
+    end
+
+    def milestone_url
+      milestone['html_url']
+    end
+
+    def pr_state
+      github.pr_json['state']
     end
   end
 end
