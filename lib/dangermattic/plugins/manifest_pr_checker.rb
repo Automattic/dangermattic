@@ -5,6 +5,8 @@ module Danger
   class ManifestPRChecker < Plugin
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.
+    #
+    # @return [void]
     def check_all_manifest_lock_updated
       check_gemfile_lock_updated
       check_podfile_lock_updated
@@ -12,6 +14,8 @@ module Danger
     end
 
     # Check if the `Gemfile` file was modified without a corresponding `Gemfile.lock` update
+    #
+    # @return [void]
     def check_gemfile_lock_updated
       check_manifest_lock_updated(
         file_name: 'Gemfile',
@@ -21,6 +25,8 @@ module Danger
     end
 
     # Check if the `Podfile` file was modified without a corresponding `Podfile.lock` update
+    #
+    # @return [void]
     def check_podfile_lock_updated
       check_manifest_lock_updated(
         file_name: 'Podfile',
@@ -30,6 +36,8 @@ module Danger
     end
 
     # Check if the `Package.swift` file was modified without a corresponding `Package.resolved` update
+    #
+    # @return [void]
     def check_swift_package_resolved_updated
       check_manifest_lock_updated(
         file_name: 'Package.swift',

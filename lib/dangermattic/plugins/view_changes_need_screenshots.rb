@@ -8,6 +8,8 @@ module Danger
 
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
     # displaying a warning if view files have been modified but no screenshot is included.
+    #
+    # @return [void]
     def view_changes_need_screenshots
       view_files_modified = git.modified_files.any? do |file|
         VIEW_EXTENSIONS_IOS =~ file || VIEW_EXTENSIONS_ANDROID =~ file

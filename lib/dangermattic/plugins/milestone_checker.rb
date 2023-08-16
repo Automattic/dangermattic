@@ -6,6 +6,8 @@ module Danger
     DEFAULT_DAYS_THRESHOLD = 5
 
     # Checks if the pull request is assigned to a milestone.
+    #
+    # @return [void]
     def check_milestone_set(fail_on_error: false)
       return unless milestone.nil?
 
@@ -25,6 +27,8 @@ module Danger
     #                 - :warn (default): Reports a warning.
     #                 - :error: Reports an error.
     #                 - :none or nil: Takes no action.
+    #
+    # @return [void]
     def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, if_no_milestone: :warn)
       if milestone.nil?
         case if_no_milestone
