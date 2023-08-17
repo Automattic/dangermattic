@@ -2,6 +2,35 @@
 
 module Danger
   # Plugin to check the size of a Pull Request content and text body.
+  #
+  # @example Running a PR diff size check with default parameters
+  #
+  #          # Check the total size of changes in the PR using the default parameters, reporting a warning if the PR is larger than 500
+  #          pr_size_checker.check_diff_size
+  #
+  # @example Running a PR diff size check customizing the size, message and type of report
+  #
+  #          # Check the total size of changes in the PR, reporting an error if the diff is larger than 1000 using the specified message
+  #          pr_size_checker.check_diff_size(max_size: 1000, message: 'PR too large, 1000 is the max!!', fail_on_error: true)
+  #
+  # @example Running a PR diff size check on the specified files in part of the diff
+  #
+  #          # Check the size of insertions in the files selected by the file_selector
+  #          pr_size_checker.check_diff_size(file_selector: ->(file) { file.include?('/java/test/') }, type: :insertions)
+  #
+  # @example Running a PR description length check
+  #
+  #          # Check the PR Body using the default parameters, reporting a warning if the PR is smaller than 10 characters
+  #          pr_size_checker.check_pr_body
+  #
+  # @example Running a PR description length check with custom parameters
+  #
+  #          # Check if the minimum length of the PR body is smaller than 20 characters, reporting an error using a custom error message
+  #          pr_size_checker.check_pr_body(min_length: 20, message: 'Add a better description, 20 chars at least!!', fail_on_error: true)
+  #
+  # @see Automattic/dangermattic
+  # @tags github, pull request, process
+  #
   class PRSizeChecker < Plugin
     DEFAULT_MAX_DIFF_SIZE = 500
     DEFAULT_DIFF_SIZE_MESSAGE_FORMAT = 'This PR is larger than %d lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.'

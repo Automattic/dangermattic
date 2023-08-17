@@ -1,7 +1,32 @@
 # frozen_string_literal: true
 
 module Danger
-  # Plugin to check if the Gemfile.lock was updated when changing the Gemfile in a PR.
+  # Plugin to check if the a lock file (Gemfile.lock, Podfile.lock, Package.resolved) was updated when changing a manifest
+  # file (Gemfile, Podfile, Package.swift) in a PR.
+  #
+  # @example Running manifest / lock checks
+  #
+  #          # Check all manifest files (Gemfile, Podfile, Package.swift) have a corresponding lock change
+  #          checker.check_all_manifest_lock_updated
+  #
+  # @example Gemfile check
+  #
+  #          # Check if the Gemfile and the Gemfile.lock are both updated
+  #          checker.check_gemfile_lock_updated
+  #
+  # @example Podfile check
+  #
+  #          # Check if the Podfile and the Podfile.lock are both updated
+  #          checker.check_podfile_lock_updated
+  #
+  # @example Package.swift check
+  #
+  #          # Check if the Package.swift and the Package.resolved are both updated
+  #          checker.check_swift_package_resolved_updated
+  #
+  # @see Automattic/dangermattic
+  # @tags ios, android
+  #
   class ManifestPRChecker < Plugin
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.

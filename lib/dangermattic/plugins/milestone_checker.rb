@@ -1,7 +1,34 @@
 # frozen_string_literal: true
 
 module Danger
-  # Plugin for performing checks on a milestone associated with a pull request.
+  # This plugin checks whether a pull request is assigned to a milestone and whether the milestone's due date is approaching.
+  #
+  # @example Check if a milestone is set
+  #
+  #          # Check if PR is assigned to a milestone
+  #          checker.check_milestone_set
+  #
+  #          # Check if PR is assigned to a milestone, reporting an error if that's not the case
+  #          checker.check_milestone_set(fail_on_error: true)
+  #
+  # @example Run a milestone check
+  #
+  #          # Check if milestone due date is approaching, reporting a warning if the milestone is in less than 5 days
+  #          checker.check_milestone_due_date
+  #
+  # @example Run a milestone check with custom parameters
+  #
+  #          # Check if milestone due date is within 3 days, reporting an error in case there's no milestone set
+  #          checker.check_milestone_due_date(days_before_due: 3, if_no_milestone: :error)
+  #
+  # @example Run a milestone check with a custom milestone behaviour parameter
+  #
+  #          # Check if milestone due date is approaching and don't report anything if no milestone is assigned
+  #          checker.check_milestone_due_date(if_no_milestone: :none)
+  #
+  # @see Automattic/dangermattic
+  # @tags milestone, github, process
+  #
   class MilestoneChecker < Plugin
     DEFAULT_DAYS_THRESHOLD = 5
 
@@ -24,9 +51,9 @@ module Danger
     #
     # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
     # @param if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
-    #                 - :warn (default): Reports a warning.
-    #                 - :error: Reports an error.
-    #                 - :none or nil: Takes no action.
+    #                        - :warn (default): Reports a warning.
+    #                        - :error: Reports an error.
+    #                        - :none or nil: Takes no action.
     #
     # @return [void]
     def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, if_no_milestone: :warn)
