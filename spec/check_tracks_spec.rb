@@ -21,7 +21,7 @@ module Danger
           stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         end
 
-        context 'when checking changes in Tracks related files' do
+        context 'when checking changes in Tracks-related files' do
           it 'reports a message with instructions for review when there are changes in Tracks related files' do
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['Test.kt', 'LoginAnalyticsTracker.kt', 'Test.java'])
 
@@ -59,7 +59,7 @@ module Danger
           end
         end
 
-        context 'when checking Tracks related changes within a diff' do
+        context 'when checking Tracks-related changes within a diff' do
           it 'reports a message with instructions for review when there are matching changes' do
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)

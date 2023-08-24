@@ -43,7 +43,7 @@ module Danger
     def check_tracks_changes(tracks_files: DEFAULT_TRACKS_FILES, tracks_usage_matchers: DEFAULT_TRACKS_USE_MATCHERS)
       return unless changes_tracks_files?(tracks_files: tracks_files) || diff_has_tracks_changes?(tracks_usage_matchers: tracks_usage_matchers)
 
-      # tracks related changes detected: publishing instructions
+      # Tracks-related changes detected: publishing instructions
       message(TRACKS_PR_INSTRUCTIONS)
     end
 
