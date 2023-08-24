@@ -31,7 +31,7 @@ module Danger
       **PR Author**
       - The PR must be assigned the **Tracks** label
       **PR Reviewer**
-      - The events must be validated in the Tracks system.
+      - The tracks events must be validated in the Tracks system.
       - Verify the internal Tracks spreadsheet has also been updated.
     MESSAGE
 
