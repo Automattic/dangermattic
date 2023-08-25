@@ -43,7 +43,7 @@ module Danger
           it 'does nothing when there are no changes in Tracks related files' do
             modified_files = ['MyClass.swift']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
 
             @plugin.check_tracks_changes
 
@@ -53,7 +53,7 @@ module Danger
           it 'does nothing when there are no changes in Tracks related files using a custom file list' do
             modified_files = ['MyClass.swift']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
 
@@ -66,7 +66,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
               analytics_call_in_diff = '-                AnalyticsTracker.track("myEvent1")'
               expect(args[:line_matcher].call(analytics_call_in_diff)).to be true
 
@@ -82,7 +82,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
               analytics_call_in_diff = '+                AnalyticsHelper.log("event_1")'
               expect(args[:line_matcher].call(analytics_call_in_diff)).to be true
 
@@ -98,7 +98,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
               analytics_call_in_diff = '+                AnalyticsHelper.log("event_1")'
               expect(args[:line_matcher].call(analytics_call_in_diff)).to be false
 
@@ -114,7 +114,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
               analytics_call_in_diff = '+                AnalyticsTracker.track("myEvent1")'
               expect(args[:line_matcher].call(analytics_call_in_diff)).to be false
 

@@ -44,7 +44,7 @@ module Danger
     end
 
     def diff_has_tracks_changes?(tracks_usage_matchers:)
-      matched_lines = git_utils.match_diff_lines_in_files(
+      matched_lines = git_utils.matching_lines_in_diff_files(
         files: git_utils.all_changed_files,
         line_matcher: ->(line) { tracks_usage_matchers.any? { |tracks_usage_match| line.match(tracks_usage_match) } },
         change_type: nil
