@@ -29,7 +29,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
+            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'reports a message with instructions for review when there are changes in Tracks related files using a custom file list' do
@@ -37,7 +37,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
 
-            expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
+            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'does nothing when there are no changes in Tracks related files' do
@@ -47,7 +47,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile).to do_not_report
           end
 
           it 'does nothing when there are no changes in Tracks related files using a custom file list' do
@@ -57,7 +57,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
 
-            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile).to do_not_report
           end
         end
 
@@ -75,7 +75,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
+            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'reports a message with instructions for review when there are changes using a custom line matcher expression' do
@@ -91,7 +91,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log/])
 
-            expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
+            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'does nothing when there are no matching changes' do
@@ -107,7 +107,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile).to do_not_report
           end
 
           it 'does nothing when there are no matching changes using a custom matcher' do
@@ -123,7 +123,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log$/])
 
-            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile).to do_not_report
           end
         end
       end
