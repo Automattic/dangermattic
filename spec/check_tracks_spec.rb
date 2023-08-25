@@ -23,8 +23,8 @@ module Danger
           stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         end
 
-        context 'when checking changes in track related files' do
-          it 'reports a message with instructions for review when there are changes in tracks files' do
+        context 'when checking changes in Tracks related files' do
+          it 'reports a message with instructions for review when there are changes in Tracks related files' do
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['Test.kt', 'LoginAnalyticsTracker.kt', 'Test.java'])
 
             @plugin.check_tracks_changes
@@ -32,7 +32,7 @@ module Danger
             expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
           end
 
-          it 'reports a message with instructions for review when there are changes in tracks files using a custom file list' do
+          it 'reports a message with instructions for review when there are changes in Tracks related files using a custom file list' do
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['MyClass.swift', 'MyClass1.swift', 'MyClass2.swift'])
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
@@ -40,7 +40,7 @@ module Danger
             expect(@dangerfile.status_report[:messages]).to eq [CheckTracks::TRACKS_PR_INSTRUCTIONS]
           end
 
-          it 'does nothing when there are no changes in tracks files' do
+          it 'does nothing when there are no changes in Tracks related files' do
             modified_files = ['MyClass.swift']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
             allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
@@ -50,7 +50,7 @@ module Danger
             expect(@dangerfile.status_report[:messages]).to be_empty
           end
 
-          it 'does nothing when there are no changes in tracks files using a custom file list' do
+          it 'does nothing when there are no changes in Tracks related files using a custom file list' do
             modified_files = ['MyClass.swift']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
             allow(@plugin.git_utils).to receive(:match_diff_lines_in_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
@@ -61,7 +61,7 @@ module Danger
           end
         end
 
-        context 'when checking track related changes within a diff' do
+        context 'when checking Tracks related changes within a diff' do
           it 'reports a message with instructions for review when there are matching changes' do
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)

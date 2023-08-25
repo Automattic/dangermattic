@@ -19,13 +19,13 @@ module Danger
       **PR Author**
       - The PR must be assigned the **Tracks** label
       **PR Reviewer**
-      - The tracks events must be validated in the Tracks system.
-      - Verify the internal tracks spreadsheet has also been updated.
+      - The events must be validated in the Tracks system.
+      - Verify the internal Tracks spreadsheet has also been updated.
     MESSAGE
 
-    # Checks the PR diff for changes in tracks-related files and provides instructions if changes are detected
+    # Checks the PR diff for changes in Tracks-related files and provides instructions if changes are detected
     #
-    # @param tracks_files [Array<String>] List of tracks-related file names to check (default: DEFAULT_TRACKS_FILES)
+    # @param tracks_files [Array<String>] List of Tracks-related file names to check (default: DEFAULT_TRACKS_FILES)
     # @param tracks_usage_match [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines (default: DEFAULT_TRACKS_FILES)
     # @return [void]
     def check_tracks_changes(tracks_files: DEFAULT_TRACKS_FILES, tracks_usage_matchers: DEFAULT_TRACKS_USE_MATCHERS)
