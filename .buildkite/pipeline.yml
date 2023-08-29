@@ -49,3 +49,15 @@ steps:
       echo "--- ☢️ Run Danger Lint"
       bundle exec danger plugins lint
     plugins: *common_plugins
+
+  #################
+  # Push to RubyGems
+  #################
+  - label: ":rubygems: Publish to RubyGems"
+    key: "gem-push"
+    if: build.tag != null
+    depends_on:
+     - test
+     - rubocop
+    command: .buildkite/gem-push.sh
+    plugins: *common_plugins
