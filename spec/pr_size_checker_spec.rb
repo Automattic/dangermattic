@@ -16,9 +16,7 @@ module Danger
 
       context 'when checking a PR diff size' do
         before do
-          allow(@plugin.git).to receive(:added_files).and_return([])
-          allow(@plugin.git).to receive(:modified_files).and_return([])
-          allow(@plugin.git).to receive(:deleted_files).and_return([])
+          allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
         end
 
         shared_examples 'using the default diff size counter, without a file selector' do |type|
@@ -151,9 +149,7 @@ module Danger
             deleted_test_file = 'src/test/java/org/magic/Power.java'
             deleted_strings = 'src/main/res/values-de/strings.xml'
 
-            allow(@plugin.git).to receive(:added_files).and_return([added_config, added_file])
-            allow(@plugin.git).to receive(:modified_files).and_return([modified_file1, modified_file2, added_test_file, modified_strings])
-            allow(@plugin.git).to receive(:deleted_files).and_return([deleted_file1, deleted_test_file, deleted_strings, deleted_file2])
+            allow(@plugin.git).to receive_messages(added_files: [added_config, added_file], modified_files: [modified_file1, modified_file2, added_test_file, modified_strings], deleted_files: [deleted_file1, deleted_test_file, deleted_strings, deleted_file2])
 
             allow(@plugin.git).to receive(:info_for_file).with(added_test_file).and_return({ insertions: 201 })
             allow(@plugin.git).to receive(:info_for_file).with(added_config).and_return({ insertions: 311 })
