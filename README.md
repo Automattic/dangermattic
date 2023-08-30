@@ -19,7 +19,7 @@ manifest_pr_checker.check_gemfile_lock_updated
 ```
 - `milestone_checker` - Plugin for performing checks on a milestone associated with a pull request
 ```ruby
-# Reports a warning if the Gemfile was changed but the Gemfile.lock wasn't
+# Checks if the pull request's milestone is due in 3 days or less, reporting a warning if that's the case
 milestone_checker.check_milestone_due_date(days_before_due: 3)
 ```
 - `pr_size_checker` - Plugin to check the size of a Pull Request content and text body
