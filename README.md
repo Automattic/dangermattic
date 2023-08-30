@@ -38,7 +38,8 @@ All available plugins are defined here: https://github.com/Automattic/dangermatt
 ## Development
 
 - Clone the repo and run `bundle install` to setup dependencies
-- Run `bundle exec rake spec` to run the all the tests, RuboCop and Danger Lint
-- Run `bundle exec rspec` to run the all unit tests
+- Run `bundle exec rake` to run the all the tests, RuboCop and Danger Lint
+- Run `bundle exec rake specs` / `bundle exec rspec` to run only the unit tests
+- Run `bundle exec rake lint` to run only the linting tasks: RuboCop and Danger Lint
 - Use `bundle exec guard` to automatically have tests run as you make changes.
 - You can generate the documentation using `bundle exec yard doc`. The documentation is generated locally in the `yard-doc/` folder.
