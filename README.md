@@ -8,9 +8,9 @@ Add to your project's `Gemfile`
 gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 ```
 
-## Available plugins and their usage
+## Example of available plugins and their usage
 
-Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace:
+Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
 
 - `manifest_pr_checker` - Plugin to check if changes on a manifest file (i.e. `Gemfile`, `Podfile`) has a corresponding change in a lock file (i.e. `Gemfile.lock`, `Podfile.lock`)
 ```ruby
@@ -32,6 +32,8 @@ pr_size_checker.check_diff_size(max_size: 300)
 # Reports a warning if a pull request changing views doesn't have a screenshot
 view_changes_need_screenshots.view_changes_need_screenshots
 ```
+
+All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
 
 ## Development
 
