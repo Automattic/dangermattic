@@ -20,6 +20,8 @@ coverage/
 
 # YARD Documentation
 yard-doc/
+.yardoc/
+
 
 # L10n Linter
 vendor/swiftgen

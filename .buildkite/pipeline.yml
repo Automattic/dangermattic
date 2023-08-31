@@ -36,3 +36,16 @@ steps:
       echo "--- :rubocop: Run Rubocop"
       bundle exec rubocop
     plugins: *common_plugins
+
+  #################
+  # Danger Lint
+  #################
+  - label: "☢️ Lint (Danger)"
+    key: dangerlint
+    command: |
+      echo "--- :rubygems: Setting up Gems"
+      bundle install
+
+      echo "--- ☢️ Run Danger Lint"
+      bundle exec danger plugins lint
+    plugins: *common_plugins
