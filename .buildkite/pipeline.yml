@@ -3,10 +3,11 @@ agents:
 
 # Nodes with values to reuse in the pipeline.
 common_params:
+  - &docker_plugin "docker#v5.7.0"
+  - &docker_ruby_image "public.ecr.aws/docker/library/ruby:3.2.2"
   - &common_plugins
-    - &docker_plugin
-      docker#v5.7.0:
-        image: "public.ecr.aws/docker/library/ruby:3.2.2"
+    - *docker_plugin :
+        image: *docker_ruby_image
 
 steps:
   #################
@@ -61,8 +62,8 @@ steps:
      - rubocop
     command: .buildkite/gem-push.sh
     plugins:
-      - docker#v5.7.0:
-        image: "public.ecr.aws/docker/library/ruby:3.2.2"
-        propagate-environment: true
-        environment:
-          - "RUBYGEMS_API_KEY"
+      - *docker_plugin :
+          image: *docker_ruby_image
+          propagate-environment: true
+          environment:
+            - "RUBYGEMS_API_KEY"
