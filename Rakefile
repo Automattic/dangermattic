@@ -7,10 +7,7 @@ require 'rubocop/rake_task'
 task default: :all
 
 desc 'Runs all tasks: :specs, :rubocop and :danger_lint'
-task :all do
-  Rake::Task['specs'].invoke
-  Rake::Task['lint'].invoke
-end
+task all: %i[specs lint]
 
 desc 'Ensure that the plugin passes `danger plugins lint`'
 task :danger_lint do
@@ -18,10 +15,7 @@ task :danger_lint do
 end
 
 desc 'Runs linting tasks: :rubocop and :danger_lint'
-task :lint do
-  Rake::Task['rubocop'].invoke
-  Rake::Task['danger_lint'].invoke
-end
+task lint: %i[rubocop danger_lint]
 
 desc 'Run Unit Tests'
 RSpec::Core::RakeTask.new(:specs)
