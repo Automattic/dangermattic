@@ -13,25 +13,25 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
 
 - `manifest_pr_checker` - Plugin to check if changes on a manifest file (i.e. `Gemfile`, `Podfile`) has a corresponding change in a lock file (i.e. `Gemfile.lock`, `Podfile.lock`)
-```ruby
-# Reports a warning if the Gemfile was changed but the Gemfile.lock wasn't
-manifest_pr_checker.check_gemfile_lock_updated
-```
+    ```ruby
+    # Reports a warning if the Gemfile was changed but the Gemfile.lock wasn't
+    manifest_pr_checker.check_gemfile_lock_updated
+    ```
 - `milestone_checker` - Plugin for performing checks on a milestone associated with a pull request
-```ruby
-# Checks if the pull request's milestone is due in 3 days or less, reporting a warning if that's the case
-milestone_checker.check_milestone_due_date(days_before_due: 3)
-```
+    ```ruby
+    # Checks if the pull request's milestone is due in 3 days or less, reporting a warning if that's the case
+    milestone_checker.check_milestone_due_date(days_before_due: 3)
+    ```
 - `pr_size_checker` - Plugin to check the size of a Pull Request content and text body
-```ruby
-# Reports a warning if a pull request diff size is greater than 300
-pr_size_checker.check_diff_size(max_size: 300)
-```
+    ```ruby
+    # Reports a warning if a pull request diff size is greater than 300
+    pr_size_checker.check_diff_size(max_size: 300)
+    ```
 - `view_changes_need_screenshots` - Detects view changes in a PR and reports a warning if there are no attached screenshots
-```ruby
-# Reports a warning if a pull request changing views doesn't have a screenshot
-view_changes_need_screenshots.view_changes_need_screenshots
-```
+    ```ruby
+    # Reports a warning if a pull request changing views doesn't have a screenshot
+    view_changes_need_screenshots.view_changes_need_screenshots
+    ```
 
 All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
 
