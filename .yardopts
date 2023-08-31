@@ -1,0 +1,7 @@
+--no-save
+--protected
+--no-private
+--markup markdown
+--output-dir yard-doc
+-
+CHANGELOG.md

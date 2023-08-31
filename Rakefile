@@ -4,21 +4,21 @@ require 'bundler/gem_tasks'
 require 'rspec/core/rake_task'
 require 'rubocop/rake_task'
 
-RSpec::Core::RakeTask.new(:specs)
+task default: :all
 
-task default: :specs
+desc 'Runs all tasks: :specs, :rubocop and :danger_lint'
+task all: %i[specs lint]
 
-desc 'Runs all tasks: :specs, :rubocop and :spec_docs'
-task :spec do
-  Rake::Task['specs'].invoke
-  Rake::Task['rubocop'].invoke
-  Rake::Task['spec_docs'].invoke
+desc 'Ensure that the plugin passes `danger plugins lint`'
+task :danger_lint do
+  sh 'bundle exec danger plugins lint'
 end
+
+desc 'Runs linting tasks: :rubocop and :danger_lint'
+task lint: %i[rubocop danger_lint]
+
+desc 'Run Unit Tests'
+RSpec::Core::RakeTask.new(:specs)
 
 desc 'Run RuboCop on the lib/specs directory'
 RuboCop::RakeTask.new(:rubocop)
-
-desc 'Ensure that the plugin passes `danger plugins lint`'
-task :spec_docs do
-  sh 'bundle exec danger plugins lint'
-end
