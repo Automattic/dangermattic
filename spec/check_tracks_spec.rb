@@ -16,9 +16,7 @@ module Danger
 
       describe '#check_tracks_changes' do
         before do
-          allow(@plugin.git).to receive(:modified_files).and_return([])
-          allow(@plugin.git).to receive(:added_files).and_return([])
-          allow(@plugin.git).to receive(:deleted_files).and_return([])
+          allow(@plugin.git).to receive_messages(modified_files: [], added_files: [], deleted_files: [])
 
           stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         end
