@@ -1,7 +1,20 @@
 # frozen_string_literal: true
 
 module Danger
-  # Plugin to check for labels in a PR.
+  # Plugin for checking labels associated with a pull request.
+  #
+  # @example Checking for specific labels and generating warnings/errors:
+  #   labels_checker.check(
+  #     do_not_merge_labels: ['Do Not Merge'],
+  #     required_labels: ['Bug', 'Enhancement'],
+  #     required_labels_error: 'Please ensure the PR has labels "Bug" or "Enhancement".',
+  #     recommended_labels: ['Documentation'],
+  #     recommended_labels_warning: 'Consider adding the "Documentation" label for better tracking.'
+  #   )
+  #
+  # @see Automattic/dangermattic
+  # @tags github, process
+  #
   class LabelsChecker < Plugin
     DEFAULT_DO_NOT_MERGE_LABELS = [
       'Do Not Merge'
