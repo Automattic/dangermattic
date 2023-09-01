@@ -1,14 +1,35 @@
 # frozen_string_literal: true
 
 module Danger
-  # Plugin performing a generic checks related to releases. Can be used directly or via specialised plugins as `AndroidReleaseCheck` and `IosReleaseCheck`.
+  # Plugin to perform generic checks related to releases.
+  # It can be used directly or via the specialised plugins `AndroidReleaseCheck` and `IosReleaseCheck`.
+  #
+  # @example Checking if a specific file has changed on a release branch:
+  #          common_release_checks.check_file_changed(
+  #            file_comparison: ->(path) { path == 'metadata/full_release_notes.txt' },
+  #            message: 'Release notes have been modified on a release branch.',
+  #            on_release: true
+  #          )
+  #
+  # @example Checking if release notes and store strings have changed:
+  #          common_release_checks.check_release_notes_and_store_strings(
+  #            release_notes_file: 'metadata/release_notes.txt',
+  #            store_strings_file: 'metadata/PlayStoreStrings.po'
+  #          )
+  #
+  # @example Checking for changes in internal release notes:
+  #          common_release_checks.check_internal_release_notes_changed
+  #
+  # @see Automattic/dangermattic
+  # @tags util, process, release
+  #
   class CommonReleaseChecks < Plugin
     DEFAULT_INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
 
     # Check if certain files have been modified, returning a warning or failure message based on the branch type.
     #
-    # @param file_comparison A closure used to compare modified file paths.
-    #   The closure should take a single argument, which is the path to a modified file,
+    # @param file_comparison [Proc] Function used to compare modified file paths.
+    #   It should take a single argument, which is the path to a modified file,
     #   and return true if the file matches the desired condition.
     #   Example: `file_comparison = ->(file_path) { file_path.include?('app/') }`
     #
@@ -30,6 +51,7 @@ module Danger
     #                      on_release: false,
     #                      fail_on_error: true)
     #
+    # @return [void]
     def check_file_changed(file_comparison:, message:, on_release:, fail_on_error: false)
       has_modified_file = all_modified_files.any?(&file_comparison)
 
@@ -56,6 +78,7 @@ module Danger
     # @example Check if the release notes file 'release_notes.txt' is modified, and the 'PlayStoreStrings.po' file is not modified:
     #   check_release_notes_and_store_strings(release_notes_file: 'release_notes.txt', store_strings_file: 'PlayStoreStrings.po', fail_on_error: false)
     #
+    # @return [void]
     def check_release_notes_and_store_strings(release_notes_file:, store_strings_file:, fail_on_error: false)
       has_modified_release_notes = danger.git.modified_files.any? { |f| f.end_with?(release_notes_file) }
       has_modified_app_store_strings = danger.git.modified_files.any? { |f| f.end_with?(store_strings_file) }
@@ -82,6 +105,7 @@ module Danger
     # @example Checking for changes in a custom internal release notes file at a specific path:
     #   check_internal_release_notes_changed(release_notes_file: '/path/to/internal_release_notes.txt')
     #
+    # @return [void]
     def check_internal_release_notes_changed(release_notes_file: DEFAULT_INTERNAL_RELEASE_NOTES)
       warning = <<~WARNING
         This PR contains changes to `#{release_notes_file}`.

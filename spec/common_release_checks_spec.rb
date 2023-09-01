@@ -13,9 +13,7 @@ module Danger
         @dangerfile = testing_dangerfile
         @plugin = @dangerfile.common_release_checks
 
-        allow(@plugin.git).to receive(:added_files).and_return([])
-        allow(@plugin.git).to receive(:modified_files).and_return([])
-        allow(@plugin.git).to receive(:deleted_files).and_return([])
+        allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
       end
 
       context 'when changing the internal release notes' do
