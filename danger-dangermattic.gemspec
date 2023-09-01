@@ -7,7 +7,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'dangermattic/gem_version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'dangermattic'
+  spec.name          = 'danger-dangermattic'
   spec.version       = Dangermattic::VERSION
   spec.author        = 'Automattic'
   spec.email         = 'mobile@automattic.com'
@@ -37,7 +37,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rspec', '~> 3.4'
 
   # Linting code and docs
-  spec.add_dependency 'rubocop', '~> 1.54'
+  spec.add_dependency 'rubocop', '~> 1.56'
   spec.add_development_dependency 'rubocop-rake'
   spec.add_development_dependency 'rubocop-rspec'
   spec.add_development_dependency 'yard'
