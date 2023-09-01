@@ -3,7 +3,27 @@
 require_relative 'utils/git_utils'
 
 module Danger
-  # Plugin to detect classes without Unit Tests in a PR.
+  # This plugin provides methods to check for the presence of unit tests for newly added classes in a pull request.
+  #
+  # @example Check missing unit tests using the default parameters:
+  #          android_unit_test_checker.check_missing_tests
+  #
+  # @example Check missing unit tests while excluding certain classes, subclasses, and paths:
+  #          android_unit_test_checker.check_missing_tests(
+  #            classes_exceptions: [/ViewHolder$/],
+  #            subclasses_exceptions: [/RecyclerView/],
+  #            path_exceptions: ['*.java', 'org/app/ui/**']
+  #          )
+  #
+  # @example Check missing unit tests with a custom bypass label:
+  #          android_unit_test_checker.check_missing_tests(bypass_label: 'BypassTestCheck')
+  #
+  # @example Check missing unit tests excluding certain classes, subclasses and paths:
+  #          android_unit_test_checker.check_missing_tests(classes_exceptions: [/ViewHolder$/], subclasses_exceptions: [/RecyclerView/], path_exceptions: ['*.java', 'org/app/ui/**'])
+  #
+  # @see Automattic/dangermattic
+  # @tags android, unit test, github, pull request
+  #
   class AndroidUnitTestChecker < Plugin
     ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
     NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class\s+([A-Z]\w+)\s*(.*?)\s*{/m
@@ -39,16 +59,8 @@ module Danger
     #   Defaults to [].
     # @param bypass_label [String] Optional label to indicate we can bypass the check. Defaults to
     #   DEFAULT_UNIT_TESTS_BYPASS_PR_LABEL.
+    #
     # @return [void]
-    #
-    # @example Check missing unit tests
-    #   check_missing_tests()
-    #
-    # @example Check missing unit tests excluding certain classes, subclasses and paths:
-    #   check_missing_tests(classes_exceptions: [/ViewHolder$/], subclasses_exceptions: [/RecyclerView/], path_exceptions: ['*.java', 'org/app/ui/**'])
-    #
-    # @example Check missing unit tests with a custom bypass label
-    #   check_missing_tests(bypass_label: 'BypassTestCheck')
     def check_missing_tests(classes_exceptions: DEFAULT_CLASSES_EXCEPTIONS,
                             subclasses_exceptions: DEFAULT_SUBCLASSES_EXCEPTIONS,
                             path_exceptions: [],
@@ -81,6 +93,7 @@ module Danger
     # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
     # @param subclasses_exceptions [Array<String>] Regexes matching base class names to exclude from the check
     # @param path_exceptions [Array<String>] Regexes matching base class names to exclude from the check
+    #
     # @return [Array<ClassViolation>] An array of `ClassViolation` objects for each added class that is missing a test
     def find_classes_missing_tests(git_diff:, classes_exceptions:, subclasses_exceptions:, path_exceptions:)
       violations = []
@@ -127,6 +140,7 @@ module Danger
     # @param diff_patch [String] The diff patch containing the changes to the file.
     # @param classes_exceptions [Array<String>] An array of class names that are exceptions and should be ignored.
     # @param subclasses_exceptions [Array<String>] An array of class names whose subclasses should be ignored as well.
+    #
     # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
     def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
       added_lines = GitUtils.added_lines(diff_patch: diff_patch)
@@ -146,6 +160,7 @@ module Danger
     # Finds the names of removed classes based on the removals the diff patch.
     #
     # @param diff_patch [String] The diff patch containing the changes to the file.
+    #
     # @return [Array<String>] An array with the class names of the classes that were removed in the diff.
     def find_removed_classes(diff_patch:)
       removed_lines = GitUtils.removed_lines(diff_patch: diff_patch)
@@ -157,6 +172,7 @@ module Danger
     # @param [String] file the path to the file where that class declaration line was matched
     # @param [Array<String>] Regexes matching class names to exclude from the check.
     # @param [Array<String>] Regexes matching base class names to exclude from the check
+    #
     # @return [void]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[0] =~ re }
