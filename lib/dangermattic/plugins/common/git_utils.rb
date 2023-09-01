@@ -1,7 +1,20 @@
 # frozen_string_literal: true
 
 module Danger
-  # Utility plugin with useful methods related to git
+  # Represents a utility plugin for working with Git: to check added and modified lines in Git diffs,
+  # to determine the type of change (added, removed, or other) in a diff line, and to retrieve lists of
+  # added, modified, and deleted files.
+  #
+  # @example Checks if there is a "TODO" in
+  #          git_utils.check_added_diff_lines(
+  #            file_selector: ->(path) { path.end_with?('.rb') },
+  #            line_matcher: ->(line) { line.include?('TODO') },
+  #            message: 'Found a TODO in a Ruby file'
+  #          )
+  #
+  # @see Automattic/dangermattic
+  # @tags tool, util, git
+  #
   class GitUtils < Plugin
     # Check added lines in a PR for a specific pattern and issue a warning or failure message when found.
     #
@@ -18,6 +31,7 @@ module Danger
     # @example Checking for added lines containing 'FIXME' and failing the build:
     #   check_added_diff_lines(file_selector: ->(path) { File.extname(path) == ('.swift') }, line_matcher: ->(line) { line.include?("FIXME") }, message: "A FIXME was added, failing build.", fail_on_error: true)
     #
+    # @return [void]
     def check_added_diff_lines(file_selector:, line_matcher:, message:, fail_on_error: false)
       modified_files = added_and_modified_files.select(&file_selector)
 
@@ -63,7 +77,6 @@ module Danger
     #   - :added for added lines
     #   - :removed for removed lines
     #   - :other for any other type of lines
-    #
     def change_type(diff_line:)
       if diff_line.start_with?('+') && !diff_line.start_with?('+++ ')
         :added
@@ -77,7 +90,6 @@ module Danger
     # Get the list of added and modified files in the current Pull Request.
     #
     # @return [Array<String>] An array containing the file paths of added and modified files.
-    #
     def added_and_modified_files
       danger.git.added_files + danger.git.modified_files
     end
@@ -85,7 +97,6 @@ module Danger
     # Get the list of all additions, changes and deletions in the current Pull Request.
     #
     # @return [Array<String>] An array containing the file paths of all modified files.
-    #
     def all_modified_files
       danger.git.added_files + danger.git.modified_files + danger.git.deleted_files
     end
