@@ -84,7 +84,7 @@ module Danger
     def insertions_size(file_selector: nil)
       return danger.git.insertions unless file_selector
 
-      filtered_files = all_modified_files.select(&file_selector)
+      filtered_files = git_utils.all_changed_files.select(&file_selector)
       filtered_files.sum { |file| danger.git.info_for_file(file)[:insertions].to_i }
     end
 
@@ -96,7 +96,7 @@ module Danger
     def deletions_size(file_selector: nil)
       return danger.git.deletions unless file_selector
 
-      filtered_files = all_modified_files.select(&file_selector)
+      filtered_files = git_utils.all_changed_files.select(&file_selector)
       filtered_files.sum { |file| danger.git.info_for_file(file)[:deletions].to_i }
     end
 
@@ -108,14 +108,8 @@ module Danger
     def diff_size(file_selector: nil)
       return danger.git.lines_of_code unless file_selector
 
-      filtered_files = all_modified_files.select(&file_selector)
+      filtered_files = git_utils.all_changed_files.select(&file_selector)
       filtered_files.sum { |file| danger.git.info_for_file(file)[:deletions].to_i + danger.git.info_for_file(file)[:insertions].to_i }
-    end
-
-    private
-
-    def all_modified_files
-      danger.git.added_files + danger.git.modified_files + danger.git.deleted_files
     end
   end
 end
