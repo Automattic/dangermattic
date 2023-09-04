@@ -83,7 +83,7 @@ module Danger
         expect(@dangerfile.status_report[:errors]).to be_empty
       end
 
-      it 'report errors when we remove test classes for classes we refactored' do
+      it 'reports errors when we remove test classes for classes we refactored' do
         added_files = %w[
           Abc.java
           Polygon.kt
