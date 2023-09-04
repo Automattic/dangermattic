@@ -21,31 +21,34 @@ module Danger
     ].freeze
 
     # Checks if a PR is missing labels or is marked with labels for not merging.
-    # If labels are missing, the plugin will emit a warning. If a label indicating that the PR should not be merged is present,
-    # an error will be emitted, preventing the final PR merge.
+    # If recommended labels are missing, the plugin will emit a warning. If a required label is missing, or the PR
+    # has a label indicating that the PR should not be merged, an error will be emitted, preventing the final merge.
     #
     # @param do_not_merge_labels [String] The possible labels indicating that a merge should not be allowed.
     #   Defaults to DEFAULT_DO_NOT_MERGE_LABELS if not provided.
-    # @param required_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that are *required* on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
+    # @param required_labels [Array<Regexp>] The list of Regular Expressions describing all the type of labels that are *required* on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param required_labels_error [String] The error message displayed if the required labels are not present.
     #   Defaults to a generic message that includes the missing label's regexes.
-    # @param recommended_labels [Array<RegExp>] The list of Regular Expressions describing all the type of labels that we want a PR to have,
+    # @param recommended_labels [Array<Regexp>] The list of Regular Expressions describing all the type of labels that we want a PR to have,
     # with a warning if it doesn't (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param recommended_labels_warning [String] The warning message displayed if the recommended labels are not present.
     #   Defaults to a generic message that includes the missing label's regexes.
+    #
+    # @note Tip: if you want to require or recommend "at least one label", you can use
+    #  an array of a single empty regex `[//]` to match "a label with any name".
     #
     # @return [void]
     def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_error: nil, recommended_labels: [], recommended_labels_warning: nil)
       github_labels = danger.github.pr_labels
 
       # A PR shouldn't be merged with the 'DO NOT MERGE' label
-      found_labels = github_labels.select do |github_label|
+      found_do_not_merge_labels = github_labels.select do |github_label|
         do_not_merge_labels.any? { |label| github_label.casecmp?(label) }
       end
 
-      failure("This PR is tagged with #{markdown_list_string(found_labels)} label(s).") unless found_labels.empty?
+      failure("This PR is tagged with #{markdown_list_string(found_do_not_merge_labels)} label(s).") unless found_do_not_merge_labels.empty?
 
       # fail if a PR is missing any of the required labels
       check_missing_labels(labels: github_labels, expected_labels: required_labels, fail_on_missing: true, custom_message: required_labels_error)
