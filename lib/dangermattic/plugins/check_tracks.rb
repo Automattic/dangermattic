@@ -38,7 +38,7 @@ module Danger
     # Checks the PR diff for changes in Tracks-related files and provides instructions if changes are detected
     #
     # @param tracks_files [Array<String>] List of Tracks-related file names to check (default: DEFAULT_TRACKS_FILES)
-    # @param tracks_usage_match [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines (default: DEFAULT_TRACKS_FILES)
+    # @param tracks_usage_matchers [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines (default: DEFAULT_TRACKS_FILES)
     # @return [void]
     def check_tracks_changes(tracks_files: DEFAULT_TRACKS_FILES, tracks_usage_matchers: DEFAULT_TRACKS_USE_MATCHERS)
       return unless changes_tracks_files?(tracks_files: tracks_files) || diff_has_tracks_changes?(tracks_usage_matchers: tracks_usage_matchers)
