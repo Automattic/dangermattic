@@ -5,12 +5,31 @@ module Danger
   # to determine the type of change (added, removed, or other) in a diff line, and to retrieve lists of
   # added, modified, and deleted files.
   #
-  # @example Checks if there is a "TODO" in
+  # @example Check if there is a "TODO" in Ruby files:
   #          git_utils.check_added_diff_lines(
   #            file_selector: ->(path) { path.end_with?('.rb') },
   #            line_matcher: ->(line) { line.include?('TODO') },
   #            message: 'Found a TODO in a Ruby file'
   #          )
+  #
+  # @example Get added lines from a diff patch:
+  #          added_lines = added_lines(diff_patch: diff_patch)
+  #
+  # @example Get removed lines from a diff patch:
+  #          removed_lines = removed_lines(diff_patch: diff_patch)
+  #
+  # @example Determining the change type of a diff line:
+  #          change_type(diff_line: "+ new line added")
+  #          #=> :added
+  #
+  #         change_type(diff_line: "- line removed")
+  #         #=> :removed
+  #
+  #         change_type(diff_line: " context line")
+  #         #=> :other
+  #
+  # @example Select removed lines from a diff patch:
+  #          removed_lines = select_lines(diff_patch: diff_patch, change_type: :removed)
   #
   # @see Automattic/dangermattic
   # @tags tool, util, git
@@ -21,7 +40,7 @@ module Danger
     # @param file_selector [Proc] A block to select the files in the PR.
     #   The block should take a file path as input and return true if the file should be checked.
     #
-    # @param matcher [Proc] A block that will select the diff lines to report.
+    # @param line_matcher [Proc] A block that will select the diff lines to report.
     #   The block should take a line of text as input and return true if the line matches the pattern.
     #
     # @param message [String] The warning or failure message to display when the pattern is found in a line.
@@ -63,16 +82,6 @@ module Danger
     #
     # @param diff_line [String] The line from a git diff that needs to be classified.
     #
-    # @example Determining the change type of a diff line:
-    #   change_type(diff_line: "+ new line added")
-    #   #=> :added
-    #
-    #   change_type(diff_line: "- line removed")
-    #   #=> :removed
-    #
-    #   change_type(diff_line: " context line")
-    #   #=> :other
-    #
     # @return [Symbol] The type of change for the given diff line. Possible values are:
     #   - :added for added lines
     #   - :removed for removed lines
@@ -99,6 +108,35 @@ module Danger
     # @return [Array<String>] An array containing the file paths of all modified files.
     def all_modified_files
       danger.git.added_files + danger.git.modified_files + danger.git.deleted_files
+    end
+
+    # Returns the lines that were added in the given diff patch.
+    #
+    # @param diff_patch [String] The diff patch containing the changes.
+    #
+    # @return [String] A concatenated string of added lines.
+    def added_lines(diff_patch:)
+      select_lines(diff_patch: diff_patch, change_type: :added)
+    end
+
+    # Returns the lines that were removed in the given diff patch.
+    #
+    # @param diff_patch [String] The diff patch containing the changes.
+    #
+    # @return [String] A concatenated string of removed lines.
+    def removed_lines(diff_patch:)
+      select_lines(diff_patch: diff_patch, change_type: :removed)
+    end
+
+    # Selects lines of a specific change type (added or removed) from the given diff patch.
+    #
+    # @param diff_patch [String] The diff patch containing the changes.
+    # @param change_type [Symbol] The desired change type (:added or :removed).
+    #
+    # @return [String] A concatenated string of selected lines of the specified change type.
+    def select_lines(diff_patch:, change_type:)
+      selected_lines = diff_patch.lines.select { |line| change_type(diff_line: line) == change_type }
+      selected_lines.map { |line| line[1..] }.join
     end
   end
 end

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require_relative 'utils/git_utils'
-
 module Danger
   # This plugin provides methods to check for the presence of unit tests for newly added classes in a pull request.
   #
@@ -109,7 +107,7 @@ module Danger
         if test_file?(path: file_path)
           # Store added test lines from test files
           added_test_lines += file_diff.patch.each_line.select do |line|
-            GitUtils.change_type(diff_line: line) == :added
+            git_utils.change_type(diff_line: line) == :added
           end
         else
           # Detect added classes (violations) and removed classes in non-test files
@@ -143,7 +141,7 @@ module Danger
     #
     # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
     def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
-      added_lines = GitUtils.added_lines(diff_patch: diff_patch)
+      added_lines = git_utils.added_lines(diff_patch: diff_patch)
       matches = added_lines.scan(NON_PRIVATE_CLASS_DETECTOR)
       matches.reject! do |m|
         class_match_is_exception?(
@@ -163,7 +161,7 @@ module Danger
     #
     # @return [Array<String>] An array with the class names of the classes that were removed in the diff.
     def find_removed_classes(diff_patch:)
-      removed_lines = GitUtils.removed_lines(diff_patch: diff_patch)
+      removed_lines = git_utils.removed_lines(diff_patch: diff_patch)
       matches = removed_lines.scan(ANY_CLASS_DETECTOR)
       matches.map { |m| m[0] }
     end
