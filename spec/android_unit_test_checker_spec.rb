@@ -157,7 +157,13 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expected_warnings = [
+          'Class `Abc` is missing tests, but `unit-tests-exemption` label was set to ignore this.',
+          'Class `Abcdef` is missing tests, but `unit-tests-exemption` label was set to ignore this.',
+          'Class `TestsINeedThem2` is missing tests, but `unit-tests-exemption` label was set to ignore this.',
+          'Class `TestsINeedThem2AnotherClass` is missing tests, but `unit-tests-exemption` label was set to ignore this.'
+        ]
+        expect(@dangerfile).to report_warnings(expected_warnings)
       end
 
       it 'does not report errors when a PR without tests with a custom bypass label is missing tests' do
@@ -175,7 +181,11 @@ module Danger
 
         @plugin.check_missing_tests(bypass_label: ignore_label)
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expected_warnings = [
+          'Class `Abc` is missing tests, but `ignore-no-tests` label was set to ignore this.',
+          'Class `Abcdef` is missing tests, but `ignore-no-tests` label was set to ignore this.'
+        ]
+        expect(@dangerfile).to report_warnings(expected_warnings)
       end
 
       it 'does not report that added classes that need tests but with custom classes exception patterns are missing tests' do
