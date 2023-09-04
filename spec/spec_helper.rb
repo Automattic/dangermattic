@@ -60,6 +60,10 @@ def testing_dangerfile
   Danger::Dangerfile.new(env, testing_ui)
 end
 
+def fixture(name)
+  File.read("spec/fixtures/#{name}")
+end
+
 # custom matchers
 
 RSpec::Matchers.define :report_warnings do |expected_warnings|
