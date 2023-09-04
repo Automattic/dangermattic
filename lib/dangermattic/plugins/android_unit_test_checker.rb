@@ -168,10 +168,10 @@ module Danger
       matches.map { |m| m[0] }
     end
 
-    # @param [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
-    # @param [String] file the path to the file where that class declaration line was matched
-    # @param [Array<String>] Regexes matching class names to exclude from the check.
-    # @param [Array<String>] Regexes matching base class names to exclude from the check
+    # @param match [Array<String>] match an array of captured substrings matching our `*_CLASS_DETECTOR` for a given line
+    # @param file [String] file the path to the file where that class declaration line was matched
+    # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
+    # @param subclasses_exceptions [Array<String>] Regexes matching base class names to exclude from the check
     #
     # @return [void]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
