@@ -126,6 +126,45 @@ module Danger
             expect(@dangerfile).to do_not_report
           end
         end
+
+        describe '#check_modified_translations_on_release_branch' do
+          it 'reports a warning when a PR on a regular branch changes a translation file' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['be.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
+
+            @plugin.check_modified_translations_on_release_branch
+
+            expected_message = 'Translation files `*.lproj/Localizable.strings` should only be updated on a release branch.'
+            expect(@dangerfile).to report_warnings([expected_message])
+          end
+
+          it 'does nothing when a PR changes a translation string on a release branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['fr.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
+
+            @plugin.check_modified_translations_on_release_branch
+
+            expect(@dangerfile).to do_not_report
+          end
+
+          it 'does nothing when a PR on a regular branch changes the source Localizable.strings' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
+
+            @plugin.check_modified_translations_on_release_branch
+
+            expect(@dangerfile).to do_not_report
+          end
+
+          it 'does nothing when a PR does not change a translation file on a regular branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['./path/to/view/model/MyViewModel3.swift'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
+
+            @plugin.check_modified_translations_on_release_branch
+
+            expect(@dangerfile).to do_not_report
+          end
+        end
       end
 
       context 'when changing the release notes' do

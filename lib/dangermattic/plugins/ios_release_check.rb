@@ -16,6 +16,9 @@ module Danger
   # @tags ios, macos, process, release
   #
   class IosReleaseCheck < Plugin
+    LOCALIZABLE_STRINGS_FILE = 'Localizable.strings'
+    BASE_STRINGS_FILE = "en.lproj/#{LOCALIZABLE_STRINGS_FILE}".freeze
+
     # Checks if an existing Core Data model has been edited in a release branch.
     #
     # @return [void]
@@ -34,10 +37,9 @@ module Danger
     #
     # @return [void]
     def check_modified_localizable_strings_on_release
-      strings_file = 'Localizable.strings'
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { File.basename(path) == strings_file },
-        message: "The `#{strings_file}` files should only be updated on release branches, when the translations are downloaded.",
+        file_comparison: ->(path) { File.basename(path) == LOCALIZABLE_STRINGS_FILE },
+        message: "The `#{LOCALIZABLE_STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded.",
         on_release: false
       )
     end
@@ -46,11 +48,21 @@ module Danger
     #
     # @return [void]
     def check_modified_en_strings_on_regular_branch
-      strings_file = 'en.lproj/Localizable.strings'
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { path.end_with?(strings_file) },
-        message: "The `#{strings_file}` file should only be updated before creating a release branch.",
+        file_comparison: ->(path) { path.end_with?(BASE_STRINGS_FILE) },
+        message: "The `#{BASE_STRINGS_FILE}` file should only be updated before creating a release branch.",
         on_release: true
+      )
+    end
+
+    # Checks if a translation file (*.lproj/Localizable.strings) has been modified on a release branch, otherwise reporting a warning.
+    #
+    # @return [void]
+    def check_modified_translations_on_release_branch
+      common_release_checks.check_file_changed(
+        file_comparison: ->(path) { !path.end_with?(BASE_STRINGS_FILE) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
+        message: "Translation files `*.lproj/#{LOCALIZABLE_STRINGS_FILE}` should only be updated on a release branch.",
+        on_release: false
       )
     end
 
