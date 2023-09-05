@@ -14,7 +14,7 @@ module Danger
   # @example Checking if release notes and store strings have changed:
   #          common_release_checks.check_release_notes_and_store_strings(
   #            release_notes_file: 'metadata/release_notes.txt',
-  #            store_strings_file: 'metadata/PlayStoreStrings.po'
+  #            po_file: 'metadata/PlayStoreStrings.po'
   #          )
   #
   # @example Checking for changes in internal release notes:
@@ -69,20 +69,20 @@ module Danger
     # @param release_notes_file [String] The name of the release notes file that should be checked for modifications.
     #   Example: 'metadata/release_notes.txt'
     #
-    # @param store_strings_file [String] The name of the store strings file that should be checked for modifications.
+    # @param po_file [String] The name of the store strings file that should be checked for modifications.
     #   Example: 'metadata/PlayStoreStrings.po'
     #
     # @example Check if the release notes file 'release_notes.txt' is modified, and the 'PlayStoreStrings.po' file is not modified, posting a message:
-    #          check_release_notes_and_store_strings(release_notes_file: 'release_notes.txt', store_strings_file: 'PlayStoreStrings.po')
+    #          check_release_notes_and_store_strings(release_notes_file: 'release_notes.txt', po_file: 'PlayStoreStrings.po')
     #
     # @return [void]
-    def check_release_notes_and_store_strings(release_notes_file:, store_strings_file:)
-      has_modified_release_notes = danger.git.modified_files.any? { |f| f.end_with?(release_notes_file) }
-      has_modified_app_store_strings = danger.git.modified_files.any? { |f| f.end_with?(store_strings_file) }
+    def check_release_notes_and_store_strings(release_notes_file:, po_file:)
+      has_modified_release_notes = danger.git.modified_files.any? { |f| f == release_notes_file }
+      has_modified_app_store_strings = danger.git.modified_files.any? { |f| f == po_file }
 
       return unless has_modified_release_notes && !has_modified_app_store_strings
 
-      report_message = "The `#{store_strings_file}` file should be updated if the editorialised release notes file `#{release_notes_file}` is being changed."
+      report_message = "The `#{po_file}` file should be updated if the editorialised release notes file `#{release_notes_file}` is being changed."
       message(report_message)
     end
 

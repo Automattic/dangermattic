@@ -19,7 +19,7 @@ module Danger
     def check_release_notes_and_play_store_strings
       common_release_checks.check_release_notes_and_store_strings(
         release_notes_file: 'metadata/release_notes.txt',
-        store_strings_file: 'metadata/PlayStoreStrings.po'
+        po_file: 'metadata/PlayStoreStrings.po'
       )
     end
 

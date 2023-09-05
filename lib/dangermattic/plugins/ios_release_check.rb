@@ -30,13 +30,14 @@ module Danger
       )
     end
 
-    # Checks if the Localizable.strings file has been modified on a regular branch, emiting a warning if that's the case.
+    # Checks if any Localizable.strings file has been modified on a regular branch, emiting a warning if that's the case.
     #
     # @return [void]
-    def check_modified_localizable_strings
+    def check_modified_localizable_strings_on_release
+      strings_file = 'Localizable.strings'
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { path.end_with?('Resources/en.lproj/Localizable.strings') },
-        message: 'Localizable.strings should only be updated on release branches because it is generated automatically.',
+        file_comparison: ->(path) { File.basename(path) == strings_file  },
+        message: "`#{strings_file}` files should only be updated on release branches, when the translations are downloaded.",
         on_release: false
       )
     end
@@ -47,7 +48,7 @@ module Danger
     def check_release_notes_and_app_store_strings
       common_release_checks.check_release_notes_and_store_strings(
         release_notes_file: 'Resources/release_notes.txt',
-        store_strings_file: 'Resources/AppStoreStrings.po'
+        po_file: 'Resources/AppStoreStrings.po'
       )
     end
   end
