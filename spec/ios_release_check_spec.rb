@@ -47,43 +47,84 @@ module Danger
         end
       end
 
-      context 'when changing the Localizable.strings' do
-        it 'returns a warning when a PR on a regular branch changes the source Localizable.strings' do
-          allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
-          allow(@plugin.github).to receive(:branch_for_base).and_return('add/myfeature')
+      context 'when changing the Localizable.strings files' do
+        describe '#check_modified_localizable_strings_on_release' do
+          it 'returns a warning when a PR on a regular branch changes the source Localizable.strings' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
 
-          @plugin.check_modified_localizable_strings_on_release
+            @plugin.check_modified_localizable_strings_on_release
 
-          expected_message = '`Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
-          expect(@dangerfile).to report_warnings([expected_message])
+            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
+            expect(@dangerfile).to report_warnings([expected_message])
+          end
+
+          it 'returns a warning when a PR on a regular branch changes a translated Localizable.strings' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['nl.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('trunk')
+
+            @plugin.check_modified_localizable_strings_on_release
+
+            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
+            expect(@dangerfile).to report_warnings([expected_message])
+          end
+
+          it 'does nothing when a PR changes the Localizable.strings on a release branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
+
+            @plugin.check_modified_localizable_strings_on_release
+
+            expect(@dangerfile).to do_not_report
+          end
+
+          it 'does nothing when a PR does not change the Localizable.strings on a regular branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['./path/to/view/model/MyViewModel.swift'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
+
+            @plugin.check_modified_localizable_strings_on_release
+
+            expect(@dangerfile).to do_not_report
+          end
         end
 
-        it 'returns a warning when a PR on a regular branch changes a translated Localizable.strings' do
-          allow(@plugin.git).to receive(:modified_files).and_return(['nl.lproj/Localizable.strings'])
-          allow(@plugin.github).to receive(:branch_for_base).and_return('add/myfeature1')
+        describe '#check_modified_en_strings_on_regular_branch' do
+          it 'reports a warning when a PR on a release branch changes the source Localizable.strings' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
 
-          @plugin.check_modified_localizable_strings_on_release
+            @plugin.check_modified_en_strings_on_regular_branch
 
-          expected_message = '`Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
-          expect(@dangerfile).to report_warnings([expected_message])
-        end
+            expected_message = 'The `en.lproj/Localizable.strings` file should only be updated before creating a release branch.'
+            expect(@dangerfile).to report_warnings([expected_message])
+          end
 
-        it 'does nothing when a PR changes the Localizable.strings on a release branch' do
-          allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
-          allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
+          it 'does nothing when a PR changes the Localizable.strings on a regular branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
 
-          @plugin.check_modified_localizable_strings_on_release
+            @plugin.check_modified_en_strings_on_regular_branch
 
-          expect(@dangerfile).to do_not_report
-        end
+            expect(@dangerfile).to do_not_report
+          end
 
-        it 'does nothing when a PR ca warning when a PR does not change the Localizable.strings on a regular branch' do
-          allow(@plugin.git).to receive(:modified_files).and_return(['./path/to/view/model/MyViewModel.swift'])
-          allow(@plugin.github).to receive(:branch_for_base).and_return('add/myfeature')
+          it 'does nothing when a PR on a release branch changes a translated Localizable.strings' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['nl.lproj/Localizable.strings'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
 
-          @plugin.check_modified_localizable_strings_on_release
+            @plugin.check_modified_en_strings_on_regular_branch
 
-          expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to do_not_report
+          end
+
+          it 'does nothing when a PR does not change the Localizable.strings on a release branch' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['./path/to/view/model/MyViewModel2.swift'])
+            allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
+
+            @plugin.check_modified_en_strings_on_regular_branch
+
+            expect(@dangerfile).to do_not_report
+          end
         end
       end
 

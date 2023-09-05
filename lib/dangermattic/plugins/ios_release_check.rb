@@ -30,15 +30,27 @@ module Danger
       )
     end
 
-    # Checks if any Localizable.strings file has been modified on a regular branch, emiting a warning if that's the case.
+    # Checks if any Localizable.strings file has been modified on a release branch, otherwise reporting a warning.
     #
     # @return [void]
     def check_modified_localizable_strings_on_release
       strings_file = 'Localizable.strings'
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { File.basename(path) == strings_file  },
-        message: "`#{strings_file}` files should only be updated on release branches, when the translations are downloaded.",
+        file_comparison: ->(path) { File.basename(path) == strings_file },
+        message: "The `#{strings_file}` files should only be updated on release branches, when the translations are downloaded.",
         on_release: false
+      )
+    end
+
+    # Checks if the en.lproj/Localizable.strings file has been modified on a regular branch, otherwise reporting a warning.
+    #
+    # @return [void]
+    def check_modified_en_strings_on_regular_branch
+      strings_file = 'en.lproj/Localizable.strings'
+      common_release_checks.check_file_changed(
+        file_comparison: ->(path) { path.end_with?(strings_file) },
+        message: "The `#{strings_file}` file should only be updated before creating a release branch.",
+        on_release: true
       )
     end
 
