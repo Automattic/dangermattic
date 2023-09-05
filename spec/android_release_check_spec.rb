@@ -22,7 +22,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to eq ['The PlayStoreStrings.po file must be updated any time changes are made to the release notes.']
+          expect(@dangerfile).to report_messages(['The `metadata/PlayStoreStrings.po` file should be updated if the editorialised release notes file `metadata/release_notes.txt` is being changed.'])
         end
 
         it 'does nothing when a PR changes the release notes and the AppStore strings file' do
@@ -30,7 +30,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
 
         it 'does nothing when a PR does not change the release notes or the AppStore strings file' do
@@ -38,7 +38,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
       end
     end

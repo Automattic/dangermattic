@@ -25,7 +25,7 @@ module Danger
 
           expected_message = 'Do not edit an existing Core Data model in a release branch unless it hasn\'t been released to testers yet. ' \
                              'Instead create a new model version and merge back to develop soon.'
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_message]
+          expect(@dangerfile).to report_warnings([expected_message])
         end
 
         it 'does nothing when a PR changes a Core Data model on a regular branch' do
@@ -34,7 +34,7 @@ module Danger
 
           @plugin.check_core_data_model_changed
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
 
         it 'does nothing when a PR ca warning when a PR does not change a Core Data model on the release branch' do
@@ -43,7 +43,7 @@ module Danger
 
           @plugin.check_core_data_model_changed
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
       end
 
@@ -55,7 +55,7 @@ module Danger
           @plugin.check_modified_localizable_strings
 
           expected_message = 'Localizable.strings should only be updated on release branches because it is generated automatically.'
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_message]
+          expect(@dangerfile).to report_warnings([expected_message])
         end
 
         it 'does nothing when a PR changes the Localizable.strings on a release branch' do
@@ -64,7 +64,7 @@ module Danger
 
           @plugin.check_modified_localizable_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
 
         it 'does nothing when a PR ca warning when a PR does not change the Localizable.strings on a regular branch' do
@@ -73,7 +73,7 @@ module Danger
 
           @plugin.check_modified_localizable_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
       end
 
@@ -83,7 +83,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to eq ['The AppStoreStrings.po file must be updated any time changes are made to the release notes.']
+          expect(@dangerfile).to report_messages(['The `Resources/AppStoreStrings.po` file should be updated if the editorialised release notes file `Resources/release_notes.txt` is being changed.'])
         end
 
         it 'does nothing when a PR changes the release notes and the AppStore strings file' do
@@ -91,7 +91,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
 
         it 'does nothing when a PR does not change the release notes or the AppStore strings file' do
@@ -99,7 +99,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to do_not_report
         end
       end
     end

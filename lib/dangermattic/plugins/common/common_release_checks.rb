@@ -42,8 +42,7 @@ module Danger
     # @example Check if any modified file is under the 'app/' directory and emit a warning on release branches:
     #   check_file_changed(file_comparison: ->(file_path) { file_path.include?('app/') },
     #                      message: 'Some files in the "app/" directory have been modified. Please review the changes.',
-    #                      on_release: true
-    #   )
+    #                      on_release: true)
     #
     # @example Check if a specific file has been modified and emit a failure on non-release branches:
     #   check_file_changed(file_comparison: ->(file_path) { file_path == 'path/to/file/DoNotChange.java' },
@@ -73,25 +72,18 @@ module Danger
     # @param store_strings_file [String] The name of the store strings file that should be checked for modifications.
     #   Example: 'metadata/PlayStoreStrings.po'
     #
-    # @param fail_on_error [Boolean] If true, a failure message will be emitted instead of a warning.
-    #
-    # @example Check if the release notes file 'release_notes.txt' is modified, and the 'PlayStoreStrings.po' file is not modified:
-    #   check_release_notes_and_store_strings(release_notes_file: 'release_notes.txt', store_strings_file: 'PlayStoreStrings.po', fail_on_error: false)
+    # @example Check if the release notes file 'release_notes.txt' is modified, and the 'PlayStoreStrings.po' file is not modified, posting a message:
+    #          check_release_notes_and_store_strings(release_notes_file: 'release_notes.txt', store_strings_file: 'PlayStoreStrings.po')
     #
     # @return [void]
-    def check_release_notes_and_store_strings(release_notes_file:, store_strings_file:, fail_on_error: false)
+    def check_release_notes_and_store_strings(release_notes_file:, store_strings_file:)
       has_modified_release_notes = danger.git.modified_files.any? { |f| f.end_with?(release_notes_file) }
       has_modified_app_store_strings = danger.git.modified_files.any? { |f| f.end_with?(store_strings_file) }
 
       return unless has_modified_release_notes && !has_modified_app_store_strings
 
-      message = "The #{File.basename(store_strings_file)} file must be updated any time changes are made to the release notes."
-
-      if fail_on_error
-        failure(message)
-      else
-        warn(message)
-      end
+      report_message = "The `#{store_strings_file}` file should be updated if the editorialised release notes file `#{release_notes_file}` is being changed."
+      message(report_message)
     end
 
     # Check if there are changes to the internal release notes file in the release branch and emit a warning if that's the case.
