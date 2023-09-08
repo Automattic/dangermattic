@@ -47,7 +47,7 @@ module Danger
 
             @plugin.check_milestone_set
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when an error is expected but the PR has a milestone set' do
@@ -61,7 +61,7 @@ module Danger
 
             @plugin.check_milestone_set(fail_on_error: true)
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
       end
@@ -105,7 +105,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it 'reports a warning when a PR has a milestone with due date after the warning days threshold' do
@@ -163,7 +163,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR has a milestone but it has already passed the due date' do
@@ -180,7 +180,7 @@ module Danger
 
           @plugin.check_milestone_due_date
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it "reports a warning when asked to do so when a PR doesn't have a milestone set" do
@@ -206,7 +206,7 @@ module Danger
 
           @plugin.check_milestone_due_date(if_no_milestone: :none)
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it "does nothing when nil is used and a PR doesn't have a milestone set" do
@@ -214,7 +214,7 @@ module Danger
 
           @plugin.check_milestone_due_date(if_no_milestone: nil)
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
       end
     end
