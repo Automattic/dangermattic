@@ -88,7 +88,7 @@ RSpec::Matchers.define :report_errors do |expected_errors|
   end
 end
 
-RSpec::Matchers.define :do_not_report do
+RSpec::Matchers.define :not_report do
   match do |dangerfile|
     dangerfile.status_report[:errors]&.empty? &&
       dangerfile.status_report[:warnings]&.empty?
