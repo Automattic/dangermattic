@@ -26,6 +26,7 @@ Gem::Specification.new do |spec|
 
   # Danger plugins
   spec.add_dependency 'danger-junit', '~> 1.0'
+  spec.add_dependency 'danger-rubocop', '~> 0.11'
   spec.add_dependency 'danger-swiftlint', '~> 0.29'
   spec.add_dependency 'danger-xcode_summary', '~> 1.0'
 

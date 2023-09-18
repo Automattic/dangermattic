@@ -5,6 +5,7 @@ PATH
       danger (~> 9.3)
       danger-junit (~> 1.0)
       danger-plugin-api (~> 1.0)
+      danger-rubocop (~> 0.11)
       danger-swiftlint (~> 0.29)
       danger-xcode_summary (~> 1.0)
       rubocop (~> 1.56)
@@ -43,6 +44,9 @@ GEM
       ox (~> 2.0)
     danger-plugin-api (1.0.0)
       danger (> 2.0)
+    danger-rubocop (0.11.0)
+      danger
+      rubocop (~> 1.0)
     danger-swiftlint (0.33.0)
       danger
       rake (> 10)
