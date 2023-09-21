@@ -45,7 +45,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when there are no changes in Tracks related files using a custom file list' do
@@ -55,7 +55,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
 
@@ -105,7 +105,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when there are no matching changes using a custom matcher' do
@@ -121,7 +121,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log$/])
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
       end
