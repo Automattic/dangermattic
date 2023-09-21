@@ -30,7 +30,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR does not change the release notes or the AppStore strings file' do
@@ -38,7 +38,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
       end
     end

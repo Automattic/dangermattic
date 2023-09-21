@@ -34,7 +34,7 @@ module Danger
 
           @plugin.check_core_data_model_changed
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR ca warning when a PR does not change a Core Data model on the release branch' do
@@ -43,7 +43,7 @@ module Danger
 
           @plugin.check_core_data_model_changed
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
       end
 
@@ -75,7 +75,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when a PR does not change the Localizable.strings on a regular branch' do
@@ -84,7 +84,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
 
@@ -105,7 +105,7 @@ module Danger
 
             @plugin.check_modified_en_strings_on_regular_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when a PR on a release branch changes a translated Localizable.strings' do
@@ -114,7 +114,7 @@ module Danger
 
             @plugin.check_modified_en_strings_on_regular_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when a PR does not change the Localizable.strings on a release branch' do
@@ -123,7 +123,7 @@ module Danger
 
             @plugin.check_modified_en_strings_on_regular_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
 
@@ -144,7 +144,7 @@ module Danger
 
             @plugin.check_modified_translations_on_release_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when a PR on a regular branch changes the source Localizable.strings' do
@@ -153,7 +153,7 @@ module Danger
 
             @plugin.check_modified_translations_on_release_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when a PR does not change a translation file on a regular branch' do
@@ -162,7 +162,7 @@ module Danger
 
             @plugin.check_modified_translations_on_release_branch
 
-            expect(@dangerfile).to do_not_report
+            expect(@dangerfile).to not_report
           end
         end
       end
@@ -181,7 +181,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR does not change the release notes or the AppStore strings file' do
@@ -189,7 +189,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile).to do_not_report
+          expect(@dangerfile).to not_report
         end
       end
     end
