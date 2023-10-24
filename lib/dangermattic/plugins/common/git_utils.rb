@@ -13,23 +13,23 @@ module Danger
   #          )
   #
   # @example Get added lines from a diff patch:
-  #          added_lines = added_lines(diff_patch: diff_patch)
+  #          added_lines = git_utils.added_lines(diff_patch: diff_patch)
   #
   # @example Get removed lines from a diff patch:
-  #          removed_lines = removed_lines(diff_patch: diff_patch)
+  #          removed_lines = git_utils.removed_lines(diff_patch: diff_patch)
   #
   # @example Determining the change type of a diff line:
-  #          change_type(diff_line: "+ new line added")
+  #          git_utils.change_type(diff_line: "+ new line added")
   #          #=> :added
   #
-  #         change_type(diff_line: "- line removed")
+  #         git_utils.change_type(diff_line: "- line removed")
   #         #=> :removed
   #
-  #         change_type(diff_line: " context line")
+  #         git_utils.change_type(diff_line: " context line")
   #         #=> :other
   #
   # @example Select removed lines from a diff patch:
-  #          removed_lines = select_lines(diff_patch: diff_patch, change_type: :removed)
+  #          removed_lines = git_utils.select_lines(diff_patch: diff_patch, change_type: :removed)
   #
   # @see Automattic/dangermattic
   # @tags tool, util, git
