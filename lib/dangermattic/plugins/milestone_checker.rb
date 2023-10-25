@@ -70,10 +70,9 @@ module Danger
       return unless pr_state != 'closed' && milestone_due_date
 
       today = DateTime.now
-      due_date = DateTime.parse(milestone_due_date)
 
       seconds_threshold = days_before_due * 24 * 60 * 60
-      time_before_due_date = due_date.to_time.to_i - today.to_time.to_i
+      time_before_due_date = milestone_due_date.to_time.to_i - today.to_time.to_i
       return unless time_before_due_date <= seconds_threshold
 
       message_text = "This PR is assigned to the milestone [#{milestone_title}](#{milestone_url}). "

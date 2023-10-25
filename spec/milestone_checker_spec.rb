@@ -72,7 +72,7 @@ module Danger
             'milestone' => {
               'title' => 'Release Day',
               'html_url' => 'https://wp.com',
-              'due_on' => '2023-06-30T23:59:01Z'
+              'due_on' => DateTime.parse('2023-06-30T23:59:01Z')
             },
             'state' => 'open'
           }
@@ -93,7 +93,7 @@ module Danger
             'milestone' => {
               'title' => 'Release Day',
               'html_url' => 'https://wp.com',
-              'due_on' => '2023-06-30T23:59:01Z'
+              'due_on' => DateTime.parse('2023-06-30T23:59:01Z')
             },
             'state' => 'open'
           }
@@ -113,7 +113,7 @@ module Danger
             'milestone' => {
               'title' => 'Release Day',
               'html_url' => 'https://wp.com',
-              'due_on' => '2023-06-30T23:59:01Z'
+              'due_on' => DateTime.parse('2023-06-30T23:59:01Z')
             },
             'state' => 'open'
           }
@@ -134,7 +134,7 @@ module Danger
             'milestone' => {
               'title' => 'Release Day',
               'html_url' => 'https://wp.com',
-              'due_on' => '2023-06-30T23:59:01Z'
+              'due_on' => DateTime.parse('2023-06-30T23:59:01Z')
             },
             'state' => 'open'
           }
@@ -171,7 +171,7 @@ module Danger
             'milestone' => {
               'title' => 'Release Day',
               'html_url' => 'https://wp.com',
-              'due_on' => '2023-06-30T23:59:01Z'
+              'due_on' => DateTime.parse('2023-06-30T23:59:01Z')
             },
             'state' => 'closed'
           }
