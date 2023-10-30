@@ -6,7 +6,7 @@ AllCops:
   NewCops: enable
 
 Style/HashSyntax:
-  EnforcedShorthandSyntax: either
+  EnforcedShorthandSyntax: never
 
 ########## Gemspec Rules
 
