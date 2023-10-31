@@ -21,9 +21,27 @@ module Danger
         expect(@dangerfile.status_report[:warnings].count).to eq 1
       end
 
-      it 'does nothing when a PR with view code changes has screenshots' do
+      it 'does nothing when a PR with view code changes has screenshots defined in markdown' do
         allow(@plugin.github).to receive(:pr_body)
           .and_return('PR [![Alt text](https://myimages.com/boo)](https://digitalocean.com) Body')
+
+        @plugin.view_changes_need_screenshots
+
+        expect(@dangerfile.status_report[:warnings]).to be_empty
+      end
+
+      it 'does nothing when a PR with view code changes has url to screenshots' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return('<a href=\'https://myimages.com/boo.jpg\'>see secreenshot</a> Body')
+
+        @plugin.view_changes_need_screenshots
+
+        expect(@dangerfile.status_report[:warnings]).to be_empty
+      end
+
+      it 'does nothing when a PR with view code changes has a screenshot defined with a html tag' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see screenshot:\n<img width=300 src=\"https://github.com/bloom/DayOne-Apple/assets/4780/1f9e01a8-c63d-41d4-9ac8-fa9a5182ab55\"> body body")
 
         @plugin.view_changes_need_screenshots
 
