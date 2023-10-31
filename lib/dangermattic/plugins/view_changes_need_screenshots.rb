@@ -25,8 +25,10 @@ module Danger
       view_files_modified = git.modified_files.any? do |file|
         VIEW_EXTENSIONS_IOS =~ file || VIEW_EXTENSIONS_ANDROID =~ file
       end
+
       pr_has_screenshots = github.pr_body =~ %r{https?://\S*\.(gif|jpg|jpeg|png|svg)}
       pr_has_screenshots ||= github.pr_body =~ /!\[(.*?)\]\((.*?)\)/
+      pr_has_screenshots ||= github.pr_body =~ /<img\s[^>]*\ssrc=[^>]*>/
 
       warning = 'View files have been modified, but no screenshot is included in the pull request. ' \
                 'Consider adding some for clarity.'
