@@ -54,16 +54,17 @@ module Danger
     def check_added_diff_lines(file_selector:, line_matcher:, message:, fail_on_error: false)
       modified_files = added_and_modified_files.select(&file_selector)
 
-      modified_files.each do |file|
-        diff = danger.git.diff_for_file(file)
+      matches = matching_lines_in_diff_files(
+        files: modified_files,
+        line_matcher: line_matcher,
+        change_type: :added
+      )
 
-        diff.patch.each_line do |line|
-          next unless change_type(diff_line: line) == :added
-          next unless line_matcher.call(line)
-
+      matches.each do |match|
+        match.lines.each do |line|
           final_message = <<~MESSAGE
             #{message}
-            File `#{file}`:
+            File `#{match.file}`:
             ```diff
             #{line.chomp}
             ```
@@ -76,6 +77,32 @@ module Danger
           end
         end
       end
+    end
+
+    MatchedData = Struct.new(:file, :lines)
+
+    # Matches diff lines in the provided files based on the line matcher and change type
+    #
+    # @param files [Array<String>] List of file names to check
+    # @param line_matcher [Proc] A callable that takes a line and returns true if it matches the desired pattern
+    # @param change_type [Symbol, nil] Change type to filter lines (e.g., :added, :removed) or nil for no filter
+    # @return [Array<MatchedData>] Array of MatchedData objects representing matched lines in files
+    def matching_lines_in_diff_files(files:, line_matcher:, change_type: nil)
+      matched_data = []
+
+      files.each do |file|
+        matched_lines = []
+
+        diff = danger.git.diff_for_file(file)
+
+        diff.patch.each_line do |line|
+          matched_lines << line if line_matcher.call(line) && (change_type.nil? || change_type(diff_line: line) == change_type)
+        end
+
+        matched_data << MatchedData.new(file, matched_lines) unless matched_lines.empty?
+      end
+
+      matched_data
     end
 
     # Determine the type of change for a given line in a git diff.
@@ -103,10 +130,11 @@ module Danger
       danger.git.added_files + danger.git.modified_files
     end
 
-    # Get the list of all additions, changes and deletions in the current Pull Request.
+    # Get the list of all files added, modified and deleted in the current Pull Request.
     #
-    # @return [Array<String>] An array containing the file paths of all modified files.
-    def all_modified_files
+    # @return [Array<String>] An array containing the file paths of all changed files.
+    #
+    def all_changed_files
       danger.git.added_files + danger.git.modified_files + danger.git.deleted_files
     end
 

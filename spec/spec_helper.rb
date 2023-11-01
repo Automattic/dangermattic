@@ -69,29 +69,44 @@ end
 RSpec::Matchers.define :report_warnings do |expected_warnings|
   match do |dangerfile|
     dangerfile.status_report[:warnings].eql?(expected_warnings) &&
-      dangerfile.status_report[:errors]&.empty?
+      dangerfile.status_report[:errors]&.empty? &&
+      dangerfile.status_report[:messages]&.empty?
   end
 
   failure_message do |dangerfile|
-    "expected warnings '#{expected_warnings}' to be reported, got instead:\n- Warnings: #{dangerfile.status_report[:warnings]}\n- Errors: #{dangerfile.status_report[:errors]}"
+    "expected warnings '#{expected_warnings}' to be reported, got instead:\n- Warnings: #{dangerfile.status_report[:warnings]}\n- Errors: #{dangerfile.status_report[:errors]}\n- Messages: #{dangerfile.status_report[:messages]}"
   end
 end
 
 RSpec::Matchers.define :report_errors do |expected_errors|
   match do |dangerfile|
     dangerfile.status_report[:errors].eql?(expected_errors) &&
+      dangerfile.status_report[:warnings]&.empty? &&
+      dangerfile.status_report[:messages]&.empty?
+  end
+
+  failure_message do |dangerfile|
+    "expected errors '#{expected_errors}' to be reported, got instead:\n- Errors: #{dangerfile.status_report[:errors]}\n- Warnings: #{dangerfile.status_report[:warnings]}\n- Messages: #{dangerfile.status_report[:messages]}"
+  end
+end
+
+RSpec::Matchers.define :report_messages do |expected_messages|
+  match do |dangerfile|
+    dangerfile.status_report[:messages].eql?(expected_messages) &&
+      dangerfile.status_report[:errors]&.empty? &&
       dangerfile.status_report[:warnings]&.empty?
   end
 
   failure_message do |dangerfile|
-    "expected errors '#{expected_errors}' to be reported, got instead:\n- Errors: #{dangerfile.status_report[:errors]}\n- Warnings: #{dangerfile.status_report[:warnings]}"
+    "expected messages '#{expected_messages}' to be reported, got instead:\n- Messages: #{dangerfile.status_report[:messages]}\n- Warnings: #{dangerfile.status_report[:warnings]}\n- Errors: #{dangerfile.status_report[:errors]}"
   end
 end
 
 RSpec::Matchers.define :not_report do
   match do |dangerfile|
     dangerfile.status_report[:errors]&.empty? &&
-      dangerfile.status_report[:warnings]&.empty?
+      dangerfile.status_report[:warnings]&.empty? &&
+      dangerfile.status_report[:messages]&.empty?
   end
 
   failure_message do |dangerfile|
