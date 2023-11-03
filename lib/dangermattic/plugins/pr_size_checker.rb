@@ -85,7 +85,13 @@ module Danger
       return danger.git.insertions unless file_selector
 
       filtered_files = git_utils.all_changed_files.select(&file_selector)
-      filtered_files.sum { |file| danger.git.info_for_file(file)[:insertions].to_i }
+
+      filtered_files.sum do |file|
+        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
+        next 0 if danger.git.diff.stats[:files][file].nil?
+
+        danger.git.info_for_file(file)&.[](:insertions).to_i
+      end
     end
 
     # Calculate the total size of deletions in modified files that match the file selector.
@@ -97,7 +103,13 @@ module Danger
       return danger.git.deletions unless file_selector
 
       filtered_files = git_utils.all_changed_files.select(&file_selector)
-      filtered_files.sum { |file| danger.git.info_for_file(file)[:deletions].to_i }
+
+      filtered_files.sum do |file|
+        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
+        next 0 if danger.git.diff.stats[:files][file].nil?
+
+        danger.git.info_for_file(file)&.[](:deletions).to_i
+      end
     end
 
     # Calculate the total size of changes (insertions and deletions) in modified files that match the file selector.
@@ -109,7 +121,13 @@ module Danger
       return danger.git.lines_of_code unless file_selector
 
       filtered_files = git_utils.all_changed_files.select(&file_selector)
-      filtered_files.sum { |file| danger.git.info_for_file(file)[:deletions].to_i + danger.git.info_for_file(file)[:insertions].to_i }
+
+      filtered_files.sum do |file|
+        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
+        next 0 if danger.git.diff.stats[:files][file].nil?
+
+        danger.git.info_for_file(file)&.[](:deletions).to_i + danger.git.info_for_file(file)&.[](:insertions).to_i
+      end
     end
   end
 end

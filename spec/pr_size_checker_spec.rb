@@ -151,6 +151,10 @@ module Danger
 
             allow(@plugin.git).to receive_messages(added_files: [added_config, added_file], modified_files: [modified_file1, modified_file2, added_test_file, modified_strings], deleted_files: [deleted_file1, deleted_test_file, deleted_strings, deleted_file2])
 
+            allow(@plugin.git).to receive(:diff).and_return(instance_double(Git::Diff))
+            expected_files = { added_test_file => {}, added_config => {}, added_file => {}, modified_file1 => {}, modified_file2 => {}, modified_strings => {}, deleted_file1 => {}, deleted_file2 => {}, deleted_test_file => {}, deleted_strings => {} }
+            allow(@plugin.git.diff).to receive(:stats).and_return({ files: expected_files })
+
             allow(@plugin.git).to receive(:info_for_file).with(added_test_file).and_return({ insertions: 201 })
             allow(@plugin.git).to receive(:info_for_file).with(added_config).and_return({ insertions: 311 })
             allow(@plugin.git).to receive(:info_for_file).with(added_file).and_return({ insertions: 13 })
