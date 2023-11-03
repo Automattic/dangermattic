@@ -82,7 +82,7 @@ module Danger
         lockfile_modified = git.modified_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
         next if lockfile_modified
 
-        warn("#{manifest_file} was changed without updating its corresponding #{lock_file_name}. #{instruction}.")
+        warn("`#{manifest_file}` was changed without updating its corresponding `#{lock_file_name}`. #{instruction}.")
       end
     end
   end
