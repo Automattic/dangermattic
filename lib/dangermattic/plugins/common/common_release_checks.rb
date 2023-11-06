@@ -52,7 +52,7 @@ module Danger
     #
     # @return [void]
     def check_file_changed(file_comparison:, message:, on_release:, fail_on_error: false)
-      has_modified_file = all_modified_files.any?(&file_comparison)
+      has_modified_file = git_utils.all_changed_files.any?(&file_comparison)
 
       should_be_changed = on_release ? release_branch? : !release_branch?
       return unless should_be_changed && has_modified_file
@@ -114,10 +114,6 @@ module Danger
     end
 
     private
-
-    def all_modified_files
-      danger.git.added_files + danger.git.modified_files + danger.git.deleted_files
-    end
 
     def release_branch?
       danger.github.branch_for_base.start_with?('release/') || danger.github.branch_for_base.start_with?('hotfix/')
