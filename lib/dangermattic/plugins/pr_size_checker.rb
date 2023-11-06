@@ -88,7 +88,7 @@ module Danger
 
       filtered_files.sum do |file|
         # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
+        next 0 if nil_stats_for_file?(file)
 
         danger.git.info_for_file(file)&.[](:insertions).to_i
       end
@@ -106,7 +106,7 @@ module Danger
 
       filtered_files.sum do |file|
         # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
+        next 0 if nil_stats_for_file?(file)
 
         danger.git.info_for_file(file)&.[](:deletions).to_i
       end
@@ -124,10 +124,16 @@ module Danger
 
       filtered_files.sum do |file|
         # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
+        next 0 if nil_stats_for_file?(file)
 
         danger.git.info_for_file(file)&.[](:deletions).to_i + danger.git.info_for_file(file)&.[](:insertions).to_i
       end
+    end
+
+    private
+
+    def nil_stats_for_file?(file)
+      danger.git.diff.stats[:files][file].nil?
     end
   end
 end
