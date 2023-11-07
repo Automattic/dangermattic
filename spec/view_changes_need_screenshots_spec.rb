@@ -39,9 +39,18 @@ module Danger
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
 
-      it 'does nothing when a PR with view code changes has a screenshot defined with a html tag' do
+      it 'does nothing when a PR with view code changes has a screenshot defined with a html tag with different attributes before src' do
         allow(@plugin.github).to receive(:pr_body)
-          .and_return("see screenshot:\n<img width=300 src=\"https://github.com/bloom/DayOne-Apple/assets/4780/1f9e01a8-c63d-41d4-9ac8-fa9a5182ab55\"> body body")
+          .and_return("see screenshot:\n<img width=300 hint=\"First screenshots\" src=\"https://github.com/bloom/DayOne-Apple/assets/4780/1f9e01a8-c63d-41d4-9ac8-fa9a5182ab55\"> body body")
+
+        @plugin.view_changes_need_screenshots
+
+        expect(@dangerfile.status_report[:warnings]).to be_empty
+      end
+
+      it 'does nothing when a PR with view code changes has a screenshot defined with a html' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see screenshot:\n<img src=\"https://github.com/woocommerce/woocommerce-ios/assets/1864060/17d9227d-67e8-4efb-8c26-02b81e1b19d2\" width=\"375\"> body body")
 
         @plugin.view_changes_need_screenshots
 
