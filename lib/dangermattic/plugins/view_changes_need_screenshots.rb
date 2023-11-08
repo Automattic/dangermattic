@@ -20,7 +20,7 @@ module Danger
     IMAGE_IN_PR_BODY_PATTERNS = [
       %r{https?://\S*\.(gif|jpg|jpeg|png|svg)},
       /!\[(.*?)\]\((.*?)\)/,
-      /<img\s+[^\>]*src\s*=\s*[^\>]*>/
+      /<img\s+[^>]*src\s*=\s*[^>]*>/
     ].freeze
 
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
