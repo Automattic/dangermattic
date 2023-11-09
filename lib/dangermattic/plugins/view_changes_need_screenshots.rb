@@ -17,6 +17,12 @@ module Danger
     VIEW_EXTENSIONS_IOS = /(View|Button)\.(swift|m)$|\.xib$|\.storyboard$/
     VIEW_EXTENSIONS_ANDROID = /(?i)(View|Button)\.(java|kt|xml)$/
 
+    IMAGE_IN_PR_BODY_PATTERNS = [
+      %r{https?://\S*\.(gif|jpg|jpeg|png|svg)},
+      /!\[(.*?)\]\((.*?)\)/,
+      /<img\s+[^>]*src\s*=\s*[^>]*>/
+    ].freeze
+
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
     # displaying a warning if view files have been modified but no screenshot is included.
     #
@@ -26,9 +32,9 @@ module Danger
         VIEW_EXTENSIONS_IOS =~ file || VIEW_EXTENSIONS_ANDROID =~ file
       end
 
-      pr_has_screenshots = github.pr_body =~ %r{https?://\S*\.(gif|jpg|jpeg|png|svg)}
-      pr_has_screenshots ||= github.pr_body =~ /!\[(.*?)\]\((.*?)\)/
-      pr_has_screenshots ||= github.pr_body =~ /<img\s[^>]*\ssrc=[^>]*>/
+      pr_has_screenshots = IMAGE_IN_PR_BODY_PATTERNS.any? do |pattern|
+        github.pr_body =~ pattern
+      end
 
       warning = 'View files have been modified, but no screenshot is included in the pull request. ' \
                 'Consider adding some for clarity.'
