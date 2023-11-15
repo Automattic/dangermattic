@@ -39,7 +39,7 @@ module Danger
     def check_modified_localizable_strings_on_release
       common_release_checks.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == LOCALIZABLE_STRINGS_FILE },
-        message: "The `#{LOCALIZABLE_STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded.",
+        message: "The `#{LOCALIZABLE_STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.",
         on_release: false
       )
     end
