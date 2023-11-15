@@ -55,7 +55,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
+            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded by our automation.'
             expect(@dangerfile).to report_warnings([expected_message])
           end
 
@@ -65,7 +65,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded.'
+            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded by our automation.'
             expect(@dangerfile).to report_warnings([expected_message])
           end
 
