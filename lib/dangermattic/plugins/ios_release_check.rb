@@ -29,7 +29,7 @@ module Danger
       common_release_checks.check_file_changed(
         file_comparison: ->(path) { File.extname(path) == '.xcdatamodeld' },
         message: warning,
-        on_release: true
+        on_release_branch: true
       )
     end
 
@@ -40,7 +40,7 @@ module Danger
       common_release_checks.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: "The `#{LOCALIZABLE_STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.",
-        on_release: false
+        on_release_branch: false
       )
     end
 
@@ -51,7 +51,7 @@ module Danger
       common_release_checks.check_file_changed(
         file_comparison: ->(path) { path.end_with?(BASE_STRINGS_FILE) },
         message: "The `#{BASE_STRINGS_FILE}` file should only be updated before creating a release branch.",
-        on_release: true
+        on_release_branch: true
       )
     end
 
@@ -62,7 +62,7 @@ module Danger
       common_release_checks.check_file_changed(
         file_comparison: ->(path) { !path.end_with?(BASE_STRINGS_FILE) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: "Translation files `*.lproj/#{LOCALIZABLE_STRINGS_FILE}` should only be updated on a release branch.",
-        on_release: false
+        on_release_branch: false
       )
     end
 

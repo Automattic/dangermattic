@@ -8,7 +8,7 @@ module Danger
   #          common_release_checks.check_file_changed(
   #            file_comparison: ->(path) { path == 'metadata/full_release_notes.txt' },
   #            message: 'Release notes have been modified on a release branch.',
-  #            on_release: true
+  #            on_release_branch: true
   #          )
   #
   # @example Checking if release notes and store strings have changed:
@@ -42,19 +42,19 @@ module Danger
     # @example Check if any modified file is under the 'app/' directory and emit a warning on release branches:
     #   check_file_changed(file_comparison: ->(file_path) { file_path.include?('app/') },
     #                      message: 'Some files in the "app/" directory have been modified. Please review the changes.',
-    #                      on_release: true)
+    #                      on_release_branch: true)
     #
     # @example Check if a specific file has been modified and emit a failure on non-release branches:
     #   check_file_changed(file_comparison: ->(file_path) { file_path == 'path/to/file/DoNotChange.java' },
     #                      message: 'The "DoNotChange.java" file has been modified. This change is not allowed on non-release branches.',
-    #                      on_release: false,
+    #                      on_release_branch: false,
     #                      fail_on_error: true)
     #
     # @return [void]
-    def check_file_changed(file_comparison:, message:, on_release:, fail_on_error: false)
+    def check_file_changed(file_comparison:, message:, on_release_branch:, fail_on_error: false)
       has_modified_file = git_utils.all_changed_files.any?(&file_comparison)
 
-      should_be_changed = on_release ? release_branch? : !release_branch?
+      should_be_changed = on_release_branch ? release_branch? : !release_branch?
       return unless should_be_changed && has_modified_file
 
       if fail_on_error
@@ -108,7 +108,7 @@ module Danger
       check_file_changed(
         file_comparison: ->(path) { path == release_notes_file },
         message: warning,
-        on_release: true,
+        on_release_branch: true,
         fail_on_error: false
       )
     end
