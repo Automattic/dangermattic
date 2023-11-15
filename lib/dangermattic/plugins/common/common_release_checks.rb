@@ -54,7 +54,7 @@ module Danger
     def check_file_changed(file_comparison:, message:, on_release_branch:, fail_on_error: false)
       has_modified_file = git_utils.all_changed_files.any?(&file_comparison)
 
-      should_be_changed = on_release_branch ? release_branch? : !release_branch?
+      should_be_changed = (on_release_branch == release_branch?)
       return unless should_be_changed && has_modified_file
 
       if fail_on_error
