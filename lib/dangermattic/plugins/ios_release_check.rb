@@ -80,7 +80,7 @@ module Danger
 
     # Checks if a given path corresponds to the base (English) strings file, en.lproj/Localizable.strings.
     #
-    # @return [true] if path is the base strings file
+    # @return [Boolean] true if path is the base strings file
     def base_strings_file?(path:)
       base_strings_path_components = Pathname.new(BASE_STRINGS_FILE).each_filename.to_a
       path_components = Pathname.new(path).each_filename.to_a

@@ -17,7 +17,7 @@ module Danger
       end
 
       context 'when changing the internal release notes' do
-        it 'returns a warning when a PR on a release branch changes the internal release notes' do
+        it 'reports a warning when a PR on a release branch changes the internal release notes' do
           notes_file = 'RELEASE-NOTES.txt'
           allow(@plugin.git).to receive(:modified_files).and_return([notes_file])
           allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
@@ -33,7 +33,7 @@ module Danger
           expect(@dangerfile.status_report[:warnings]).to eq [expected_message]
         end
 
-        it 'returns a warning when a PR on a release branch changes the internal release notes using a custom filename' do
+        it 'reports a warning when a PR on a release branch changes the internal release notes using a custom filename' do
           notes_file = 'MY-CUSTOM-RELEASE-NOTES.md'
           allow(@plugin.git).to receive(:modified_files).and_return([notes_file])
           allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')

@@ -17,7 +17,7 @@ module Danger
       end
 
       context 'when changing the Core Data model' do
-        it 'returns a warning when a PR on a release branch changes a Core Data model' do
+        it 'reports a warning when a PR on a release branch changes a Core Data model' do
           allow(@plugin.git).to receive(:modified_files).and_return(['./path/to/model/Model.xcdatamodeld'])
           allow(@plugin.github).to receive(:branch_for_base).and_return('release/30.6')
 
@@ -49,7 +49,7 @@ module Danger
 
       context 'when changing the Localizable.strings files' do
         describe '#check_modified_localizable_strings_on_release' do
-          it 'returns a warning when a PR on a regular branch changes the source Localizable.strings' do
+          it 'reports a warning when a PR on a regular branch changes the source Localizable.strings' do
             allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
             allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
 
@@ -59,7 +59,7 @@ module Danger
             expect(@dangerfile).to report_warnings([expected_message])
           end
 
-          it 'returns a warning when a PR on a regular branch changes a translated Localizable.strings' do
+          it 'reports a warning when a PR on a regular branch changes a translated Localizable.strings' do
             allow(@plugin.git).to receive(:modified_files).and_return(['nl.lproj/Localizable.strings'])
             allow(@plugin.github).to receive(:branch_for_base).and_return('trunk')
 
@@ -168,7 +168,7 @@ module Danger
       end
 
       context 'when changing the release notes' do
-        it 'returns a warning when a PR changes the release notes but not the AppStore strings file' do
+        it 'reports a warning when a PR changes the release notes but not the AppStore strings file' do
           allow(@plugin.git).to receive(:modified_files).and_return(['Resources/release_notes.txt'])
 
           @plugin.check_release_notes_and_app_store_strings
