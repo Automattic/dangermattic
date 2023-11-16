@@ -13,6 +13,8 @@ module Danger
   # @tags android, process, release
   #
   class AndroidReleaseCheck < Plugin
+    STRINGS_FILE = 'strings.xml'
+
     # Checks if changes made to the release notes are also followed by changes in the Play Store strings file.
     #
     # @return [void]
@@ -20,6 +22,18 @@ module Danger
       common_release_checks.check_release_notes_and_store_strings(
         release_notes_file: 'metadata/release_notes.txt',
         po_file: 'metadata/PlayStoreStrings.po'
+      )
+    end
+
+    # Checks if any strings file (values*/strings.xml) has been modified on a release branch, otherwise reporting a warning / error.
+    #
+    # @return [void]
+    def check_modified_strings_on_release(fail_on_error: false)
+      common_release_checks.check_file_changed(
+        file_comparison: ->(path) { File.basename(path) == STRINGS_FILE },
+        message: "`#{STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.",
+        on_release_branch: false,
+        fail_on_error: fail_on_error
       )
     end
 
