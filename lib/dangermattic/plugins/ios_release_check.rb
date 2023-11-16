@@ -49,7 +49,7 @@ module Danger
     # @return [void]
     def check_modified_en_strings_on_regular_branch
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { path.end_with?(BASE_STRINGS_FILE) },
+        file_comparison: ->(path) { base_strings_file?(path: path) },
         message: "The `#{BASE_STRINGS_FILE}` file should only be updated before creating a release branch.",
         on_release_branch: true
       )
@@ -60,7 +60,7 @@ module Danger
     # @return [void]
     def check_modified_translations_on_release_branch
       common_release_checks.check_file_changed(
-        file_comparison: ->(path) { !path.end_with?(BASE_STRINGS_FILE) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
+        file_comparison: ->(path) { !base_strings_file?(path: path) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: "Translation files `*.lproj/#{LOCALIZABLE_STRINGS_FILE}` should only be updated on a release branch.",
         on_release_branch: false
       )
@@ -74,6 +74,18 @@ module Danger
         release_notes_file: 'Resources/release_notes.txt',
         po_file: 'Resources/AppStoreStrings.po'
       )
+    end
+
+    private
+
+    # Checks if a given path corresponds to the base (English) strings file, en.lproj/Localizable.strings.
+    #
+    # @return [true] if path is the base strings file
+    def base_strings_file?(path:)
+      base_strings_path_components = Pathname.new(BASE_STRINGS_FILE).each_filename.to_a
+      path_components = Pathname.new(path).each_filename.to_a
+
+      base_strings_path_components == path_components.last(base_strings_path_components.length)
     end
   end
 end

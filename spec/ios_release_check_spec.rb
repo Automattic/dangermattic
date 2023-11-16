@@ -148,7 +148,7 @@ module Danger
           end
 
           it 'does nothing when a PR on a regular branch changes the source Localizable.strings' do
-            allow(@plugin.git).to receive(:modified_files).and_return(['en.lproj/Localizable.strings'])
+            allow(@plugin.git).to receive(:modified_files).and_return(['./en.lproj/Localizable.strings'])
             allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
 
             @plugin.check_modified_translations_on_release_branch
