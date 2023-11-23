@@ -47,9 +47,39 @@ module Danger
       check_podfile_diff_entries_do_not_match(regexp: COMMIT_REFERENCE_REGEXP, match_found_message: warning_message)
     end
 
+    # Check if the Podfile.lock contains any references to branches and raise a failure if it does.
+    #
+    # @param podfile_lock_path [String] (optional) The path to the Podfile.lock file.
+    #        Defaults to the `DEFAULT_PODFILE_LOCK_PATH` constant if not provided.
+    #
+    # @example Checking the default Podfile.lock:
+    #   check_podfile_does_not_have_branch_references
+    #
+    # @example Checking a custom Podfile.lock at a specific path:
+    #    check_podfile_does_not_have_branch_references(podfile_lock_path: '/path/to/Podfile.lock')
+    #
+    # @return [void]
+    def check_podfile_does_not_have_branch_references(podfile_lock_path: DEFAULT_PODFILE_LOCK_PATH)
+      check_podfile_does_not_match(
+        regexp: BRANCH_REFERENCE_REGEXP,
+        podfile_lock_path: podfile_lock_path,
+        match_found_message_generator: ->(matches) { "Podfile reference(s) to a branch:\n```#{matches.join("\n")}```" }
+      )
+    end
+
+    # Check for Podfile references to branches in the Podfile.lock in a pull request.
+    #
+    # @return [void]
+    def check_podfile_diff_does_not_have_branch_references
+      warning_message = 'This PR adds a Podfile reference to a branch:'
+      check_podfile_diff_entries_do_not_match(regexp: BRANCH_REFERENCE_REGEXP, match_found_message: warning_message)
+    end
+
     private
 
     COMMIT_REFERENCE_REGEXP = /\(from `\S+`, commit `\S+`\)/
+
+    BRANCH_REFERENCE_REGEXP = /\(from `\S+`, branch `\S+`\)/
 
     def check_podfile_does_not_match(
       regexp:,
