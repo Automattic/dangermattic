@@ -1,0 +1,110 @@
+on:
+  workflow_call:
+    inputs:
+      org-slug:
+        required: true
+        type: string
+      pipeline-slug:
+        required: true
+        type: string
+      retry-step-key:
+        required: true
+        type: string
+      commit-sha:
+        required: true
+        type: string
+    secrets:
+      buildkite-api-token:
+        required: true
+
+jobs:
+  retry-buildkite-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "🔄 Retry job on the latest Buildkite Build"
+        run: |
+          ORG_SLUG="${{ inputs.org-slug }}"
+          PIPELINE_SLUG="${{ inputs.pipeline-slug }}"
+          RETRY_STEP_KEY="${{ inputs.retry-step-key }}"
+          BUILDKITE_API_ACCESS_TOKEN="${{ secrets.buildkite-api-token }}"
+          COMMIT_SHA="${{ inputs.commit-sha }}"
+
+          # Performs a Buildkite request using a http method ($1) and an api path ($2)
+          perform_buildkite_request() {
+            local METHOD=$1
+            local BUILDKITE_API_PATH=$2
+
+            local BUILDKITE_API_URL="https://api.buildkite.com/v2/organizations/$ORG_SLUG/pipelines/$PIPELINE_SLUG/$BUILDKITE_API_PATH"
+
+            local RAW_RESPONSE=$(
+              curl \
+                --fail-with-body \
+                --silent \
+                --show-error \
+                -X "$METHOD" \
+                -H "Authorization: Bearer $BUILDKITE_API_ACCESS_TOKEN" \
+                "$BUILDKITE_API_URL"
+            )
+
+            echo "$RAW_RESPONSE" | tr -d '\n' | jq -R -r
+          }
+
+          # Gets the build(s) associated with the commit
+          get_buildkite_build() {
+            perform_buildkite_request "GET" "builds?commit=$COMMIT_SHA"
+          }
+
+          # Given a build id ($1) and a job id ($2), retry the given job
+          retry_buildkite_job() {
+            local BUILD_ID=$1
+            local JOB_ID=$2
+
+            perform_buildkite_request "PUT" "builds/$BUILD_ID/jobs/$JOB_ID/retry"
+          }
+
+          # Validates a Buildkite response ($1)
+          check_buildkite_error() {
+            local RESPONSE=$1
+
+            # Check if the response is empty
+            if [ -z "$RESPONSE" ] || [ "$(echo "$RESPONSE" | jq 'length')" -eq 0 ]; then
+              echo "❌ Buildkite API call returned an empty response."
+              exit 1
+            fi
+
+            # Check if the response contains an error message
+            RESPONSE_ERROR=$(echo "$RESPONSE" | jq .message 2>/dev/null || true)
+            # if [[ -n "$RESPONSE_ERROR" ]]; then
+            if [[ -n "$RESPONSE_ERROR" && "$RESPONSE_ERROR" != 'null' ]]; then
+              echo "❌ Buildkite API call failed: $RESPONSE_ERROR"
+              exit 1
+            fi
+          }
+
+          BUILDKITE_GET_BUILD_RESPONSE=$(get_buildkite_build)
+          check_buildkite_error "$BUILDKITE_GET_BUILD_RESPONSE"
+
+          LATEST_BUILD=$(echo "$BUILDKITE_GET_BUILD_RESPONSE" | jq -r '.[0]')
+          LATEST_BUILD_NUMBER=$(echo "$LATEST_BUILD" | jq -r '.number')
+
+          SELECTED_JOB=$(echo "$LATEST_BUILD" | jq -r --arg step_key "$RETRY_STEP_KEY" '.jobs[] | select(.step_key == $step_key)')
+          SELECTED_JOB_ID=$(echo "$SELECTED_JOB" | jq -r '.id')
+          SELECTED_JOB_STATE=$(echo "$SELECTED_JOB" | jq -r '.state')
+
+          echo "ℹ️ Build Number: $LATEST_BUILD_NUMBER"
+          echo "ℹ️ Job ID for step '$RETRY_STEP_KEY': $SELECTED_JOB_ID"
+          echo "ℹ️ Job state for step '$RETRY_STEP_KEY': $SELECTED_JOB_STATE"
+
+          # all states: running, scheduled, passed, failing, failed, blocked, canceled, canceling, skipped, not_run, finished
+          ALLOWED_JOB_STATES=("passed" "failed" "canceled" "finished")
+          if [[ " ${ALLOWED_JOB_STATES[@]} " =~ " $SELECTED_JOB_STATE " ]]; then
+            BUILDKITE_RETRY_JOB_RESPONSE=$(retry_buildkite_job "$LATEST_BUILD_NUMBER" "$SELECTED_JOB_ID")
+            check_buildkite_error "$BUILDKITE_RETRY_JOB_RESPONSE"
+
+            JOB_WEB_URL=$(echo "$BUILDKITE_RETRY_JOB_RESPONSE" | jq -r '.web_url')
+            echo "✅ Job succesfully retried: $JOB_WEB_URL"
+          elif [[ "$SELECTED_JOB_STATE" == "running" || "$SELECTED_JOB_STATE" == "scheduled" ]]; then
+            echo "⚠️ Job is already in state '$SELECTED_JOB_STATE', no need to retry."
+          else
+            echo "❌ Cannot retry job in state '$SELECTED_JOB_STATE'"
+          fi
