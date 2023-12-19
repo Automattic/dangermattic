@@ -1,6 +1,7 @@
 GIT
   remote: https://github.com/iangmaia/danger
-  revision: 717ff14652c0968a165a154238ebb66130da1628
+  revision: 7a702cbdb9d8afc5ff295fc1052f806451bacde9
+  ref: danger-on-gh-issues
   specs:
     danger (9.4.2)
       claide (~> 1.0)
@@ -59,7 +60,7 @@ GEM
       danger-plugin-api (~> 1.0)
       xcresult (~> 0.2)
     diff-lcs (1.5.0)
-    faraday (2.7.12)
+    faraday (2.8.0)
       base64
       faraday-net_http (>= 2.0, < 3.1)
       ruby2_keywords (>= 0.0.4)
