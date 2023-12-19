@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '~> 3.2'
 
-  spec.add_dependency 'danger', '~> 9.3'
+  # spec.add_dependency 'danger', '~> 9.3'
   spec.add_runtime_dependency 'danger-plugin-api', '~> 1.0'
 
   # Danger plugins
