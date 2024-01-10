@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: "📥 Checkout Repo"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 100
       - name: "💎 Ruby Setup"
         uses: ruby/setup-ruby@v1
         with:
