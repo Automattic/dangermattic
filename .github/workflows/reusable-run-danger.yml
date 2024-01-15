@@ -6,13 +6,18 @@ on:
         default: true
         type: boolean
         required: false
+      cancel-running-jobs:
+        description: 'Cancel currently in progress jobs when new ones are added.'
+        default: true
+        type: boolean
+        required: false
     secrets:
       github-token:
         required: true
 
 concurrency:
   group: danger-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ inputs.cancel-running-jobs }}
 
 jobs:
   dangermattic:
@@ -32,5 +37,6 @@ jobs:
           DANGER_GITHUB_API_TOKEN: ${{ secrets.github-token }}
         run: |
           echo "--- 🏃 Running Danger: PR Check"
-          bundle exec danger --fail-on-errors=true ${REMOVE_PREVIOUS_COMMENTS:+--remove-previous-comments} --danger_id=pr-check
+          REMOVE_PREVIOUS_COMMENTS_OPTION=$([ "$REMOVE_PREVIOUS_COMMENTS" = true ] && echo "--remove-previous-comments")
+          bundle exec danger --fail-on-errors=true ${REMOVE_PREVIOUS_COMMENTS_OPTION} --danger_id=pr-check
 
