@@ -108,9 +108,5 @@ module Danger
         message: match_found_message
       )
     end
-
-    def podfile_lock_commit_reference?(podfile_line:)
-      podfile_line.match?(COMMIT_REFERENCE_REGEXP)
-    end
   end
 end
