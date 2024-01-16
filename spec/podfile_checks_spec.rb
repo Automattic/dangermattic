@@ -62,7 +62,7 @@ module Danger
           @plugin.check_podfile_does_not_have_commit_references
 
           expected_message = "Podfile reference(s) to a commit hash:\n```Kingfisher (from `https://github.com/onevcat/Kingfisher.git`, commit `c1f60c63f356d364f4284ba82961acbe7de79bcc`)```"
-          expect(@dangerfile.status_report[:errors]).to eq [expected_message]
+          expect(@dangerfile).to report_errors([expected_message])
         end
 
         it 'returns the right errors when there are multiple podfile dependencies referencing a commit' do
@@ -119,7 +119,7 @@ module Danger
             SwiftGen (from `https://github.com/SwiftGen/SwiftGen.git`, commit `759cc111dfdc01dd8d66edf20ff88402b0978591`)
             SwiftLint (from `https://github.com/realm/SwiftLint.git`, commit `28a4aa2`)```
           MESSAGE
-          expect(@dangerfile.status_report[:errors]).to eq [expected_message]
+          expect(@dangerfile).to report_errors([expected_message])
         end
 
         it 'returns no error when there are no Podfile dependencies reference to a commit' do
@@ -150,7 +150,7 @@ module Danger
 
           @plugin.check_podfile_does_not_have_commit_references
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
 
@@ -236,7 +236,7 @@ module Danger
             ```
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to contain_exactly(expected_warning, expected_warning2)
+          expect(@dangerfile).to report_warnings([expected_warning, expected_warning2])
         end
 
         it 'does nothing when a PR removes Podfile.lock commit references' do
