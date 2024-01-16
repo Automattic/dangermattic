@@ -3,12 +3,12 @@ on:
     inputs:
       remove-previous-comments:
         description: 'Configures Danger to always remove previous comments and add a new one instead of editing the same comment.'
-        default: true
+        default: false
         type: boolean
         required: false
       cancel-running-jobs:
         description: 'Cancel currently in progress jobs when new ones are added.'
-        default: true
+        default: false
         type: boolean
         required: false
     secrets:
