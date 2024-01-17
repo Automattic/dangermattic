@@ -39,6 +39,8 @@ Metrics/MethodLength:
 
 Metrics/ModuleLength:
   Max: 300
+  Exclude:
+    - spec/**/*_spec.rb
 
 Metrics/ParameterLists:
   Max: 10

@@ -2,7 +2,6 @@
 
 require_relative 'spec_helper'
 
-# rubocop:disable Metrics/ModuleLength
 module Danger
   describe Danger::PodfileChecks do
     it 'is a plugin' do
@@ -594,4 +593,3 @@ module Danger
     end
   end
 end
-# rubocop:enable Metrics/ModuleLength
