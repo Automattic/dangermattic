@@ -8,7 +8,7 @@ on:
         required: false
       cancel-running-jobs:
         description: 'Cancel currently in progress jobs when new ones are added.'
-        default: false
+        default: true
         type: boolean
         required: false
     secrets:
