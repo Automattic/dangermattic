@@ -343,7 +343,7 @@ module Danger
           @plugin.check_podfile_does_not_have_branch_references
 
           expected_message = "Podfile reference(s) to a branch:\n```Kingfisher (from `https://github.com/onevcat/Kingfisher.git`, branch `main`)```"
-          expect(@dangerfile.status_report[:errors]).to eq [expected_message]
+          expect(@dangerfile).to report_errors([expected_message])
         end
 
         it 'returns the right errors when there are multiple podfile dependencies referencing a branch' do
@@ -400,7 +400,7 @@ module Danger
             SwiftGen (from `https://github.com/SwiftGen/SwiftGen.git`, branch `test/a-test-branch`)
             SwiftLint (from `https://github.com/realm/SwiftLint.git`, branch `feature-branch`)```
           MESSAGE
-          expect(@dangerfile.status_report[:errors]).to eq [expected_message]
+          expect(@dangerfile).to report_errors([expected_message])
         end
 
         it 'returns no error when there are no Podfile dependency references to a branch' do
@@ -442,7 +442,7 @@ module Danger
 
           @plugin.check_podfile_does_not_have_branch_references
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
 
@@ -528,7 +528,7 @@ module Danger
             ```
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to contain_exactly(expected_warning, expected_warning2)
+          expect(@dangerfile).to report_warnings([expected_warning, expected_warning2])
         end
 
         it 'does nothing when a PR removes Podfile.lock branch references' do
@@ -588,7 +588,7 @@ module Danger
 
           @plugin.check_podfile_diff_does_not_have_branch_references
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
     end
