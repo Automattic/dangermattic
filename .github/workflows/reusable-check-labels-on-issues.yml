@@ -1,0 +1,91 @@
+on:
+  workflow_call:
+    inputs:
+      label-format-list:
+        description: 'The Regex formats expected for the labels; must be a JSON list'
+        default: '[
+          ".*"
+        ]'
+        type: string
+        required: false
+      label-error-message:
+        description: 'Error message to be posted when the labels set don''t match the required list of formats.'
+        default: 'At least one label is required.'
+        type: string
+        required: false
+      label-success-message:
+        description: 'Message to be posted when the labels set fulfill the entire list of expected formats.'
+        default: '✅ Yay, issue looks great!'
+        type: string
+        required: false
+    secrets:
+      github-token:
+        required: true
+
+concurrency:
+  group: danger-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-issue-labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: "🏷️ Check Issue Labels"
+        env:
+          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
+          LABEL_REGEX_LIST: ${{ inputs.label-format-list }}
+          ISSUE_SUCCESS_COMMENT: >
+            ${{ inputs.label-success-message }}
+            <!-- generated_by_dangermattic -->
+          ISSUE_ERROR_COMMENT: >
+            ${{ inputs.label-error-message }}
+            <!-- generated_by_dangermattic -->
+        run: |
+          #!/bin/bash
+
+          readarray -t labels < <(echo "$ISSUE_LABELS" | jq -r '.[]')
+          readarray -t label_regex_list < <(echo "$LABEL_REGEX_LIST" | jq -r '.[]')
+
+          all_patterns_matched=true
+
+          for regex in "${label_regex_list[@]}"; do
+            pattern_matched=false
+
+            for label in "${labels[@]}"; do
+              if [[ "$label" =~ $regex ]]; then
+                pattern_matched=true
+                echo "👍 Match found for regex '$regex': $label"
+                break
+              fi
+            done
+
+            if [ "$pattern_matched" = false ]; then
+              all_patterns_matched=false
+              echo "⚠️ No match found for regex '$regex'"
+            fi
+          done
+
+          ISSUE_COMMENT=''
+          if [ "$all_patterns_matched" = true ]; then
+            echo "✅ All regex patterns have at least one match."
+            ISSUE_COMMENT="$ISSUE_SUCCESS_COMMENT"
+          else
+            echo "❌ Not all regex patterns have at least one match."
+            ISSUE_COMMENT="$ISSUE_ERROR_COMMENT"
+          fi
+
+          set +e
+          echo "✍️ Attempting to edit existing comment on issue $ISSUE_NUMBER, if it exists:"
+          gh issue comment $ISSUE_NUMBER --body "$ISSUE_COMMENT" --edit-last
+          comment_update_status=$?
+          set -e
+
+          if [ $comment_update_status -ne 0 ]; then
+            echo "✍️ Adding new comment on issue $ISSUE_NUMBER:"
+            gh issue comment $ISSUE_NUMBER --body "$ISSUE_COMMENT"
+          fi
