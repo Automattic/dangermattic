@@ -35,7 +35,7 @@ module Danger
     #
     # @param message [String] The message to display in the warning or failure output if the condition is met.
     #
-    # @param on_release [Boolean] If true, the check will only run on release branches, otherwise on non-release branches.
+    # @param on_release_branch [Boolean] If true, the check will only run on release branches, otherwise on non-release branches.
     #
     # @param fail_on_error [Boolean] If true, a failure message will be displayed instead of a warning.
     #
