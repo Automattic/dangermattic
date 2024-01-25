@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::AndroidStringsChecks do
+  describe Danger::AndroidStringsChecker do
     it 'is a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -11,7 +11,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.android_strings_checks
+        @plugin = @dangerfile.android_strings_checker
 
         allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
 
