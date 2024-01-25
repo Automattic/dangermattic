@@ -21,8 +21,7 @@ module Danger
           error = 'PR is missing at least one label.'
           @plugin.check(required_labels: [//], required_labels_error: error)
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq([error])
+          expect(@dangerfile).to report_errors([error])
         end
 
         it 'does nothing when a PR has at least one label' do
@@ -31,8 +30,7 @@ module Danger
 
           @plugin.check(required_labels: [//])
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'returns an error containing the required labels when a PR does not meet the label requirements' do
@@ -43,8 +41,7 @@ module Danger
             required_labels: [/^\[feature\]/, /^\[type\]:/]
           )
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq(['PR is missing label(s) matching: `^\[type\]:`'])
+          expect(@dangerfile).to report_errors(['PR is missing label(s) matching: `^\[type\]:`'])
         end
 
         it 'returns a custom error when a PR has custom label requirements' do
@@ -58,8 +55,7 @@ module Danger
             required_labels_error: custom_labels_error
           )
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq([custom_labels_error])
+          expect(@dangerfile).to report_errors([custom_labels_error])
         end
 
         it 'does nothing when custom required labels are correctly set in the PR' do
@@ -76,8 +72,7 @@ module Danger
             required_labels: [/^feature:/, /^type:/]
           )
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
 
@@ -90,8 +85,7 @@ module Danger
             recommended_labels: [/^feature:/, /^milestone:/, /^\[type\]/]
           )
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to eq(['PR is missing label(s) matching: `^feature:`, `^\[type\]`'])
+          expect(@dangerfile).to report_warnings(['PR is missing label(s) matching: `^feature:`, `^\[type\]`'])
         end
 
         it 'returns a custom warning when a PR has custom label requirements' do
@@ -105,8 +99,7 @@ module Danger
             recommended_labels_warning: custom_labels_warning
           )
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to eq([custom_labels_warning])
+          expect(@dangerfile).to report_warnings([custom_labels_warning])
         end
 
         it 'does nothing when custom recommended labels are correctly set in the PR' do
@@ -122,8 +115,7 @@ module Danger
             recommended_labels: [/^\[feature\]:/, /^\[type\]:/]
           )
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
 
@@ -134,8 +126,7 @@ module Danger
 
           @plugin.check
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
+          expect(@dangerfile).to report_errors(["This PR is tagged with `#{pr_label}` label(s)."])
         end
 
         it 'returns an error when a PR has a custom label for not merging' do
@@ -147,8 +138,7 @@ module Danger
             do_not_merge_labels: labels
           )
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq(["This PR is tagged with `#{pr_label}` label(s)."])
+          expect(@dangerfile).to report_errors(["This PR is tagged with `#{pr_label}` label(s)."])
         end
       end
 

@@ -30,7 +30,7 @@ module Danger
             Please, get in touch with a release manager if you want to update the final release notes.
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_message]
+          expect(@dangerfile).to report_warnings([expected_message])
         end
 
         it 'reports a warning when a PR on a release branch changes the internal release notes using a custom filename' do
@@ -46,7 +46,7 @@ module Danger
             Please, get in touch with a release manager if you want to update the final release notes.
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_message]
+          expect(@dangerfile).to report_warnings([expected_message])
         end
 
         it 'does nothing when a PR changes the release notes file on a regular branch' do
@@ -55,7 +55,7 @@ module Danger
 
           @plugin.check_internal_release_notes_changed
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR changes a custom release notes file on a regular branch' do
@@ -65,7 +65,7 @@ module Danger
 
           @plugin.check_internal_release_notes_changed(release_notes_file: notes_file)
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR ca warning when a PR does not change the release notes file on the release branch' do
@@ -74,7 +74,7 @@ module Danger
 
           @plugin.check_internal_release_notes_changed
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
     end

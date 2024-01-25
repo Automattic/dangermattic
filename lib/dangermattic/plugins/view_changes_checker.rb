@@ -21,6 +21,9 @@ module Danger
       /<img\s+[^>]*src\s*=\s*[^>]*>/
     ].freeze
 
+    MESSAGE = 'View files have been modified, but no screenshot is included in the pull request. ' \
+              'Consider adding some for clarity.'
+
     # Checks if view files have been modified and if a screenshot is included in the pull request body,
     # displaying a warning if view files have been modified but no screenshot is included.
     #
@@ -34,9 +37,7 @@ module Danger
         github.pr_body =~ pattern
       end
 
-      warning = 'View files have been modified, but no screenshot is included in the pull request. ' \
-                'Consider adding some for clarity.'
-      warn(warning) if view_files_modified && !pr_has_screenshots
+      warn(MESSAGE) if view_files_modified && !pr_has_screenshots
     end
   end
 end

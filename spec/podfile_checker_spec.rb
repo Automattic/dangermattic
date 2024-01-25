@@ -295,7 +295,7 @@ module Danger
 
           @plugin.check_podfile_diff_does_not_have_commit_references
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
 

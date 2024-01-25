@@ -52,7 +52,7 @@ module Danger
             ```
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_warning]
+          expect(@dangerfile).to report_warnings([expected_warning])
         end
 
         it 'returns multiple warnings when a PR adds multiple string resource references inside multiple strings.xml files' do
@@ -155,7 +155,7 @@ module Danger
 
           @plugin.check_strings_do_not_refer_resource
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR adds strings without resource references' do
@@ -181,7 +181,7 @@ module Danger
 
           @plugin.check_strings_do_not_refer_resource
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
     end

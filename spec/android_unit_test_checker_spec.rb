@@ -65,7 +65,7 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does not report errors when we are deleting classes' do
@@ -80,7 +80,7 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'reports errors when we remove test classes for classes we refactored' do
@@ -122,7 +122,7 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does nothing when a PR adds classes that dont need tests' do
@@ -141,7 +141,7 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does not report that a PR with the tests bypass label is missing tests' do
@@ -281,7 +281,7 @@ module Danger
 
         @plugin.check_missing_tests
 
-        expect(@dangerfile.status_report[:errors]).to be_empty
+        expect(@dangerfile).to not_report
       end
     end
 
