@@ -2,7 +2,7 @@
 
 module Danger
   # Plugin to perform generic checks related to releases.
-  # It can be used directly or via the specialised plugins `AndroidReleaseCheck` and `IosReleaseCheck`.
+  # It can be used directly or via the specialised plugins `AndroidReleaseChecker` and `IosReleaseCheck`.
   #
   # @example Checking if a specific file has changed on a release branch:
   #          common_release_checker.check_file_changed(
