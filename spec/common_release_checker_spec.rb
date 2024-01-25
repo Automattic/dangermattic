@@ -24,13 +24,7 @@ module Danger
 
           @plugin.check_internal_release_notes_changed
 
-          expected_message = <<~WARNING
-            This PR contains changes to `#{notes_file}`.
-            Note that these changes won't affect the final version of the release notes as this version is in code freeze.
-            Please, get in touch with a release manager if you want to update the final release notes.
-          WARNING
-
-          expect(@dangerfile).to report_warnings([expected_message])
+          expect(@dangerfile).to report_warnings([format(CommonReleaseChecker::MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED, notes_file)])
         end
 
         it 'reports a warning when a PR on a release branch changes the internal release notes using a custom filename' do
@@ -40,13 +34,7 @@ module Danger
 
           @plugin.check_internal_release_notes_changed(release_notes_file: notes_file)
 
-          expected_message = <<~WARNING
-            This PR contains changes to `#{notes_file}`.
-            Note that these changes won't affect the final version of the release notes as this version is in code freeze.
-            Please, get in touch with a release manager if you want to update the final release notes.
-          WARNING
-
-          expect(@dangerfile).to report_warnings([expected_message])
+          expect(@dangerfile).to report_warnings([format(CommonReleaseChecker::MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED, notes_file)])
         end
 
         it 'does nothing when a PR changes the release notes file on a regular branch' do

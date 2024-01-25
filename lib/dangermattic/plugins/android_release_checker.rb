@@ -14,6 +14,7 @@ module Danger
   #
   class AndroidReleaseChecker < Plugin
     STRINGS_FILE = 'strings.xml'
+    MESSAGE_STRINGS_FILE_UPDATED = "`#{STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.".freeze
 
     # Checks if changes made to the release notes are also followed by changes in the Play Store strings file.
     #
@@ -31,7 +32,7 @@ module Danger
     def check_modified_strings_on_release(fail_on_error: false)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == STRINGS_FILE },
-        message: "`#{STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.",
+        message: MESSAGE_STRINGS_FILE_UPDATED,
         on_release_branch: false,
         fail_on_error: fail_on_error
       )

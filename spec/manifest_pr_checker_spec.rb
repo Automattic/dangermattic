@@ -21,7 +21,7 @@ module Danger
 
           @plugin.check_gemfile_lock_updated
 
-          expected_warning = '`Gemfile` was changed without updating its corresponding `Gemfile.lock`. Please run `bundle install` or `bundle update <updated_gem>`.'
+          expected_warning = format(ManifestPRChecker::MESSAGE, 'Gemfile', 'Gemfile.lock', 'Please run `bundle install` or `bundle update <updated_gem>`')
           expect(@dangerfile).to report_warnings([expected_warning])
         end
 
@@ -51,7 +51,7 @@ module Danger
 
           @plugin.check_podfile_lock_updated
 
-          expected_warning = '`Podfile` was changed without updating its corresponding `Podfile.lock`. Please run `bundle exec pod install`.'
+          expected_warning = format(ManifestPRChecker::MESSAGE, 'Podfile', 'Podfile.lock', 'Please run `bundle exec pod install`')
           expect(@dangerfile).to report_warnings([expected_warning])
         end
 
@@ -70,7 +70,7 @@ module Danger
 
           @plugin.check_podfile_lock_updated
 
-          expected_warning = '`./path/to/Podfile` was changed without updating its corresponding `Podfile.lock`. Please run `bundle exec pod install`.'
+          expected_warning = format(ManifestPRChecker::MESSAGE, './path/to/Podfile', 'Podfile.lock', 'Please run `bundle exec pod install`')
           expect(@dangerfile).to report_warnings([expected_warning])
         end
 
@@ -81,8 +81,8 @@ module Danger
           @plugin.check_podfile_lock_updated
 
           expected_warnings = [
-            '`./dir2/Podfile` was changed without updating its corresponding `Podfile.lock`. Please run `bundle exec pod install`.',
-            '`./dir3/Podfile` was changed without updating its corresponding `Podfile.lock`. Please run `bundle exec pod install`.'
+            format(ManifestPRChecker::MESSAGE, './dir2/Podfile', 'Podfile.lock', 'Please run `bundle exec pod install`'),
+            format(ManifestPRChecker::MESSAGE, './dir3/Podfile', 'Podfile.lock', 'Please run `bundle exec pod install`')
           ]
           expect(@dangerfile).to report_warnings(expected_warnings)
         end
@@ -113,7 +113,7 @@ module Danger
 
           @plugin.check_swift_package_resolved_updated
 
-          expected_warning = '`Package.swift` was changed without updating its corresponding `Package.resolved`. Please resolve the Swift packages in Xcode.'
+          expected_warning = format(ManifestPRChecker::MESSAGE, 'Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
           expect(@dangerfile).to report_warnings([expected_warning])
         end
 

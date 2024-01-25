@@ -18,7 +18,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile).to report_warnings([Danger::ViewChangesChecker::MESSAGE])
+        expect(@dangerfile).to report_warnings([ViewChangesChecker::MESSAGE])
       end
 
       it 'does nothing when a PR with view code changes has screenshots defined in markdown' do

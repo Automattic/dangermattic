@@ -44,8 +44,7 @@ module Danger
           @plugin.check_strings_do_not_refer_resource
 
           expected_warning = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{strings_xml_path}`:
             ```diff
             +  <string name="screen_title">@string/app_name</string>
@@ -102,8 +101,7 @@ module Danger
           @plugin.check_strings_do_not_refer_resource
 
           expected_warning = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{main_strings_xml}`:
             ```diff
             +  <string name="screen_title">@string/app_name</string>
@@ -111,8 +109,7 @@ module Danger
           WARNING
 
           expected_warning2 = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{main_strings_xml}`:
             ```diff
             +  <string name="screen_button">@string/button</string>
@@ -120,8 +117,7 @@ module Danger
           WARNING
 
           expected_warning3 = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{ptbr_strings_xml}`:
             ```diff
             +  <string name="popup_title">@string/app_name_title</string>

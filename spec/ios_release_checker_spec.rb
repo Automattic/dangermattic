@@ -23,9 +23,7 @@ module Danger
 
           @plugin.check_core_data_model_changed
 
-          expected_message = 'Do not edit an existing Core Data model in a release branch unless it hasn\'t been released to testers yet. ' \
-                             'Instead create a new model version and merge back to develop soon.'
-          expect(@dangerfile).to report_warnings([expected_message])
+          expect(@dangerfile).to report_warnings([IosReleaseChecker::MESSAGE_CORE_DATA_UPDATED])
         end
 
         it 'does nothing when a PR changes a Core Data model on a regular branch' do
@@ -55,8 +53,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded by our automation.'
-            expect(@dangerfile).to report_warnings([expected_message])
+            expect(@dangerfile).to report_warnings([IosReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
           end
 
           it 'reports a warning when a PR on a regular branch changes a translated Localizable.strings' do
@@ -65,8 +62,7 @@ module Danger
 
             @plugin.check_modified_localizable_strings_on_release
 
-            expected_message = 'The `Localizable.strings` files should only be updated on release branches, when the translations are downloaded by our automation.'
-            expect(@dangerfile).to report_warnings([expected_message])
+            expect(@dangerfile).to report_warnings([IosReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
           end
 
           it 'does nothing when a PR changes the Localizable.strings on a release branch' do
@@ -95,8 +91,7 @@ module Danger
 
             @plugin.check_modified_en_strings_on_regular_branch
 
-            expected_message = 'The `en.lproj/Localizable.strings` file should only be updated before creating a release branch.'
-            expect(@dangerfile).to report_warnings([expected_message])
+            expect(@dangerfile).to report_warnings([IosReleaseChecker::MESSAGE_BASE_STRINGS_FILE_UPDATED])
           end
 
           it 'does nothing when a PR changes the Localizable.strings on a regular branch' do
@@ -134,8 +129,7 @@ module Danger
 
             @plugin.check_modified_translations_on_release_branch
 
-            expected_message = 'Translation files `*.lproj/Localizable.strings` should only be updated on a release branch.'
-            expect(@dangerfile).to report_warnings([expected_message])
+            expect(@dangerfile).to report_warnings([IosReleaseChecker::MESSAGE_TRANSLATION_FILE_UPDATED])
           end
 
           it 'does nothing when a PR changes a translation string on a release branch' do
@@ -173,7 +167,7 @@ module Danger
 
           @plugin.check_release_notes_and_app_store_strings
 
-          expect(@dangerfile).to report_messages(['The `Resources/AppStoreStrings.po` file should be updated if the editorialised release notes file `Resources/release_notes.txt` is being changed.'])
+          expect(@dangerfile).to report_messages([format(CommonReleaseChecker::MESSAGE_STORE_FILE_NOT_CHANGED, 'Resources/AppStoreStrings.po', 'Resources/release_notes.txt')])
         end
 
         it 'does nothing when a PR changes the release notes and the AppStore strings file' do
