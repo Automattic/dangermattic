@@ -15,7 +15,7 @@ module Danger
       end
 
       context 'with required labels' do
-        it 'returns a custom error when a PR does not have at least one label' do
+        it 'reports a custom error when a PR does not have at least one label' do
           allow(@plugin.github).to receive(:pr_labels).and_return([])
 
           error = 'PR is missing at least one label.'
@@ -33,7 +33,7 @@ module Danger
           expect(@dangerfile).to not_report
         end
 
-        it 'returns an error containing the required labels when a PR does not meet the label requirements' do
+        it 'reports an error containing the required labels when a PR does not meet the label requirements' do
           pr_labels = ['random other label', '[feature] magic', 'wizard needed', 'type: fantasy']
           allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
 
@@ -44,7 +44,7 @@ module Danger
           expect(@dangerfile).to report_errors(['PR is missing label(s) matching: `^\[type\]:`'])
         end
 
-        it 'returns a custom error when a PR has custom label requirements' do
+        it 'reports a custom error when a PR has custom label requirements' do
           pr_labels = ['random label', 'feature: magic', 'wizard needed', 'another type: test']
           allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
 
@@ -77,7 +77,7 @@ module Danger
       end
 
       context 'with recommended labels' do
-        it 'returns a warning containing the recommended labels when a PR does not meet the label requirements' do
+        it 'reports a warning containing the recommended labels when a PR does not meet the label requirements' do
           pr_labels = ['random other label', 'milestone: rc']
           allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
 
@@ -88,7 +88,7 @@ module Danger
           expect(@dangerfile).to report_warnings(['PR is missing label(s) matching: `^feature:`, `^\[type\]`'])
         end
 
-        it 'returns a custom warning when a PR has custom label requirements' do
+        it 'reports a custom warning when a PR has custom label requirements' do
           pr_labels = ['random other label', 'feature: myFeature', 'Milestone: beta']
           allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)
 
@@ -120,7 +120,7 @@ module Danger
       end
 
       context 'with \'do not merge\' labels' do
-        it 'returns an error when a PR has a \'do not merge\' label' do
+        it 'reports an error when a PR has a \'do not merge\' label' do
           pr_label = 'DO NOT MERGE'
           allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
@@ -129,7 +129,7 @@ module Danger
           expect(@dangerfile).to report_errors(["This PR is tagged with `#{pr_label}` label(s)."])
         end
 
-        it 'returns an error when a PR has a custom label for not merging' do
+        it 'reports an error when a PR has a custom label for not merging' do
           pr_label = 'please dont merge'
           allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
@@ -142,7 +142,7 @@ module Danger
         end
       end
 
-      it 'returns the right errors and warning when combining the check parameters' do
+      it 'reports the right errors and warning when combining the check parameters' do
         do_not_merge_label = 'blocked'
         pr_labels = [do_not_merge_label, 'type: test', 'milestone: alpha']
         allow(@plugin.github).to receive(:pr_labels).and_return(pr_labels)

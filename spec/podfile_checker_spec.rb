@@ -19,7 +19,7 @@ module Danger
       end
 
       context 'when checking the entire Podfile.lock file for commit references' do
-        it 'returns an error when there is a podfile dependency reference to a commit' do
+        it 'reports an error when there is a podfile dependency reference to a commit' do
           podfile_lock_content = <<~CONTENT
             PODS:
               - Kingfisher (7.8.1)
@@ -64,7 +64,7 @@ module Danger
           expect(@dangerfile).to report_errors([expected_message])
         end
 
-        it 'returns the right errors when there are multiple podfile dependencies referencing a commit' do
+        it 'reports the right errors when there are multiple podfile dependencies referencing a commit' do
           podfile_lock_content = <<~CONTENT
             PODS:
             - Kingfisher (7.8.1)
@@ -121,7 +121,7 @@ module Danger
           expect(@dangerfile).to report_errors([expected_message])
         end
 
-        it 'returns no error when there are no Podfile dependencies reference to a commit' do
+        it 'reports no error when there are no Podfile dependencies reference to a commit' do
           podfile_lock_content = <<~CONTENT
             PODS:
               - SwiftGen (6.5.1)
@@ -154,7 +154,7 @@ module Danger
       end
 
       context 'when changing the Podfile.lock in a Pull Request and checking for commit references' do
-        it 'returns warnings when a PR adds pods pointing to a specific commit' do
+        it 'reports warnings when a PR adds pods pointing to a specific commit' do
           podfile_path = './path/to/podfile/Podfile.lock'
           allow(@plugin.git).to receive(:modified_files).and_return([podfile_path])
 
@@ -300,7 +300,7 @@ module Danger
       end
 
       context 'when checking the entire Podfile.lock file for branch references' do
-        it 'returns an error when there is a podfile dependency reference to a branch' do
+        it 'reports an error when there is a podfile dependency reference to a branch' do
           podfile_lock_content = <<~CONTENT
             PODS:
               - Kingfisher (7.8.1)
@@ -345,7 +345,7 @@ module Danger
           expect(@dangerfile).to report_errors([expected_message])
         end
 
-        it 'returns the right errors when there are multiple podfile dependencies referencing a branch' do
+        it 'reports the right errors when there are multiple podfile dependencies referencing a branch' do
           podfile_lock_content = <<~CONTENT
             PODS:
             - Kingfisher (7.8.1)
@@ -402,7 +402,7 @@ module Danger
           expect(@dangerfile).to report_errors([expected_message])
         end
 
-        it 'returns no error when there are no Podfile dependency references to a branch' do
+        it 'reports no error when there are no Podfile dependency references to a branch' do
           podfile_lock_content = <<~CONTENT
             PODS:
               - SwiftGen (6.5.1)
@@ -446,7 +446,7 @@ module Danger
       end
 
       context 'when changing the Podfile.lock in a Pull Request and checking for branch references' do
-        it 'returns warnings when a PR adds pods pointing to a branch' do
+        it 'reports warnings when a PR adds pods pointing to a branch' do
           podfile_path = './path/to/podfile/Podfile.lock'
           allow(@plugin.git).to receive(:modified_files).and_return([podfile_path])
 

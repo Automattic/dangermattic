@@ -19,7 +19,7 @@ module Danger
       end
 
       context 'when changing strings.xml files' do
-        it 'returns a warning when a PR adds a string resource reference inside a strings.xml file' do
+        it 'reports a warning when a PR adds a string resource reference inside a strings.xml file' do
           strings_xml_path = './src/main/res/values/strings.xml'
           allow(@plugin.git).to receive(:modified_files).and_return([strings_xml_path])
 
@@ -55,7 +55,7 @@ module Danger
           expect(@dangerfile).to report_warnings([expected_warning])
         end
 
-        it 'returns multiple warnings when a PR adds multiple string resource references inside multiple strings.xml files' do
+        it 'reports multiple warnings when a PR adds multiple string resource references inside multiple strings.xml files' do
           main_strings_xml = './src/main/res/values/strings.xml'
           ptbr_strings_xml = './src/main/res/values-pt-rBR/strings.xml'
           strings_xml_paths = [main_strings_xml, ptbr_strings_xml]
