@@ -48,9 +48,36 @@ module Danger
         expect(@dangerfile).to not_report
       end
 
-      it 'does nothing when a PR with view code changes has a screenshot defined with a html' do
+      it 'does nothing when a PR with view code changes has a screenshot defined with a html tag' do
         allow(@plugin.github).to receive(:pr_body)
           .and_return("see screenshot:\n<img src=\"https://github.com/woocommerce/woocommerce-ios/assets/1864060/17d9227d-67e8-4efb-8c26-02b81e1b19d2\" width=\"375\"> body body")
+
+        @plugin.check
+
+        expect(@dangerfile).to not_report
+      end
+
+      it 'does nothing when a PR with view code changes has a video defined with a html tag with different attributes before src' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see video:\n<video width=300 hint=\"First video\" src=\"https://www.w3schools.com/tags/movie.mp4\"> body body")
+
+        @plugin.check
+
+        expect(@dangerfile).to not_report
+      end
+
+      it 'does nothing when a PR with view code changes has a video defined with a html tag' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see video:\n<video src=\"https://www.w3schools.com/tags/movie.mp4\" width=\"375\"> body body")
+
+        @plugin.check
+
+        expect(@dangerfile).to not_report
+      end
+
+      it 'does nothing when a PR with view code changes has a video defined with a simple URL' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see video:\nhttps://github.com/woocommerce/woocommerce-ios/assets/1864060/0e983305-5047-40a3-8829-734e0b582b96 body body")
 
         @plugin.check
 
