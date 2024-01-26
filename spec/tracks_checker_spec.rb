@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::CheckTracks do
+  describe Danger::TracksChecker do
     it 'is a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -11,7 +11,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.check_tracks
+        @plugin = @dangerfile.tracks_checker
       end
 
       describe '#check_tracks_changes' do
@@ -27,7 +27,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
+            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'reports a message with instructions for review when there are changes in Tracks-related files using a custom file list' do
@@ -35,7 +35,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
 
-            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
+            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'does nothing when there are no changes in Tracks-related files' do
@@ -73,7 +73,7 @@ module Danger
 
             @plugin.check_tracks_changes
 
-            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
+            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'reports a message with instructions for review when there are changes using a custom line matcher expression' do
@@ -89,7 +89,7 @@ module Danger
 
             @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log/])
 
-            expect(@dangerfile).to report_messages([CheckTracks::TRACKS_PR_INSTRUCTIONS])
+            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
 
           it 'does nothing when there are no matching changes' do
