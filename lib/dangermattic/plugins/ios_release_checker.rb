@@ -4,18 +4,18 @@ module Danger
   # Plugin for performing iOS / macOS release-related checks in a pull request.
   #
   # @example Checking for changes in Core Data models on a release branch:
-  #          ios_release_check.check_core_data_model_changed
+  #          ios_release_checker.check_core_data_model_changed
   #
   # @example Checking for modified Localizable.strings on a regular branch:
-  #          ios_release_check.check_modified_localizable_strings
+  #          ios_release_checker.check_modified_localizable_strings
   #
   # @example Checking for synchronization between release notes and App Store strings:
-  #          ios_release_check.check_release_notes_and_app_store_strings
+  #          ios_release_checker.check_release_notes_and_app_store_strings
   #
   # @see Automattic/dangermattic
   # @tags ios, macos, process, release
   #
-  class IosReleaseCheck < Plugin
+  class IosReleaseChecker < Plugin
     LOCALIZABLE_STRINGS_FILE = 'Localizable.strings'
     BASE_STRINGS_FILE = "en.lproj/#{LOCALIZABLE_STRINGS_FILE}".freeze
 
