@@ -26,6 +26,13 @@ module Danger
   class CommonReleaseChecker < Plugin
     DEFAULT_INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
 
+    MESSAGE_STORE_FILE_NOT_CHANGED = 'The `%s` file should be updated if the editorialized release notes file `%s` is being changed.'
+    MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED = <<~WARNING
+      This PR contains changes to `%s`.
+      Note that these changes won't affect the final version of the release notes as this version is in code freeze.
+      Please, get in touch with a release manager if you want to update the final release notes.
+    WARNING
+
     # Check if certain files have been modified, returning a warning or failure message based on the branch type.
     #
     # @param file_comparison [Proc] Function used to compare modified file paths.
@@ -82,8 +89,7 @@ module Danger
 
       return unless has_modified_release_notes && !has_modified_app_store_strings
 
-      report_message = "The `#{po_file}` file should be updated if the editorialised release notes file `#{release_notes_file}` is being changed."
-      message(report_message)
+      message(format(MESSAGE_STORE_FILE_NOT_CHANGED, po_file, release_notes_file))
     end
 
     # Check if there are changes to the internal release notes file in the release branch and emit a warning if that's the case.
@@ -99,15 +105,9 @@ module Danger
     #
     # @return [void]
     def check_internal_release_notes_changed(release_notes_file: DEFAULT_INTERNAL_RELEASE_NOTES)
-      warning = <<~WARNING
-        This PR contains changes to `#{release_notes_file}`.
-        Note that these changes won't affect the final version of the release notes as this version is in code freeze.
-        Please, get in touch with a release manager if you want to update the final release notes.
-      WARNING
-
       check_file_changed(
         file_comparison: ->(path) { path == release_notes_file },
-        message: warning,
+        message: format(MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED, release_notes_file),
         on_release_branch: true,
         fail_on_error: false
       )

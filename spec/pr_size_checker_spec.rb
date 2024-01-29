@@ -35,8 +35,7 @@ module Danger
 
             @plugin.check_diff_size(type: type)
 
-            expect(@dangerfile.status_report[:errors]).to be_empty
-            expect(@dangerfile.status_report[:warnings]).to eq [format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, described_class::DEFAULT_MAX_DIFF_SIZE)]
+            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, described_class::DEFAULT_MAX_DIFF_SIZE)])
           end
 
           it 'does nothing when using default parameters in a PR that has equal diff than the default maximum' do
@@ -44,8 +43,7 @@ module Danger
 
             @plugin.check_diff_size(type: type)
 
-            expect(@dangerfile.status_report[:errors]).to be_empty
-            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile).to not_report
           end
 
           it 'does nothing when using default parameters in a PR that has smaller diff than the default maximum' do
@@ -53,8 +51,7 @@ module Danger
 
             @plugin.check_diff_size(type: type)
 
-            expect(@dangerfile.status_report[:errors]).to be_empty
-            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile).to not_report
           end
 
           context 'when reporting a custom error or warning with a custom max_size' do
@@ -103,8 +100,7 @@ module Danger
                 max_size: max_sizes[0]
               )
 
-              expect(@dangerfile.status_report[:errors]).to be_empty
-              expect(@dangerfile.status_report[:warnings]).to eq [format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_sizes[0])]
+              expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_sizes[0])])
             end
 
             it 'reports a custom error' do
@@ -119,8 +115,7 @@ module Danger
                 fail_on_error: true
               )
 
-              expect(@dangerfile.status_report[:warnings]).to be_empty
-              expect(@dangerfile.status_report[:errors]).to eq [custom_message]
+              expect(@dangerfile).to report_errors([custom_message])
             end
           end
 
@@ -133,8 +128,7 @@ module Danger
               max_size: max_sizes[2]
             )
 
-            expect(@dangerfile.status_report[:errors]).to be_empty
-            expect(@dangerfile.status_report[:warnings]).to be_empty
+            expect(@dangerfile).to not_report
           end
 
           def prepare_diff_with_test_files
@@ -190,8 +184,7 @@ module Danger
 
           @plugin.check_pr_body
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to eq [format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)]
+          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)])
         end
 
         it 'does nothing when using default parameters in a PR that has a bigger PR body text length than the default minimum' do
@@ -199,8 +192,7 @@ module Danger
 
           @plugin.check_pr_body
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'reports a warning when using default parameters in a PR that has an equal PR body text length than the default minimum' do
@@ -208,8 +200,7 @@ module Danger
 
           @plugin.check_pr_body
 
-          expect(@dangerfile.status_report[:errors]).to be_empty
-          expect(@dangerfile.status_report[:warnings]).to eq [format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)]
+          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)])
         end
 
         context 'when reporting a custom error or warning with a custom min_length' do
@@ -249,11 +240,9 @@ module Danger
 
       def expect_warning_or_error(fail_on_error:, message:)
         if fail_on_error
-          expect(@dangerfile.status_report[:warnings]).to be_empty
-          expect(@dangerfile.status_report[:errors]).to eq [message]
+          expect(@dangerfile).to report_errors([message])
         else
-          expect(@dangerfile.status_report[:warnings]).to eq [message]
-          expect(@dangerfile.status_report[:errors]).to be_empty
+          expect(@dangerfile).to report_warnings([message])
         end
       end
     end

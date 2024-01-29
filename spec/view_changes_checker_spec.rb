@@ -18,7 +18,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile.status_report[:warnings].count).to eq 1
+        expect(@dangerfile).to report_warnings([ViewChangesChecker::MESSAGE])
       end
 
       it 'does nothing when a PR with view code changes has screenshots defined in markdown' do
@@ -27,7 +27,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does nothing when a PR with view code changes has url to screenshots' do
@@ -36,7 +36,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does nothing when a PR with view code changes has a screenshot defined with a html tag with different attributes before src' do
@@ -45,7 +45,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+        expect(@dangerfile).to not_report
       end
 
       it 'does nothing when a PR with view code changes has a screenshot defined with a html' do
@@ -54,7 +54,7 @@ module Danger
 
         @plugin.check
 
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+        expect(@dangerfile).to not_report
       end
     end
 
@@ -66,7 +66,7 @@ module Danger
       end
 
       it 'does nothing' do
-        expect(@dangerfile.status_report[:warnings]).to be_empty
+        expect(@dangerfile).to not_report
       end
     end
 

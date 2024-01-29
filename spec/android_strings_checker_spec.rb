@@ -19,7 +19,7 @@ module Danger
       end
 
       context 'when changing strings.xml files' do
-        it 'returns a warning when a PR adds a string resource reference inside a strings.xml file' do
+        it 'reports a warning when a PR adds a string resource reference inside a strings.xml file' do
           strings_xml_path = './src/main/res/values/strings.xml'
           allow(@plugin.git).to receive(:modified_files).and_return([strings_xml_path])
 
@@ -44,18 +44,17 @@ module Danger
           @plugin.check_strings_do_not_refer_resource
 
           expected_warning = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{strings_xml_path}`:
             ```diff
             +  <string name="screen_title">@string/app_name</string>
             ```
           WARNING
 
-          expect(@dangerfile.status_report[:warnings]).to eq [expected_warning]
+          expect(@dangerfile).to report_warnings([expected_warning])
         end
 
-        it 'returns multiple warnings when a PR adds multiple string resource references inside multiple strings.xml files' do
+        it 'reports multiple warnings when a PR adds multiple string resource references inside multiple strings.xml files' do
           main_strings_xml = './src/main/res/values/strings.xml'
           ptbr_strings_xml = './src/main/res/values-pt-rBR/strings.xml'
           strings_xml_paths = [main_strings_xml, ptbr_strings_xml]
@@ -102,8 +101,7 @@ module Danger
           @plugin.check_strings_do_not_refer_resource
 
           expected_warning = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{main_strings_xml}`:
             ```diff
             +  <string name="screen_title">@string/app_name</string>
@@ -111,8 +109,7 @@ module Danger
           WARNING
 
           expected_warning2 = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{main_strings_xml}`:
             ```diff
             +  <string name="screen_button">@string/button</string>
@@ -120,8 +117,7 @@ module Danger
           WARNING
 
           expected_warning3 = <<~WARNING
-            This PR adds a translatable entry which references another string resource; this usually causes issues with translations.
-            Please make sure to set the `translatable="false"` attribute:
+            #{AndroidStringsChecker::MESSAGE}
             File `#{ptbr_strings_xml}`:
             ```diff
             +  <string name="popup_title">@string/app_name_title</string>
@@ -155,7 +151,7 @@ module Danger
 
           @plugin.check_strings_do_not_refer_resource
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
 
         it 'does nothing when a PR adds strings without resource references' do
@@ -181,7 +177,7 @@ module Danger
 
           @plugin.check_strings_do_not_refer_resource
 
-          expect(@dangerfile.status_report[:warnings]).to be_empty
+          expect(@dangerfile).to not_report
         end
       end
     end

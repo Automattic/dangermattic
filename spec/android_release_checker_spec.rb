@@ -22,7 +22,7 @@ module Danger
 
           @plugin.check_release_notes_and_play_store_strings
 
-          expect(@dangerfile).to report_messages(['The `metadata/PlayStoreStrings.po` file should be updated if the editorialised release notes file `metadata/release_notes.txt` is being changed.'])
+          expect(@dangerfile).to report_messages([format(CommonReleaseChecker::MESSAGE_STORE_FILE_NOT_CHANGED, 'metadata/PlayStoreStrings.po', 'metadata/release_notes.txt')])
         end
 
         it 'does nothing when a PR changes the release notes and the AppStore strings file' do
@@ -49,8 +49,7 @@ module Danger
 
           @plugin.check_modified_strings_on_release
 
-          expected_message = '`strings.xml` files should only be updated on release branches, when the translations are downloaded by our automation.'
-          expect(@dangerfile).to report_warnings([expected_message])
+          expect(@dangerfile).to report_warnings([AndroidReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
         end
 
         it 'reports an error when a PR on a regular branch changes the source strings.xml' do
@@ -59,8 +58,7 @@ module Danger
 
           @plugin.check_modified_strings_on_release(fail_on_error: true)
 
-          expected_message = '`strings.xml` files should only be updated on release branches, when the translations are downloaded by our automation.'
-          expect(@dangerfile).to report_errors([expected_message])
+          expect(@dangerfile).to report_errors([AndroidReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
         end
 
         it 'reports a warning when a PR on a regular branch changes a translated strings.xml' do
@@ -69,8 +67,7 @@ module Danger
 
           @plugin.check_modified_strings_on_release
 
-          expected_message = '`strings.xml` files should only be updated on release branches, when the translations are downloaded by our automation.'
-          expect(@dangerfile).to report_warnings([expected_message])
+          expect(@dangerfile).to report_warnings([AndroidReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
         end
 
         it 'does nothing when a PR changes the strings.xml on a release branch' do
