@@ -26,7 +26,7 @@ module Danger
   class CommonReleaseChecker < Plugin
     DEFAULT_INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
 
-    MESSAGE_STORE_FILE_NOT_CHANGED = 'The `%s` file should be updated if the editorialised release notes file `%s` is being changed.'
+    MESSAGE_STORE_FILE_NOT_CHANGED = 'The `%s` file should be updated if the editorialized release notes file `%s` is being changed.'
     MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED = <<~WARNING
       This PR contains changes to `%s`.
       Note that these changes won't affect the final version of the release notes as this version is in code freeze.
