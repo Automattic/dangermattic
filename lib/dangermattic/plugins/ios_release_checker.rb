@@ -4,18 +4,18 @@ module Danger
   # Plugin for performing iOS / macOS release-related checks in a pull request.
   #
   # @example Checking for changes in Core Data models on a release branch:
-  #          ios_release_check.check_core_data_model_changed
+  #          ios_release_checker.check_core_data_model_changed
   #
   # @example Checking for modified Localizable.strings on a regular branch:
-  #          ios_release_check.check_modified_localizable_strings
+  #          ios_release_checker.check_modified_localizable_strings
   #
   # @example Checking for synchronization between release notes and App Store strings:
-  #          ios_release_check.check_release_notes_and_app_store_strings
+  #          ios_release_checker.check_release_notes_and_app_store_strings
   #
   # @see Automattic/dangermattic
   # @tags ios, macos, process, release
   #
-  class IosReleaseCheck < Plugin
+  class IosReleaseChecker < Plugin
     LOCALIZABLE_STRINGS_FILE = 'Localizable.strings'
     BASE_STRINGS_FILE = "en.lproj/#{LOCALIZABLE_STRINGS_FILE}".freeze
 
@@ -26,7 +26,7 @@ module Danger
       warning = 'Do not edit an existing Core Data model in a release branch unless it hasn\'t been released to testers yet. ' \
                 'Instead create a new model version and merge back to develop soon.'
 
-      common_release_checks.check_file_changed(
+      common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.extname(path) == '.xcdatamodeld' },
         message: warning,
         on_release_branch: true
@@ -37,7 +37,7 @@ module Danger
     #
     # @return [void]
     def check_modified_localizable_strings_on_release
-      common_release_checks.check_file_changed(
+      common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: "The `#{LOCALIZABLE_STRINGS_FILE}` files should only be updated on release branches, when the translations are downloaded by our automation.",
         on_release_branch: false
@@ -48,7 +48,7 @@ module Danger
     #
     # @return [void]
     def check_modified_en_strings_on_regular_branch
-      common_release_checks.check_file_changed(
+      common_release_checker.check_file_changed(
         file_comparison: ->(path) { base_strings_file?(path: path) },
         message: "The `#{BASE_STRINGS_FILE}` file should only be updated before creating a release branch.",
         on_release_branch: true
@@ -59,7 +59,7 @@ module Danger
     #
     # @return [void]
     def check_modified_translations_on_release_branch
-      common_release_checks.check_file_changed(
+      common_release_checker.check_file_changed(
         file_comparison: ->(path) { !base_strings_file?(path: path) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: "Translation files `*.lproj/#{LOCALIZABLE_STRINGS_FILE}` should only be updated on a release branch.",
         on_release_branch: false
@@ -70,7 +70,7 @@ module Danger
     #
     # @return [void]
     def check_release_notes_and_app_store_strings
-      common_release_checks.check_release_notes_and_store_strings(
+      common_release_checker.check_release_notes_and_store_strings(
         release_notes_file: 'Resources/release_notes.txt',
         po_file: 'Resources/AppStoreStrings.po'
       )

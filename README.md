@@ -27,10 +27,10 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     # Reports a warning if a pull request diff size is greater than 300
     pr_size_checker.check_diff_size(max_size: 300)
     ```
-- `view_changes_need_screenshots` - Detects view changes in a PR and reports a warning if there are no attached screenshots
+- `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
     ```ruby
     # Reports a warning if a pull request changing views doesn't have a screenshot
-    view_changes_need_screenshots.view_changes_need_screenshots
+    view_changes_checker.check
     ```
 
 All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins

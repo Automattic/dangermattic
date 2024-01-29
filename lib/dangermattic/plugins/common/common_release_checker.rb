@@ -2,28 +2,28 @@
 
 module Danger
   # Plugin to perform generic checks related to releases.
-  # It can be used directly or via the specialised plugins `AndroidReleaseCheck` and `IosReleaseCheck`.
+  # It can be used directly or via the specialised plugins `AndroidReleaseChecker` and `IosReleaseChecker`.
   #
   # @example Checking if a specific file has changed on a release branch:
-  #          common_release_checks.check_file_changed(
+  #          common_release_checker.check_file_changed(
   #            file_comparison: ->(path) { path == 'metadata/full_release_notes.txt' },
   #            message: 'Release notes have been modified on a release branch.',
   #            on_release_branch: true
   #          )
   #
   # @example Checking if release notes and store strings have changed:
-  #          common_release_checks.check_release_notes_and_store_strings(
+  #          common_release_checker.check_release_notes_and_store_strings(
   #            release_notes_file: 'metadata/release_notes.txt',
   #            po_file: 'metadata/PlayStoreStrings.po'
   #          )
   #
   # @example Checking for changes in internal release notes:
-  #          common_release_checks.check_internal_release_notes_changed
+  #          common_release_checker.check_internal_release_notes_changed
   #
   # @see Automattic/dangermattic
   # @tags util, process, release
   #
-  class CommonReleaseChecks < Plugin
+  class CommonReleaseChecker < Plugin
     DEFAULT_INTERNAL_RELEASE_NOTES = 'RELEASE-NOTES.txt'
 
     # Check if certain files have been modified, returning a warning or failure message based on the branch type.
@@ -35,7 +35,7 @@ module Danger
     #
     # @param message [String] The message to display in the warning or failure output if the condition is met.
     #
-    # @param on_release [Boolean] If true, the check will only run on release branches, otherwise on non-release branches.
+    # @param on_release_branch [Boolean] If true, the check will only run on release branches, otherwise on non-release branches.
     #
     # @param fail_on_error [Boolean] If true, a failure message will be displayed instead of a warning.
     #

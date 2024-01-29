@@ -6,15 +6,15 @@ module Danger
   # Plugin for checking that the Podfile.lock doesn't contain direct commit references.
   #
   # @example Checking a Podfile for commit references:
-  #          podfile_checks.check_podfile_does_not_have_commit_references(podfile_lock_path: './aLib/Podfile.lock')
+  #          podfile_checker.check_podfile_does_not_have_commit_references(podfile_lock_path: './aLib/Podfile.lock')
   #
   # @example Checking Git diffs for Podfile.lock commit references:
-  #          podfile_checks.check_podfile_diff_does_not_have_commit_references
+  #          podfile_checker.check_podfile_diff_does_not_have_commit_references
   #
   # @see Automattic/dangermattic
   # @tags android, localization
   #
-  class PodfileChecks < Plugin
+  class PodfileChecker < Plugin
     PODFILE_LOCK = 'Podfile.lock'
     PODFILE_LOCK_DEPENDENCIES_ENTRY = 'DEPENDENCIES'
     DEFAULT_PODFILE_LOCK_PATH = './Podfile.lock'

@@ -3,7 +3,7 @@
 require_relative 'spec_helper'
 
 module Danger
-  describe Danger::ViewChangesNeedScreenshots do
+  describe Danger::ViewChangesChecker do
     it 'is a plugin' do
       expect(described_class.new(nil)).to be_a Danger::Plugin
     end
@@ -16,7 +16,7 @@ module Danger
       it 'warns when a PR with view code changes does not have screenshots' do
         allow(@plugin.github).to receive(:pr_body).and_return('PR Body')
 
-        @plugin.view_changes_need_screenshots
+        @plugin.check
 
         expect(@dangerfile.status_report[:warnings].count).to eq 1
       end
@@ -25,7 +25,7 @@ module Danger
         allow(@plugin.github).to receive(:pr_body)
           .and_return('PR [![Alt text](https://myimages.com/boo)](https://digitalocean.com) Body')
 
-        @plugin.view_changes_need_screenshots
+        @plugin.check
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
@@ -34,7 +34,7 @@ module Danger
         allow(@plugin.github).to receive(:pr_body)
           .and_return('<a href=\'https://myimages.com/boo.jpg\'>see secreenshot</a> Body')
 
-        @plugin.view_changes_need_screenshots
+        @plugin.check
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
@@ -43,7 +43,7 @@ module Danger
         allow(@plugin.github).to receive(:pr_body)
           .and_return("see screenshot:\n<img width=300 hint=\"First screenshots\" src=\"https://github.com/bloom/DayOne-Apple/assets/4780/1f9e01a8-c63d-41d4-9ac8-fa9a5182ab55\"> body body")
 
-        @plugin.view_changes_need_screenshots
+        @plugin.check
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
@@ -52,7 +52,7 @@ module Danger
         allow(@plugin.github).to receive(:pr_body)
           .and_return("see screenshot:\n<img src=\"https://github.com/woocommerce/woocommerce-ios/assets/1864060/17d9227d-67e8-4efb-8c26-02b81e1b19d2\" width=\"375\"> body body")
 
-        @plugin.view_changes_need_screenshots
+        @plugin.check
 
         expect(@dangerfile.status_report[:warnings]).to be_empty
       end
@@ -62,7 +62,7 @@ module Danger
       before do
         allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
         allow(@plugin.github).to receive(:pr_body).and_return('Body')
-        @plugin.view_changes_need_screenshots
+        @plugin.check
       end
 
       it 'does nothing' do
@@ -73,7 +73,7 @@ module Danger
     describe 'with Dangerfile' do
       before do
         @dangerfile = testing_dangerfile
-        @plugin = @dangerfile.view_changes_need_screenshots
+        @plugin = @dangerfile.view_changes_checker
       end
 
       context 'when checking an iOS PR' do

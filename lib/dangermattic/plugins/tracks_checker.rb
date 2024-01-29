@@ -4,17 +4,17 @@ module Danger
   # Plugin for checking tracks-related changes and providing instructions in the PR if that's the case.
   #
   # @example Checking Tracks changes with default settings:
-  #          check_tracks.check_tracks_changes
+  #          tracks_checker.check_tracks_changes
   #
   # @example Checking Tracks changes with custom Tracks-related files and usage matchers:
   #          tracks_files = ['AnalyticsTracking.swift', 'AnalyticsHelper.swift']
   #          usage_matchers = [/AnalyticsHelper\.sendEvent/]
-  #          check_tracks.check_tracks_changes(tracks_files: tracks_files, tracks_usage_matchers: usage_matchers)
+  #          tracks_checker.check_tracks_changes(tracks_files: tracks_files, tracks_usage_matchers: usage_matchers)
   #
   # @see Automattic/dangermattic
   # @tags github, pull request, tracks, process
   #
-  class CheckTracks < Plugin
+  class TracksChecker < Plugin
     DEFAULT_TRACKS_FILES = [
       'AnalyticsTracker.kt',
       'AnalyticsEvent.kt',
