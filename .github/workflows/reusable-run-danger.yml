@@ -33,9 +33,22 @@ jobs:
           bundler-cache: true
       - name: "☢️ Danger PR Check"
         env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          RUNNING_ON_FORK: ${{ github.event.pull_request.head.repo.fork }}
           REMOVE_PREVIOUS_COMMENTS: ${{ inputs.remove-previous-comments }}
           DANGER_GITHUB_API_TOKEN: ${{ secrets.github-token }}
         run: |
           echo "--- 🏃 Running Danger: PR Check"
-          bundle exec danger --fail-on-errors=true --danger_id=pr-check $([ "$REMOVE_PREVIOUS_COMMENTS" = true ] && echo "--remove-previous-comments")
 
+          if [ "$RUNNING_ON_FORK" = true ]; then
+            danger_output=$(bundle exec danger pr "$PR_URL" --verbose)
+
+            echo "$danger_output"
+
+            if echo "$danger_output" | grep -q "Errors:"; then
+              echo "Danger encountered errors."
+              exit 1
+            fi
+          else
+            bundle exec danger --fail-on-errors=true --danger_id=pr-check $([ "$REMOVE_PREVIOUS_COMMENTS" = true ] && echo "--remove-previous-comments")
+          fi
