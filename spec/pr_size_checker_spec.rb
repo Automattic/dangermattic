@@ -55,19 +55,19 @@ module Danger
           end
 
           context 'when reporting a custom error or warning with a custom max_size' do
-            shared_examples 'reporting diff size custom warnings or errors' do |fail_on_error, message|
+            shared_examples 'reporting diff size custom warnings or errors' do |report_type, message|
               it 'reports an error using a custom message and a custom PR body size' do
                 allow(@plugin.git).to receive(diff_counter_for_type).and_return(600)
 
                 if message
-                  @plugin.check_diff_size(type: type, max_size: 599, message: message, fail_on_error: fail_on_error)
+                  @plugin.check_diff_size(type: type, max_size: 599, message: message, report_type: report_type)
                 else
-                  @plugin.check_diff_size(type: type, max_size: 599, fail_on_error: fail_on_error)
+                  @plugin.check_diff_size(type: type, max_size: 599, report_type: report_type)
                 end
 
                 message ||= format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 599)
 
-                expect_warning_or_error(fail_on_error: fail_on_error, message: message)
+                expect_warning_or_error(report_type: report_type, message: message)
               end
             end
 
@@ -112,7 +112,7 @@ module Danger
                 type: type,
                 max_size: max_sizes[1],
                 message: custom_message,
-                fail_on_error: true
+                report_type: :error
               )
 
               expect(@dangerfile).to report_errors([custom_message])
@@ -204,19 +204,19 @@ module Danger
         end
 
         context 'when reporting a custom error or warning with a custom min_length' do
-          shared_examples 'reporting PR length check custom warnings or errors' do |fail_on_error, message|
+          shared_examples 'reporting PR length check custom warnings or errors' do |report_type, message|
             it 'reports an error when using a custom message and a custom minimum PR body text length' do
               allow(@plugin.github).to receive(:pr_body).and_return('still too short message')
 
               if message
-                @plugin.check_pr_body(min_length: 25, message: message, fail_on_error: fail_on_error)
+                @plugin.check_pr_body(min_length: 25, message: message, report_type: report_type)
               else
-                @plugin.check_pr_body(min_length: 25, fail_on_error: fail_on_error)
+                @plugin.check_pr_body(min_length: 25, report_type: report_type)
               end
 
               message ||= format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, 25)
 
-              expect_warning_or_error(fail_on_error: fail_on_error, message: message)
+              expect_warning_or_error(report_type: report_type, message: message)
             end
           end
 
@@ -238,10 +238,10 @@ module Danger
         end
       end
 
-      def expect_warning_or_error(fail_on_error:, message:)
-        if fail_on_error
+      def expect_warning_or_error(report_type:, message:)
+        if report_type == :error
           expect(@dangerfile).to report_errors([message])
-        else
+        elsif report_type == :warning
           expect(@dangerfile).to report_warnings([message])
         end
       end

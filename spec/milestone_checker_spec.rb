@@ -28,7 +28,7 @@ module Danger
           it "reports an error when a PR doesn't have a milestone set" do
             allow(@plugin.github).to receive(:pr_json).and_return({})
 
-            @plugin.check_milestone_set(fail_on_error: true)
+            @plugin.check_milestone_set(report_type: :error)
 
             expected_error = ['PR is not assigned to a milestone.']
             expect(@dangerfile).to report_errors(expected_error)
@@ -59,7 +59,7 @@ module Danger
 
             allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
 
-            @plugin.check_milestone_set(fail_on_error: true)
+            @plugin.check_milestone_set(report_type: :error)
 
             expect(@dangerfile).to not_report
           end

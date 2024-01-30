@@ -51,15 +51,15 @@ module Danger
       failure("This PR is tagged with #{markdown_list_string(found_do_not_merge_labels)} label(s).") unless found_do_not_merge_labels.empty?
 
       # fail if a PR is missing any of the required labels
-      check_missing_labels(labels: github_labels, expected_labels: required_labels, fail_on_missing: true, custom_message: required_labels_error)
+      check_missing_labels(labels: github_labels, expected_labels: required_labels, report_on_missing: :error, custom_message: required_labels_error)
 
       # warn if a PR is missing any of the recommended labels
-      check_missing_labels(labels: github_labels, expected_labels: recommended_labels, fail_on_missing: false, custom_message: recommended_labels_warning)
+      check_missing_labels(labels: github_labels, expected_labels: recommended_labels, report_on_missing: :warning, custom_message: recommended_labels_warning)
     end
 
     private
 
-    def check_missing_labels(labels:, expected_labels:, fail_on_missing:, custom_message: nil)
+    def check_missing_labels(labels:, expected_labels:, report_on_missing:, custom_message: nil)
       missing_expected_labels = expected_labels.reject do |required_label|
         labels.any? { |label| label =~ required_label }
       end
@@ -69,11 +69,7 @@ module Danger
       missing_labels_list = missing_expected_labels.map(&:source)
       message = custom_message || "PR is missing label(s) matching: #{markdown_list_string(missing_labels_list)}"
 
-      if fail_on_missing
-        failure(message)
-      else
-        warn(message)
-      end
+      reporter.report(message: message, type: report_on_missing)
     end
 
     def markdown_list_string(items)

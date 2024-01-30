@@ -9,7 +9,7 @@ module Danger
   #          checker.check_milestone_set
   #
   #          # Check if PR is assigned to a milestone, reporting an error if that's not the case
-  #          checker.check_milestone_set(fail_on_error: true)
+  #          checker.check_milestone_set(report_type: :error)
   #
   # @example Run a milestone check
   #
@@ -35,16 +35,11 @@ module Danger
     # Checks if the pull request is assigned to a milestone.
     #
     # @return [void]
-    def check_milestone_set(fail_on_error: false)
+    def check_milestone_set(report_type: :warning)
       return unless milestone.nil?
 
       message = 'PR is not assigned to a milestone.'
-      sticky = false
-      if fail_on_error
-        failure(message, sticky: sticky)
-      else
-        warn(message, sticky: sticky)
-      end
+      reporter.report(message: message, type: report_type)
     end
 
     # Checks if the pull request's milestone is due to finish within a certain number of days.
@@ -60,9 +55,9 @@ module Danger
       if milestone.nil?
         case if_no_milestone
         when :warn
-          check_milestone_set(fail_on_error: false)
+          check_milestone_set(report_type: :warning)
         when :error
-          check_milestone_set(fail_on_error: true)
+          check_milestone_set(report_type: :error)
         end
         return
       end

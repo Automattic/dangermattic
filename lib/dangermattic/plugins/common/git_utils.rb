@@ -45,13 +45,13 @@ module Danger
     #
     # @param message [String] The warning or failure message to display when the pattern is found in a line.
     #
-    # @param fail_on_error [Boolean] (optional) When set to true, whenever a line matches the criteria, the method will emit an error, when false, emit a warning. Default is false.
+    # @param report_type [Boolean] (optional) When set to true, whenever a line matches the criteria, the method will emit an error, when false, emit a warning. Default is false.
     #
     # @example Checking for added lines containing 'FIXME' and failing the build:
-    #   check_added_diff_lines(file_selector: ->(path) { File.extname(path) == ('.swift') }, line_matcher: ->(line) { line.include?("FIXME") }, message: "A FIXME was added, failing build.", fail_on_error: true)
+    #   check_added_diff_lines(file_selector: ->(path) { File.extname(path) == ('.swift') }, line_matcher: ->(line) { line.include?("FIXME") }, message: "A FIXME was added, failing build.", report_type: :error)
     #
     # @return [void]
-    def check_added_diff_lines(file_selector:, line_matcher:, message:, fail_on_error: false)
+    def check_added_diff_lines(file_selector:, line_matcher:, message:, report_type: :warning)
       modified_files = added_and_modified_files.select(&file_selector)
 
       matches = matching_lines_in_diff_files(
@@ -70,11 +70,7 @@ module Danger
             ```
           MESSAGE
 
-          if fail_on_error
-            failure(final_message)
-          else
-            warn(final_message)
-          end
+          reporter.report(message: final_message, type: report_type)
         end
       end
     end
