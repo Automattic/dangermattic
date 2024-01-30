@@ -38,11 +38,13 @@ module Danger
       )
     end
 
-    # Check if there are changes to the internal release notes file RELEASE-NOTES.txt and emit a warning message if that's the case.
+    # Check if there are changes to the internal release notes file RELEASE-NOTES.txt and report a message if that's the case.
+    #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
-    def check_internal_release_notes_changed
-      common_release_checker.check_internal_release_notes_changed
+    def check_internal_release_notes_changed(report_type: :warning)
+      common_release_checker.check_internal_release_notes_changed(report_type: report_type)
     end
   end
 end
