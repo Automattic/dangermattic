@@ -45,6 +45,7 @@ module Danger
     # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
     # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     # @param report_if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
     #                                 - :warning (default): Reports a warning.
     #                                 - :error: Reports an error.
