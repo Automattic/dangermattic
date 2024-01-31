@@ -25,8 +25,6 @@ module Danger
     #
     # @return [void]
     def report(message:, type: :warning)
-      return if message.nil? || message.empty? || type.nil?
-
       case type
       when :error
         failure(message)
