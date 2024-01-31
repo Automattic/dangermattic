@@ -61,7 +61,7 @@ module Danger
     def check_file_changed(file_comparison:, message:, on_release_branch:, report_type: :warning)
       has_modified_file = git_utils.all_changed_files.any?(&file_comparison)
 
-      should_be_changed = (on_release_branch == release_branch?)
+      should_be_changed = (on_release_branch == github_utils.release_branch?)
       return unless should_be_changed && has_modified_file
 
       reporter.report(message: message, type: report_type)
@@ -108,12 +108,6 @@ module Danger
         on_release_branch: true,
         report_type: report_type
       )
-    end
-
-    private
-
-    def release_branch?
-      danger.github.branch_for_base.start_with?('release/') || danger.github.branch_for_base.start_with?('hotfix/')
     end
   end
 end
