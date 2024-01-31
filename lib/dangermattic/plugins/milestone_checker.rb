@@ -19,12 +19,12 @@ module Danger
   # @example Run a milestone check with custom parameters
   #
   #          # Check if milestone due date is within 3 days, reporting an error if the due date has passed and in case there's no milestone set
-  #          checker.check_milestone_due_date(days_before_due: 3, report_type: :error, report_if_no_milestone: :error)
+  #          checker.check_milestone_due_date(days_before_due: 3, report_type: :error, report_type_if_no_milestone: :error)
   #
   # @example Run a milestone check with a custom milestone behaviour parameter
   #
   #          # Check if milestone due date is approaching and don't report anything if no milestone is assigned
-  #          checker.check_milestone_due_date(report_if_no_milestone: :none)
+  #          checker.check_milestone_due_date(report_type_if_no_milestone: :none)
   #
   # @see Automattic/dangermattic
   # @tags milestone, github, process
@@ -46,16 +46,16 @@ module Danger
     #
     # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
-    # @param report_if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
+    # @param report_type_if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
     #                                 - :warning (default): Reports a warning.
     #                                 - :error: Reports an error.
     #                                 - :message: Reports a message.
     #                                 - :none or nil: Takes no action.
     #
     # @return [void]
-    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, report_type: :warning, report_if_no_milestone: :warning)
+    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, report_type: :warning, report_type_if_no_milestone: :warning)
       if milestone.nil?
-        check_milestone_set(report_type: report_if_no_milestone)
+        check_milestone_set(report_type: report_type_if_no_milestone)
         return
       end
 
