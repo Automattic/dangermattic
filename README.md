@@ -43,3 +43,24 @@ All available plugins are defined here: https://github.com/Automattic/dangermatt
 - Run `bundle exec rake lint` to run only the linting tasks: RuboCop and Danger Lint
 - Use `bundle exec guard` to automatically have tests run as you make changes.
 - You can generate the documentation using `bundle exec yard doc`. The documentation is generated locally in the `yard-doc/` folder.
+
+### Adding a new plugin
+
+Adding a new plugin to Dangermattic is very simple: just create a new subclass of `Danger::Plugin` inside `./lib/dangermattic/plugins/`, similarly to the other classes you'll find there:
+
+```ruby
+module Danger
+  class MyNewPlugin < Plugin
+    def check_method(param:)
+      # ...
+    end
+  end
+end
+```
+
+It will be [automatically imported](https://github.com/Automattic/dangermattic/blob/trunk/lib/danger_plugin.rb), exposed by Dangermattic's Gem and visible in your `Dangerfile` once you add it as a dependency:
+
+```ruby
+# In a Dangerfile
+my_new_plugin.check_method(param: my_param_value)
+```
