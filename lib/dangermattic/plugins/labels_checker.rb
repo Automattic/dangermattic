@@ -16,16 +16,11 @@ module Danger
   # @tags github, process
   #
   class LabelsChecker < Plugin
-    DEFAULT_DO_NOT_MERGE_LABELS = [
-      'Do Not Merge'
-    ].freeze
-
     # Checks if a PR is missing labels or is marked with labels for not merging.
     # If recommended labels are missing, the plugin will emit a warning. If a required label is missing, or the PR
     # has a label indicating that the PR should not be merged, an error will be emitted, preventing the final merge.
     #
-    # @param do_not_merge_labels [String] The possible labels indicating that a merge should not be allowed.
-    #   Defaults to DEFAULT_DO_NOT_MERGE_LABELS if not provided.
+    # @param do_not_merge_labels [Array<String>] The possible labels indicating that a merge should not be allowed.
     # @param required_labels [Array<Regexp>] The list of Regular Expressions describing all the type of labels that are *required* on PR (e.g. `[/^feature:/, `/^type:/]` or `bug|bugfix-exemption`).
     #   Defaults to an empty array if not provided.
     # @param required_labels_error [String] The error message displayed if the required labels are not present.
@@ -40,12 +35,12 @@ module Danger
     #  an array of a single empty regex `[//]` to match "a label with any name".
     #
     # @return [void]
-    def check(do_not_merge_labels: DEFAULT_DO_NOT_MERGE_LABELS, required_labels: [], required_labels_error: nil, recommended_labels: [], recommended_labels_warning: nil)
+    def check(do_not_merge_labels: [], required_labels: [], required_labels_error: nil, recommended_labels: [], recommended_labels_warning: nil)
       github_labels = danger.github.pr_labels
 
       # A PR shouldn't be merged with the 'DO NOT MERGE' label
       found_do_not_merge_labels = github_labels.select do |github_label|
-        do_not_merge_labels.any? { |label| github_label.casecmp?(label) }
+        do_not_merge_labels&.any? { |label| github_label.casecmp?(label) }
       end
 
       failure("This PR is tagged with #{markdown_list_string(found_do_not_merge_labels)} label(s).") unless found_do_not_merge_labels.empty?

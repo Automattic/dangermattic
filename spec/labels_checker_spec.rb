@@ -120,11 +120,11 @@ module Danger
       end
 
       context 'with \'do not merge\' labels' do
-        it 'reports an error when a PR has a \'do not merge\' label' do
+        it 'reports an error when a PR has a single \'do not merge\' label' do
           pr_label = 'DO NOT MERGE'
           allow(@plugin.github).to receive(:pr_labels).and_return([pr_label])
 
-          @plugin.check
+          @plugin.check(do_not_merge_labels: [pr_label])
 
           expect(@dangerfile).to report_errors(["This PR is tagged with `#{pr_label}` label(s)."])
         end

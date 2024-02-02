@@ -30,26 +30,26 @@ module Danger
             type_hash[type]
           end
 
-          it 'reports a warning when using default parameters in a PR that has larger diff than the default maximum' do
+          it 'reports a warning when using default parameters in a PR that has larger diff than the maximum' do
             allow(@plugin.git).to receive(diff_counter_for_type).and_return(501)
 
-            @plugin.check_diff_size(type: type)
+            @plugin.check_diff_size(max_size: 500, type: type)
 
-            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, described_class::DEFAULT_MAX_DIFF_SIZE)])
+            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 500)])
           end
 
-          it 'does nothing when using default parameters in a PR that has equal diff than the default maximum' do
+          it 'does nothing when using default parameters in a PR that has equal diff than the maximum' do
             allow(@plugin.git).to receive(diff_counter_for_type).and_return(500)
 
-            @plugin.check_diff_size(type: type)
+            @plugin.check_diff_size(max_size: 500, type: type)
 
             expect(@dangerfile).to not_report
           end
 
-          it 'does nothing when using default parameters in a PR that has smaller diff than the default maximum' do
+          it 'does nothing when using default parameters in a PR that has smaller diff than the maximum' do
             allow(@plugin.git).to receive(diff_counter_for_type).and_return(499)
 
-            @plugin.check_diff_size(type: type)
+            @plugin.check_diff_size(max_size: 500, type: type)
 
             expect(@dangerfile).to not_report
           end
@@ -60,9 +60,9 @@ module Danger
                 allow(@plugin.git).to receive(diff_counter_for_type).and_return(600)
 
                 if message
-                  @plugin.check_diff_size(type: type, max_size: 599, message: message, report_type: report_type)
+                  @plugin.check_diff_size(max_size: 599, type: type, message: message, report_type: report_type)
                 else
-                  @plugin.check_diff_size(type: type, max_size: 599, report_type: report_type)
+                  @plugin.check_diff_size(max_size: 599, type: type, report_type: report_type)
                 end
 
                 message ||= format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 599)
@@ -95,9 +95,9 @@ module Danger
               prepare_diff_with_test_files
 
               @plugin.check_diff_size(
+                max_size: max_sizes[0],
                 file_selector: ->(path) { File.dirname(path).start_with?('src/test/java') },
-                type: type,
-                max_size: max_sizes[0]
+                type: type
               )
 
               expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_sizes[0])])
@@ -108,9 +108,9 @@ module Danger
 
               custom_message = 'diff size too large custom file filter and error message'
               @plugin.check_diff_size(
+                max_size: max_sizes[1],
                 file_selector: ->(path) { File.extname(path) == '.java' },
                 type: type,
-                max_size: max_sizes[1],
                 message: custom_message,
                 report_type: :error
               )
@@ -123,9 +123,9 @@ module Danger
             prepare_diff_with_test_files
 
             @plugin.check_diff_size(
+              max_size: max_sizes[2],
               file_selector: ->(path) { File.extname(path).match(/^(.java|.kt)$/) },
-              type: type,
-              max_size: max_sizes[2]
+              type: type
             )
 
             expect(@dangerfile).to not_report
@@ -179,28 +179,28 @@ module Danger
       end
 
       context 'when checking a PR body size' do
-        it 'reports a warning when using default parameters in a PR that has a smaller body text length than the default minimum' do
+        it 'reports a warning when using default parameters in a PR that has a smaller body text length than the minimum' do
           allow(@plugin.github).to receive(:pr_body).and_return('PR body')
 
-          @plugin.check_pr_body
+          @plugin.check_pr_body(min_length: 15)
 
-          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)])
+          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, 15)])
         end
 
-        it 'does nothing when using default parameters in a PR that has a bigger PR body text length than the default minimum' do
+        it 'does nothing when using default parameters in a PR that has a bigger PR body text length than the minimum' do
           allow(@plugin.github).to receive(:pr_body).and_return('some test PR body')
 
-          @plugin.check_pr_body
+          @plugin.check_pr_body(min_length: 10)
 
           expect(@dangerfile).to not_report
         end
 
-        it 'reports a warning when using default parameters in a PR that has an equal PR body text length than the default minimum' do
+        it 'reports a warning when using default parameters in a PR that has an equal PR body text length than the minimum' do
           allow(@plugin.github).to receive(:pr_body).and_return('some test-')
 
-          @plugin.check_pr_body
+          @plugin.check_pr_body(min_length: 10)
 
-          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, described_class::DEFAULT_MIN_PR_BODY)])
+          expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, 10)])
         end
 
         context 'when reporting a custom error or warning with a custom min_length' do
