@@ -14,6 +14,21 @@ module Danger
         @plugin = @dangerfile.tracks_checker
       end
 
+      let(:track_files) do
+        [
+          'AnalyticsTracker.kt',
+          'AnalyticsEvent.kt',
+          'LoginAnalyticsTracker.kt',
+          'WooAnalyticsStat.swift'
+        ]
+      end
+
+      let(:tracks_matchers) do
+        [
+          /AnalyticsTracker\.track/
+        ]
+      end
+
       describe '#check_tracks_changes' do
         before do
           allow(@plugin.git).to receive_messages(modified_files: [], added_files: [], deleted_files: [])
@@ -25,7 +40,7 @@ module Danger
           it 'reports a message with instructions for review when there are changes in Tracks-related files' do
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['Test.kt', 'LoginAnalyticsTracker.kt', 'Test.java'])
 
-            @plugin.check_tracks_changes
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
@@ -33,7 +48,7 @@ module Danger
           it 'reports a message with instructions for review when there are changes in Tracks-related files using a custom file list' do
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['MyClass.swift', 'MyClass1.swift', 'MyClass2.swift'])
 
-            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
+            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'], tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
@@ -43,7 +58,7 @@ module Danger
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
             allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
 
-            @plugin.check_tracks_changes
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to not_report
           end
@@ -53,7 +68,7 @@ module Danger
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
             allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
 
-            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'])
+            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'], tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to not_report
           end
@@ -71,7 +86,7 @@ module Danger
               [analytics_call_in_diff]
             end
 
-            @plugin.check_tracks_changes
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
@@ -87,7 +102,7 @@ module Danger
               [analytics_call_in_diff]
             end
 
-            @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log/])
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: [/AnalyticsHelper\.log/])
 
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
           end
@@ -103,7 +118,7 @@ module Danger
               []
             end
 
-            @plugin.check_tracks_changes
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to not_report
           end
@@ -119,7 +134,7 @@ module Danger
               []
             end
 
-            @plugin.check_tracks_changes(tracks_usage_matchers: [/AnalyticsHelper\.log$/])
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: [/AnalyticsHelper\.log$/])
 
             expect(@dangerfile).to not_report
           end

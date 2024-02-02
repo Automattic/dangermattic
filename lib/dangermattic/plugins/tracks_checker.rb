@@ -15,32 +15,21 @@ module Danger
   # @tags github, pull request, tracks, process
   #
   class TracksChecker < Plugin
-    DEFAULT_TRACKS_FILES = [
-      'AnalyticsTracker.kt',
-      'AnalyticsEvent.kt',
-      'LoginAnalyticsTracker.kt',
-      'WooAnalyticsStat.swift'
-    ].freeze
-
-    DEFAULT_TRACKS_USE_MATCHERS = [
-      /AnalyticsTracker\.track/
-    ].freeze
-
     TRACKS_PR_INSTRUCTIONS = <<~MESSAGE
-      This PR contains changes to Tracks-related logic. Please ensure the following are completed:
-      **PR Author**
-      - The PR must be assigned the **Tracks** label
-      **PR Reviewer**
+      This PR contains changes to Tracks-related logic. Please ensure (**author and reviewer**) the following are completed:
+
+      - The PR must be assigned the **Tracks** label.
       - The tracks events must be validated in the Tracks system.
       - Verify the internal Tracks spreadsheet has also been updated.
+      - Please consider registering any new events.
     MESSAGE
 
     # Checks the PR diff for changes in Tracks-related files and provides instructions if changes are detected
     #
-    # @param tracks_files [Array<String>] List of Tracks-related file names to check (default: DEFAULT_TRACKS_FILES)
-    # @param tracks_usage_matchers [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines (default: DEFAULT_TRACKS_FILES)
+    # @param tracks_files [Array<String>] List of Tracks-related file names to check
+    # @param tracks_usage_matchers [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines
     # @return [void]
-    def check_tracks_changes(tracks_files: DEFAULT_TRACKS_FILES, tracks_usage_matchers: DEFAULT_TRACKS_USE_MATCHERS)
+    def check_tracks_changes(tracks_files:, tracks_usage_matchers:)
       return unless changes_tracks_files?(tracks_files: tracks_files) || diff_has_tracks_changes?(tracks_usage_matchers: tracks_usage_matchers)
 
       # Tracks-related changes detected: publishing instructions
