@@ -33,6 +33,7 @@ module Danger
         before do
           allow(@plugin.git).to receive_messages(modified_files: [], added_files: [], deleted_files: [])
 
+          allow(@plugin.github).to receive(:pr_labels).and_return(['Tracks'])
           stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         end
 
@@ -43,6 +44,16 @@ module Danger
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
 
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
+          end
+
+          it 'reports an error when there are changes in Tracks-related files but no Tracks label' do
+            allow(@plugin.github).to receive(:pr_labels).and_return([])
+            allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['Test.kt', 'LoginAnalyticsTracker.kt', 'Test.java'])
+
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers)
+
+            expect(@dangerfile.status_report[:messages]).to eq [TracksChecker::TRACKS_PR_INSTRUCTIONS]
+            expect(@dangerfile.status_report[:errors]).to eq [TracksChecker::TRACKS_NO_LABEL_MESSAGE]
           end
 
           it 'reports a message with instructions for review when there are changes in Tracks-related files using a custom file list' do

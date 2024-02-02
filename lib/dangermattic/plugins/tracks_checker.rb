@@ -24,6 +24,8 @@ module Danger
       - Please consider registering any new events.
     MESSAGE
 
+    TRACKS_NO_LABEL_MESSAGE = 'Please ensure the PR has the `Tracks` label.'
+
     # Checks the PR diff for changes in Tracks-related files and provides instructions if changes are detected
     #
     # @param tracks_files [Array<String>] List of Tracks-related file names to check
@@ -31,6 +33,12 @@ module Danger
     # @return [void]
     def check_tracks_changes(tracks_files:, tracks_usage_matchers:)
       return unless changes_tracks_files?(tracks_files: tracks_files) || diff_has_tracks_changes?(tracks_usage_matchers: tracks_usage_matchers)
+
+      labels_checker.check(
+        do_not_merge_labels: [],
+        required_labels: [/Tracks/],
+        required_labels_error: TRACKS_NO_LABEL_MESSAGE
+      )
 
       # Tracks-related changes detected: publishing instructions
       message(TRACKS_PR_INSTRUCTIONS)
