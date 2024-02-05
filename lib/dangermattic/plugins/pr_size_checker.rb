@@ -11,7 +11,7 @@ module Danger
   # @example Running a PR diff size check customizing the size, message and type of report
   #
   #          # Check the total size of changes in the PR, reporting an error if the diff is larger than 1000 using the specified message
-  #          pr_size_checker.check_diff_size(max_size: 1000, message: 'PR too large, 1000 is the max!!', fail_on_error: true)
+  #          pr_size_checker.check_diff_size(max_size: 1000, message: 'PR too large, 1000 is the max!!', report_type: :error)
   #
   # @example Running a PR diff size check on the specified files in part of the diff
   #
@@ -26,7 +26,7 @@ module Danger
   # @example Running a PR description length check with custom parameters
   #
   #          # Check if the minimum length of the PR body is smaller than 20 characters, reporting an error using a custom error message
-  #          pr_size_checker.check_pr_body(min_length: 20, message: 'Add a better description, 20 chars at least!!', fail_on_error: true)
+  #          pr_size_checker.check_pr_body(min_length: 20, message: 'Add a better description, 20 chars at least!!', report_type: :error)
   #
   # @see Automattic/dangermattic
   # @tags github, pull request, process
@@ -43,23 +43,17 @@ module Danger
     # @param type [:insertions, :deletions, :all] The type of diff size to check. (default: :all)
     # @param max_size [Integer] The maximum allowed size for the diff. (default: DEFAULT_MAX_DIFF_SIZE)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
-    # @param fail_on_error [Boolean] If true, fail the PR check when the diff size exceeds the maximum (default: false).
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
-    def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), fail_on_error: false)
+    def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)
       case type
       when :insertions
-        if insertions_size(file_selector: file_selector) > max_size
-          fail_on_error ? failure(message) : warn(message)
-        end
+        reporter.report(message: message, type: report_type) if insertions_size(file_selector: file_selector) > max_size
       when :deletions
-        if deletions_size(file_selector: file_selector) > max_size
-          fail_on_error ? failure(message) : warn(message)
-        end
+        reporter.report(message: message, type: report_type) if deletions_size(file_selector: file_selector) > max_size
       when :all
-        if diff_size(file_selector: file_selector) > max_size
-          fail_on_error ? failure(message) : warn(message)
-        end
+        reporter.report(message: message, type: report_type) if diff_size(file_selector: file_selector) > max_size
       end
     end
 
@@ -67,13 +61,13 @@ module Danger
     #
     # @param min_length [Integer] The minimum allowed length for the PR body. (default: DEFAULT_MIN_PR_BODY)
     # @param message [String] The message to display if the length of the PR body is smaller than the minimum. (default: DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT)
-    # @param fail_on_error [Boolean] If true, fail the PR check when the PR body length is too small. (default: false)
+    # @param report_type [Boolean] If true, fail the PR check when the PR body length is too small. (default: false)
     #
     # @return [void]
-    def check_pr_body(min_length: DEFAULT_MIN_PR_BODY, message: format(DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, min_length), fail_on_error: false)
+    def check_pr_body(min_length: DEFAULT_MIN_PR_BODY, message: format(DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, min_length), report_type: :warning)
       return if danger.github.pr_body.length > min_length
 
-      fail_on_error ? failure(message) : warn(message)
+      reporter.report(message: message, type: report_type)
     end
 
     # Calculate the total size of insertions in modified files that match the file selector.

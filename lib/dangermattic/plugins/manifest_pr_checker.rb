@@ -33,49 +33,63 @@ module Danger
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_all_manifest_lock_updated
-      check_gemfile_lock_updated
-      check_podfile_lock_updated
-      check_swift_package_resolved_updated
+    def check_all_manifest_lock_updated(report_type: :warning)
+      check_gemfile_lock_updated(report_type: report_type)
+      check_podfile_lock_updated(report_type: report_type)
+      check_swift_package_resolved_updated(report_type: report_type)
     end
 
     # Check if the `Gemfile` file was modified without a corresponding `Gemfile.lock` update
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
+    #
     # @return [void]
-    def check_gemfile_lock_updated
+    def check_gemfile_lock_updated(report_type: :warning)
       check_manifest_lock_updated(
         file_name: 'Gemfile',
         lock_file_name: 'Gemfile.lock',
-        instruction: 'Please run `bundle install` or `bundle update <updated_gem>`'
+        instruction: 'Please run `bundle install` or `bundle update <updated_gem>`',
+        report_type: report_type
       )
     end
 
     # Check if the `Podfile` file was modified without a corresponding `Podfile.lock` update
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
+    #
     # @return [void]
-    def check_podfile_lock_updated
+    def check_podfile_lock_updated(report_type: :warning)
       check_manifest_lock_updated(
         file_name: 'Podfile',
         lock_file_name: 'Podfile.lock',
-        instruction: 'Please run `bundle exec pod install`'
+        instruction: 'Please run `bundle exec pod install`',
+        report_type: report_type
       )
     end
 
     # Check if the `Package.swift` file was modified without a corresponding `Package.resolved` update
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
+    #
     # @return [void]
-    def check_swift_package_resolved_updated
+    def check_swift_package_resolved_updated(report_type: :warning)
       check_manifest_lock_updated(
         file_name: 'Package.swift',
         lock_file_name: 'Package.resolved',
-        instruction: 'Please resolve the Swift packages in Xcode'
+        instruction: 'Please resolve the Swift packages in Xcode',
+        report_type: report_type
       )
     end
 
     private
 
-    def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:)
+    def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:, report_type: :warning)
       # Find all the modified manifest files
       manifest_modified_files = git.modified_files.select { |f| File.basename(f) == file_name }
 
@@ -84,7 +98,8 @@ module Danger
         lockfile_modified = git.modified_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
         next if lockfile_modified
 
-        warn(format(MESSAGE, manifest_file, lock_file_name, instruction))
+        message = format(MESSAGE, manifest_file, lock_file_name, instruction)
+        reporter.report(message: message, type: report_type)
       end
     end
   end

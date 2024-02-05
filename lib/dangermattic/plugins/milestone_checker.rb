@@ -9,7 +9,7 @@ module Danger
   #          checker.check_milestone_set
   #
   #          # Check if PR is assigned to a milestone, reporting an error if that's not the case
-  #          checker.check_milestone_set(fail_on_error: true)
+  #          checker.check_milestone_set(report_type: :error)
   #
   # @example Run a milestone check
   #
@@ -18,13 +18,13 @@ module Danger
   #
   # @example Run a milestone check with custom parameters
   #
-  #          # Check if milestone due date is within 3 days, reporting an error in case there's no milestone set
-  #          checker.check_milestone_due_date(days_before_due: 3, if_no_milestone: :error)
+  #          # Check if milestone due date is within 3 days, reporting an error if the due date has passed and in case there's no milestone set
+  #          checker.check_milestone_due_date(days_before_due: 3, report_type: :error, report_type_if_no_milestone: :error)
   #
   # @example Run a milestone check with a custom milestone behaviour parameter
   #
   #          # Check if milestone due date is approaching and don't report anything if no milestone is assigned
-  #          checker.check_milestone_due_date(if_no_milestone: :none)
+  #          checker.check_milestone_due_date(report_type_if_no_milestone: :none)
   #
   # @see Automattic/dangermattic
   # @tags milestone, github, process
@@ -35,35 +35,23 @@ module Danger
     # Checks if the pull request is assigned to a milestone.
     #
     # @return [void]
-    def check_milestone_set(fail_on_error: false)
+    def check_milestone_set(report_type: :warning)
       return unless milestone.nil?
 
       message = 'PR is not assigned to a milestone.'
-      sticky = false
-      if fail_on_error
-        failure(message, sticky: sticky)
-      else
-        warn(message, sticky: sticky)
-      end
+      reporter.report(message: message, type: report_type)
     end
 
     # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
     # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
-    # @param if_no_milestone [Symbol] Action to take if the pull request is not assigned to a milestone. Possible values:
-    #                        - :warn (default): Reports a warning.
-    #                        - :error: Reports an error.
-    #                        - :none or nil: Takes no action.
+    # @param report_type [Symbol] (optional) The type of message for when the PR is has passed over the `days_before_due` threshold. Types: :error, :warning (default), :message.
+    # @param report_type_if_no_milestone [Symbol] The type of message for when the PR is not assigned to a milestone. Types: :error, :warning (default), :message. You can also pass :none to not leave a message when there is no milestone.
     #
     # @return [void]
-    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, if_no_milestone: :warn)
+    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, report_type: :warning, report_type_if_no_milestone: :warning)
       if milestone.nil?
-        case if_no_milestone
-        when :warn
-          check_milestone_set(fail_on_error: false)
-        when :error
-          check_milestone_set(fail_on_error: true)
-        end
+        check_milestone_set(report_type: report_type_if_no_milestone)
         return
       end
 
@@ -77,13 +65,14 @@ module Danger
 
       message_text = "This PR is assigned to the milestone [#{milestone_title}](#{milestone_url}). "
       message_text += if time_before_due_date.positive?
-                        "This milestone is due in less than #{days_before_due} days.\n"
+                        "This milestone is due in less than #{days_before_due} days.\n" \
+                          'Please make sure to get it merged by then or assign it to a milestone with a later deadline.'
                       else
-                        "The due date for this milestone has already passed.\n"
+                        "The due date for this milestone has already passed.\n" \
+                          'Please assign it to a milestone with a later deadline or check whether the release for this milestone has already been finished.'
                       end
-      message_text += 'Please make sure to get it merged by then or assign it to a milestone with a later deadline.'
 
-      warn(message_text)
+      reporter.report(message: message_text, type: report_type)
     end
 
     private

@@ -27,45 +27,57 @@ module Danger
 
     # Checks if an existing Core Data model has been edited in a release branch.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_core_data_model_changed
+    def check_core_data_model_changed(report_type: :warning)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.extname(path) == '.xcdatamodeld' },
         message: MESSAGE_CORE_DATA_UPDATED,
-        on_release_branch: true
+        on_release_branch: true,
+        report_type: report_type
       )
     end
 
     # Checks if any Localizable.strings file has been modified on a release branch, otherwise reporting a warning.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_modified_localizable_strings_on_release
+    def check_modified_localizable_strings_on_release(report_type: :warning)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: MESSAGE_STRINGS_FILE_UPDATED,
-        on_release_branch: false
+        on_release_branch: false,
+        report_type: report_type
       )
     end
 
     # Checks if the en.lproj/Localizable.strings file has been modified on a regular branch, otherwise reporting a warning.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_modified_en_strings_on_regular_branch
+    def check_modified_en_strings_on_regular_branch(report_type: :warning)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { base_strings_file?(path: path) },
         message: MESSAGE_BASE_STRINGS_FILE_UPDATED,
-        on_release_branch: true
+        on_release_branch: true,
+        report_type: report_type
       )
     end
 
     # Checks if a translation file (*.lproj/Localizable.strings) has been modified on a release branch, otherwise reporting a warning.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_modified_translations_on_release_branch
+    def check_modified_translations_on_release_branch(report_type: :warning)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { !base_strings_file?(path: path) && File.basename(path) == LOCALIZABLE_STRINGS_FILE },
         message: MESSAGE_TRANSLATION_FILE_UPDATED,
-        on_release_branch: false
+        on_release_branch: false,
+        report_type: report_type
       )
     end
 

@@ -29,20 +29,22 @@ module Danger
     # Checks if any strings file (values*/strings.xml) has been modified on a release branch, otherwise reporting a warning / error.
     #
     # @return [void]
-    def check_modified_strings_on_release(fail_on_error: false)
+    def check_modified_strings_on_release(report_type: :warning)
       common_release_checker.check_file_changed(
         file_comparison: ->(path) { File.basename(path) == STRINGS_FILE },
         message: MESSAGE_STRINGS_FILE_UPDATED,
         on_release_branch: false,
-        fail_on_error: fail_on_error
+        report_type: report_type
       )
     end
 
-    # Check if there are changes to the internal release notes file RELEASE-NOTES.txt and emit a warning message if that's the case.
+    # Check if there are changes to the internal release notes file RELEASE-NOTES.txt and report a message if that's the case.
+    #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
-    def check_internal_release_notes_changed
-      common_release_checker.check_internal_release_notes_changed
+    def check_internal_release_notes_changed(report_type: :warning)
+      common_release_checker.check_internal_release_notes_changed(report_type: report_type)
     end
   end
 end

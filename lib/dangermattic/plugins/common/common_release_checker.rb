@@ -44,7 +44,7 @@ module Danger
     #
     # @param on_release_branch [Boolean] If true, the check will only run on release branches, otherwise on non-release branches.
     #
-    # @param fail_on_error [Boolean] If true, a failure message will be displayed instead of a warning.
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @example Check if any modified file is under the 'app/' directory and emit a warning on release branches:
     #   check_file_changed(file_comparison: ->(file_path) { file_path.include?('app/') },
@@ -55,20 +55,16 @@ module Danger
     #   check_file_changed(file_comparison: ->(file_path) { file_path == 'path/to/file/DoNotChange.java' },
     #                      message: 'The "DoNotChange.java" file has been modified. This change is not allowed on non-release branches.',
     #                      on_release_branch: false,
-    #                      fail_on_error: true)
+    #                      report_type: :error)
     #
     # @return [void]
-    def check_file_changed(file_comparison:, message:, on_release_branch:, fail_on_error: false)
+    def check_file_changed(file_comparison:, message:, on_release_branch:, report_type: :warning)
       has_modified_file = git_utils.all_changed_files.any?(&file_comparison)
 
       should_be_changed = (on_release_branch == release_branch?)
       return unless should_be_changed && has_modified_file
 
-      if fail_on_error
-        failure(message)
-      else
-        warn(message)
-      end
+      reporter.report(message: message, type: report_type)
     end
 
     # Check if the release notes and store strings files are correctly updated after a modification to the release notes.
@@ -96,6 +92,7 @@ module Danger
     #
     # @param release_notes_file [String] (optional) The path to the internal release notes file.
     #        Defaults to the `DEFAULT_INTERNAL_RELEASE_NOTES` constant if not provided.
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @example Checking for changes in the default internal release notes file:
     #   check_internal_release_notes_changed
@@ -104,12 +101,12 @@ module Danger
     #   check_internal_release_notes_changed(release_notes_file: '/path/to/internal_release_notes.txt')
     #
     # @return [void]
-    def check_internal_release_notes_changed(release_notes_file: DEFAULT_INTERNAL_RELEASE_NOTES)
+    def check_internal_release_notes_changed(release_notes_file: DEFAULT_INTERNAL_RELEASE_NOTES, report_type: :warning)
       check_file_changed(
         file_comparison: ->(path) { path == release_notes_file },
         message: format(MESSAGE_INTERNAL_RELEASE_NOTES_CHANGED, release_notes_file),
         on_release_branch: true,
-        fail_on_error: false
+        report_type: report_type
       )
     end
 

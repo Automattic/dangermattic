@@ -16,12 +16,15 @@ module Danger
 
     # Check if translatable strings reference another string resource in 'strings.xml' files in a pull request.
     #
+    # @param report_type [Boolean] (optional) Type of report (:error, :warning, :message) whenever a line matches the criteria. Default is :warning.
+    #
     # @return [void]
-    def check_strings_do_not_refer_resource
+    def check_strings_do_not_refer_resource(report_type: :warning)
       git_utils.check_added_diff_lines(
         file_selector: ->(path) { File.basename(path) == 'strings.xml' },
         line_matcher: ->(line) { line.include?('@string/') && !line.include?('translatable="false"') },
-        message: MESSAGE
+        message: MESSAGE,
+        report_type: report_type
       )
     end
   end

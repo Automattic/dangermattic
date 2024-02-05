@@ -56,7 +56,7 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['./src/main/res/values/strings.xml'])
           allow(@plugin.github).to receive(:branch_for_base).and_return('develop')
 
-          @plugin.check_modified_strings_on_release(fail_on_error: true)
+          @plugin.check_modified_strings_on_release(report_type: :error)
 
           expect(@dangerfile).to report_errors([AndroidReleaseChecker::MESSAGE_STRINGS_FILE_UPDATED])
         end

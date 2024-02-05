@@ -23,6 +23,7 @@ module Danger
     #
     # @param podfile_lock_path [String] (optional) The path to the Podfile.lock file.
     #        Defaults to the `DEFAULT_PODFILE_LOCK_PATH` constant if not provided.
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error (default), :warning, :message.
     #
     # @example Checking the default Podfile.lock:
     #   check_podfile_does_not_have_commit_references
@@ -31,26 +32,30 @@ module Danger
     #   check_podfile_does_not_have_commit_references(podfile_lock_path: '/path/to/Podfile.lock')
     #
     # @return [void]
-    def check_podfile_does_not_have_commit_references(podfile_lock_path: DEFAULT_PODFILE_LOCK_PATH)
+    def check_podfile_does_not_have_commit_references(podfile_lock_path: DEFAULT_PODFILE_LOCK_PATH, report_type: :error)
       check_podfile_does_not_match(
         regexp: COMMIT_REFERENCE_REGEXP,
         podfile_lock_path: podfile_lock_path,
-        match_found_message_generator: ->(matches) { "Podfile reference(s) to a commit hash:\n```#{matches.join("\n")}```" }
+        match_found_message_generator: ->(matches) { "Podfile reference(s) to a commit hash:\n```#{matches.join("\n")}```" },
+        report_type: report_type
       )
     end
 
     # Check for Podfile references to commit hashes in the Podfile.lock in a pull request.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_podfile_diff_does_not_have_commit_references
+    def check_podfile_diff_does_not_have_commit_references(report_type: :warning)
       warning_message = 'This PR adds a Podfile reference to a commit hash:'
-      check_podfile_diff_entries_do_not_match(regexp: COMMIT_REFERENCE_REGEXP, match_found_message: warning_message)
+      check_podfile_diff_entries_do_not_match(regexp: COMMIT_REFERENCE_REGEXP, match_found_message: warning_message, report_type: report_type)
     end
 
     # Check if the Podfile.lock contains any references to branches and raise a failure if it does.
     #
     # @param podfile_lock_path [String] (optional) The path to the Podfile.lock file.
     #        Defaults to the `DEFAULT_PODFILE_LOCK_PATH` constant if not provided.
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error (default), :warning, :message.
     #
     # @example Checking the default Podfile.lock:
     #   check_podfile_does_not_have_branch_references
@@ -59,32 +64,35 @@ module Danger
     #    check_podfile_does_not_have_branch_references(podfile_lock_path: '/path/to/Podfile.lock')
     #
     # @return [void]
-    def check_podfile_does_not_have_branch_references(podfile_lock_path: DEFAULT_PODFILE_LOCK_PATH)
+    def check_podfile_does_not_have_branch_references(podfile_lock_path: DEFAULT_PODFILE_LOCK_PATH, report_type: :error)
       check_podfile_does_not_match(
         regexp: BRANCH_REFERENCE_REGEXP,
         podfile_lock_path: podfile_lock_path,
-        match_found_message_generator: ->(matches) { "Podfile reference(s) to a branch:\n```#{matches.join("\n")}```" }
+        match_found_message_generator: ->(matches) { "Podfile reference(s) to a branch:\n```#{matches.join("\n")}```" },
+        report_type: report_type
       )
     end
 
     # Check for Podfile references to branches in the Podfile.lock in a pull request.
     #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
     # @return [void]
-    def check_podfile_diff_does_not_have_branch_references
+    def check_podfile_diff_does_not_have_branch_references(report_type: :warning)
       warning_message = 'This PR adds a Podfile reference to a branch:'
-      check_podfile_diff_entries_do_not_match(regexp: BRANCH_REFERENCE_REGEXP, match_found_message: warning_message)
+      check_podfile_diff_entries_do_not_match(regexp: BRANCH_REFERENCE_REGEXP, match_found_message: warning_message, report_type: report_type)
     end
 
     private
 
     COMMIT_REFERENCE_REGEXP = /\(from `\S+`, commit `\S+`\)/
-
     BRANCH_REFERENCE_REGEXP = /\(from `\S+`, branch `\S+`\)/
 
     def check_podfile_does_not_match(
       regexp:,
       podfile_lock_path:,
-      match_found_message_generator: ->(matches) { "Matches found in:\n#{matches.join("\n")}" }
+      match_found_message_generator: ->(matches) { "Matches found in:\n#{matches.join("\n")}" },
+      report_type: :error
     )
       podfile_lock_contents = File.read(podfile_lock_path)
       podfile_lock_data = YAML.load(podfile_lock_contents)
@@ -97,15 +105,17 @@ module Danger
 
       return if commit_references.empty?
 
-      failure(match_found_message_generator.call(commit_references))
+      message = match_found_message_generator.call(commit_references)
+      reporter.report(message: message, type: report_type)
     end
 
-    def check_podfile_diff_entries_do_not_match(regexp:, match_found_message:)
+    def check_podfile_diff_entries_do_not_match(regexp:, match_found_message:, report_type:)
       git_utils.check_added_diff_lines(
         # Notice the lockfile name is not configurable because we check the basename from the files in the diff and one cannot change the name of the lockfile CocoaPods generates.
         file_selector: ->(path) { File.basename(path) == PODFILE_LOCK },
         line_matcher: ->(line) { line.match?(regexp) },
-        message: match_found_message
+        message: match_found_message,
+        report_type: report_type
       )
     end
   end
