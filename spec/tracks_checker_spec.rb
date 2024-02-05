@@ -62,18 +62,7 @@ module Danger
             tracks_label = 'TRACKS'
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: tracks_label)
 
-            expect(@dangerfile.status_report[:messages]).to eq [TracksChecker::TRACKS_PR_INSTRUCTIONS + format(TracksChecker::TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)]
-            expect(@dangerfile.status_report[:errors]).to eq [format(TracksChecker::TRACKS_NO_LABEL_MESSAGE_FORMAT, tracks_label)]
-          end
-
-          it 'reports a message with instructions for review when there are changes in Tracks-related files using a custom file list' do
-            tracks_label = 'tracks'
-            allow(@plugin.github).to receive(:pr_labels).and_return([tracks_label])
-            allow(@plugin.git_utils).to receive(:all_changed_files).and_return(['MyClass.swift', 'MyClass1.swift', 'MyClass2.swift'])
-
-            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'], tracks_usage_matchers: tracks_matchers, tracks_label: tracks_label)
-
-            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS + format(TracksChecker::TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)])
+            expect_label_checks(tracks_label)
           end
 
           it 'does nothing when there are no changes in Tracks-related files' do
@@ -82,16 +71,6 @@ module Danger
             allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
 
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: nil)
-
-            expect(@dangerfile).to not_report
-          end
-
-          it 'does nothing when there are no changes in Tracks-related files using a custom file list' do
-            modified_files = ['MyClass.swift']
-            allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
-            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil).and_return([])
-
-            @plugin.check_tracks_changes(tracks_files: ['MyClass1.swift'], tracks_usage_matchers: tracks_matchers, tracks_label: nil)
 
             expect(@dangerfile).to not_report
           end
@@ -116,22 +95,38 @@ module Danger
             expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS + format(TracksChecker::TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)])
           end
 
-          it 'reports a message with instructions for review when there are changes using a custom line matcher expression' do
-            tracks_label = 'Tracks'
-            allow(@plugin.github).to receive(:pr_labels).and_return([tracks_label])
+          it 'reports a message with instructions without the label check for review when there are matching changes and no label parameter' do
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
             allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
-              analytics_call_in_diff = '+                AnalyticsHelper.log("event_1")'
+              analytics_call_in_diff = '-                AnalyticsTracker.track("evento")'
               expect(args[:line_matcher].call(analytics_call_in_diff)).to be true
 
               [analytics_call_in_diff]
             end
 
-            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: [/AnalyticsHelper\.log/], tracks_label: tracks_label)
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: nil)
 
-            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS + format(TracksChecker::TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)])
+            expect(@dangerfile).to report_messages([TracksChecker::TRACKS_PR_INSTRUCTIONS])
+          end
+
+          it 'reports a message with instructions for review and an error when there are matching changes and no label' do
+            allow(@plugin.github).to receive(:pr_labels).and_return([])
+            modified_files = ['MyClass.kt']
+            allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
+
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
+              analytics_call_in_diff = '-                AnalyticsTracker.track("myEvent1")'
+              expect(args[:line_matcher].call(analytics_call_in_diff)).to be true
+
+              [analytics_call_in_diff]
+            end
+
+            tracks_label = 'TRACKS PR'
+            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: tracks_label)
+
+            expect_label_checks(tracks_label)
           end
 
           it 'does nothing when there are no matching changes' do
@@ -149,23 +144,12 @@ module Danger
 
             expect(@dangerfile).to not_report
           end
-
-          it 'does nothing when there are no matching changes using a custom matcher' do
-            modified_files = ['MyClass.kt']
-            allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
-
-            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: nil) do |args|
-              analytics_call_in_diff = '+                AnalyticsTracker.track("myEvent1")'
-              expect(args[:line_matcher].call(analytics_call_in_diff)).to be false
-
-              []
-            end
-
-            @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: [/AnalyticsHelper\.log$/], tracks_label: nil)
-
-            expect(@dangerfile).to not_report
-          end
         end
+      end
+
+      def expect_label_checks(tracks_label)
+        expect(@dangerfile.status_report[:messages]).to eq [TracksChecker::TRACKS_PR_INSTRUCTIONS + format(TracksChecker::TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)]
+        expect(@dangerfile.status_report[:errors]).to eq [format(TracksChecker::TRACKS_NO_LABEL_MESSAGE_FORMAT, tracks_label)]
       end
     end
   end
