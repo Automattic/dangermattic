@@ -50,7 +50,7 @@ Adding a new plugin to Dangermattic is very simple: just create a new subclass o
 
 ```ruby
 module Danger
-  class MyNewPlugin < Plugin
+  class MyNewPluginChecker < Plugin
     def check_method(param:)
       # ...
     end
@@ -62,5 +62,7 @@ It will be [automatically imported](https://github.com/Automattic/dangermattic/b
 
 ```ruby
 # In a Dangerfile
-my_new_plugin.check_method(param: my_param_value)
+my_new_plugin_checker.check_method(param: my_param_value)
 ```
+
+Please follow the existing naming convention for validation and check plugins: classes end with a `*Checker` suffix and the main validation methods are named with a `check_*` prefix.
