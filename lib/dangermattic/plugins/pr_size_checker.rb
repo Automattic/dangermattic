@@ -6,7 +6,7 @@ module Danger
   # @example Running a PR diff size check with default parameters
   #
   #          # Check the total size of changes in the PR using the default parameters, reporting a warning if the PR is larger than 500
-  #          pr_size_checker.check_diff_size
+  #          pr_size_checker.check_diff_size(max_size: 500)
   #
   # @example Running a PR diff size check customizing the size, message and type of report
   #
@@ -21,7 +21,7 @@ module Danger
   # @example Running a PR description length check
   #
   #          # Check the PR Body using the default parameters, reporting a warning if the PR is smaller than 10 characters
-  #          pr_size_checker.check_pr_body
+  #          pr_size_checker.check_pr_body(min_length: 10)
   #
   # @example Running a PR description length check with custom parameters
   #
@@ -32,21 +32,19 @@ module Danger
   # @tags github, pull request, process
   #
   class PRSizeChecker < Plugin
-    DEFAULT_MAX_DIFF_SIZE = 500
     DEFAULT_DIFF_SIZE_MESSAGE_FORMAT = 'This PR is larger than %d lines of changes. Please consider splitting it into smaller PRs for easier and faster reviews.'
-    DEFAULT_MIN_PR_BODY = 10
     DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT = 'The PR description appears very short, less than %d characters long. Please provide a summary of your changes in the PR description.'
 
     # Check the size of the PR diff against a specified maximum size.
     #
+    # @param max_size [Integer] The maximum allowed size for the diff.
     # @param file_selector [Proc] Optional closure to filter the files in the diff to be used for size calculation.
     # @param type [:insertions, :deletions, :all] The type of diff size to check. (default: :all)
-    # @param max_size [Integer] The maximum allowed size for the diff. (default: DEFAULT_MAX_DIFF_SIZE)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
-    def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)
+    def check_diff_size(max_size:, file_selector: nil, type: :all, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)
       case type
       when :insertions
         reporter.report(message: message, type: report_type) if insertions_size(file_selector: file_selector) > max_size
@@ -59,12 +57,12 @@ module Danger
 
     # Check the size of the Pull Request description (PR body) against a specified minimum size.
     #
-    # @param min_length [Integer] The minimum allowed length for the PR body. (default: DEFAULT_MIN_PR_BODY)
+    # @param min_length [Integer] The minimum allowed length for the PR body.
     # @param message [String] The message to display if the length of the PR body is smaller than the minimum. (default: DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT)
     # @param report_type [Boolean] If true, fail the PR check when the PR body length is too small. (default: false)
     #
     # @return [void]
-    def check_pr_body(min_length: DEFAULT_MIN_PR_BODY, message: format(DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, min_length), report_type: :warning)
+    def check_pr_body(min_length:, message: format(DEFAULT_MIN_PR_BODY_MESSAGE_FORMAT, min_length), report_type: :warning)
       return if danger.github.pr_body.length > min_length
 
       reporter.report(message: message, type: report_type)

@@ -14,7 +14,7 @@ module Danger
   # @example Run a milestone check
   #
   #          # Check if milestone due date is approaching, reporting a warning if the milestone is in less than 5 days
-  #          checker.check_milestone_due_date
+  #          checker.check_milestone_due_date(days_before_due: 5)
   #
   # @example Run a milestone check with custom parameters
   #
@@ -30,8 +30,6 @@ module Danger
   # @tags milestone, github, process
   #
   class MilestoneChecker < Plugin
-    DEFAULT_DAYS_THRESHOLD = 5
-
     # Checks if the pull request is assigned to a milestone.
     #
     # @return [void]
@@ -44,12 +42,12 @@ module Danger
 
     # Checks if the pull request's milestone is due to finish within a certain number of days.
     #
-    # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply (default: DEFAULT_DAYS_THRESHOLD).
+    # @param days_before_due [Integer] Number of days before the milestone due date for the check to apply.
     # @param report_type [Symbol] (optional) The type of message for when the PR is has passed over the `days_before_due` threshold. Types: :error, :warning (default), :message.
     # @param report_type_if_no_milestone [Symbol] The type of message for when the PR is not assigned to a milestone. Types: :error, :warning (default), :message. You can also pass :none to not leave a message when there is no milestone.
     #
     # @return [void]
-    def check_milestone_due_date(days_before_due: DEFAULT_DAYS_THRESHOLD, report_type: :warning, report_type_if_no_milestone: :warning)
+    def check_milestone_due_date(days_before_due:, report_type: :warning, report_type_if_no_milestone: :warning)
       if milestone.nil?
         check_milestone_set(report_type: report_type_if_no_milestone)
         return

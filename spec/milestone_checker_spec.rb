@@ -82,7 +82,7 @@ module Danger
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
           allow(DateTime).to receive(:now).and_return(date_one_day_before_due)
 
-          @plugin.check_milestone_due_date
+          @plugin.check_milestone_due_date(days_before_due: 5)
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). This milestone is due in less than 5 days.\nPlease make sure to get it merged by then or assign it to a milestone with a later deadline."]
           expect(@dangerfile).to report_warnings(expected_warning)
@@ -103,7 +103,7 @@ module Danger
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
           allow(DateTime).to receive(:now).and_return(more_than_five_days_before_due)
 
-          @plugin.check_milestone_due_date
+          @plugin.check_milestone_due_date(days_before_due: 5)
 
           expect(@dangerfile).to not_report
         end
@@ -123,7 +123,7 @@ module Danger
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
           allow(DateTime).to receive(:now).and_return(date_one_day_after_due)
 
-          @plugin.check_milestone_due_date(report_type: :error)
+          @plugin.check_milestone_due_date(days_before_due: 5, report_type: :error)
 
           expected_warning = ["This PR is assigned to the milestone [Release Day](https://wp.com). The due date for this milestone has already passed.\nPlease assign it to a milestone with a later deadline or check whether the release for this milestone has already been finished."]
           expect(@dangerfile).to report_errors(expected_warning)
@@ -161,7 +161,7 @@ module Danger
 
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
 
-          @plugin.check_milestone_due_date
+          @plugin.check_milestone_due_date(days_before_due: 5)
 
           expect(@dangerfile).to not_report
         end
@@ -178,7 +178,7 @@ module Danger
 
           allow(@plugin.github).to receive(:pr_json).and_return(pr_json)
 
-          @plugin.check_milestone_due_date
+          @plugin.check_milestone_due_date(days_before_due: 5)
 
           expect(@dangerfile).to not_report
         end
@@ -186,7 +186,7 @@ module Danger
         it "reports a warning when asked to do so when a PR doesn't have a milestone set" do
           allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_due_date(report_type_if_no_milestone: :warning)
+          @plugin.check_milestone_due_date(days_before_due: 5, report_type_if_no_milestone: :warning)
 
           expected_warning = ['PR is not assigned to a milestone.']
           expect(@dangerfile).to report_warnings(expected_warning)
@@ -195,7 +195,7 @@ module Danger
         it "reports an error when asked to do so when a PR doesn't have a milestone set" do
           allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_due_date(report_type_if_no_milestone: :error)
+          @plugin.check_milestone_due_date(days_before_due: 5, report_type_if_no_milestone: :error)
 
           expected_error = ['PR is not assigned to a milestone.']
           expect(@dangerfile).to report_errors(expected_error)
@@ -204,7 +204,7 @@ module Danger
         it "does nothing when asked to do so when a PR doesn't have a milestone set" do
           allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_due_date(report_type_if_no_milestone: :none)
+          @plugin.check_milestone_due_date(days_before_due: 5, report_type_if_no_milestone: :none)
 
           expect(@dangerfile).to not_report
         end
@@ -212,7 +212,7 @@ module Danger
         it "does nothing when nil is used and a PR doesn't have a milestone set" do
           allow(@plugin.github).to receive(:pr_json).and_return({})
 
-          @plugin.check_milestone_due_date(report_type_if_no_milestone: nil)
+          @plugin.check_milestone_due_date(days_before_due: 5, report_type_if_no_milestone: nil)
 
           expect(@dangerfile).to not_report
         end
