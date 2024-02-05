@@ -43,7 +43,7 @@ module Danger
     # @param type [:insertions, :deletions, :all] The type of diff size to check. (default: :all)
     # @param max_size [Integer] The maximum allowed size for the diff. (default: DEFAULT_MAX_DIFF_SIZE)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
-    # @param report_type [Boolean] If true, fail the PR check when the diff size exceeds the maximum (default: false).
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
     def check_diff_size(file_selector: nil, type: :all, max_size: DEFAULT_MAX_DIFF_SIZE, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)

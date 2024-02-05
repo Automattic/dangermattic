@@ -45,7 +45,7 @@ module Danger
     #
     # @param message [String] The warning or failure message to display when the pattern is found in a line.
     #
-    # @param report_type [Boolean] (optional) Type of report (:error, :warning, :message) whenever a line matches the criteria. Default is :warning.
+    # @param report_type [Symbol] (optional) Type of report (:error, :warning, :message) whenever a line matches the criteria. Default is :warning.
     #
     # @example Checking for added lines containing 'FIXME' and failing the build:
     #   check_added_diff_lines(file_selector: ->(path) { File.extname(path) == ('.swift') }, line_matcher: ->(line) { line.include?("FIXME") }, message: "A FIXME was added, failing build.", report_type: :error)

@@ -21,7 +21,7 @@ module Danger
     #                        - :warning (default): Reports a warning.
     #                        - :error: Reports an error.
     #                        - :message: Reports a simple message.
-    #                        - :none or nil: Takes no action.
+    #                        - Any other value or nil: Takes no action.
     #
     # @return [void]
     def report(message:, type: :warning)
