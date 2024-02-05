@@ -18,30 +18,37 @@ module Danger
     TRACKS_PR_INSTRUCTIONS = <<~MESSAGE
       This PR contains changes to Tracks-related logic. Please ensure (**author and reviewer**) the following are completed:
 
-      - The PR must be assigned the **Tracks** label.
       - The tracks events must be validated in the Tracks system.
       - Verify the internal Tracks spreadsheet has also been updated.
       - Please consider registering any new events.
     MESSAGE
 
-    TRACKS_NO_LABEL_MESSAGE = 'Please ensure the PR has the `Tracks` label.'
+    TRACKS_NO_LABEL_INSTRUCTION_FORMAT = "- The PR must be assigned the **%s** label.\n"
+    TRACKS_NO_LABEL_MESSAGE_FORMAT = 'Please ensure the PR has the `%s` label.'
 
     # Checks the PR diff for changes in Tracks-related files and provides instructions if changes are detected
     #
     # @param tracks_files [Array<String>] List of Tracks-related file names to check
     # @param tracks_usage_matchers [Array<Regexp>] List of regular expressions representing tracks usages to match the diff lines
+    # @param tracks_label [String] A label the check should validate the PR against
     # @return [void]
-    def check_tracks_changes(tracks_files:, tracks_usage_matchers:)
+    def check_tracks_changes(tracks_files:, tracks_usage_matchers:, tracks_label:)
       return unless changes_tracks_files?(tracks_files: tracks_files) || diff_has_tracks_changes?(tracks_usage_matchers: tracks_usage_matchers)
 
-      labels_checker.check(
-        do_not_merge_labels: [],
-        required_labels: [/Tracks/],
-        required_labels_error: TRACKS_NO_LABEL_MESSAGE
-      )
+      tracks_message = TRACKS_PR_INSTRUCTIONS
+
+      unless tracks_label.nil? || tracks_label.empty?
+        tracks_message += format(TRACKS_NO_LABEL_INSTRUCTION_FORMAT, tracks_label)
+
+        labels_checker.check(
+          do_not_merge_labels: [],
+          required_labels: [/#{Regexp.escape(tracks_label)}/],
+          required_labels_error: format(TRACKS_NO_LABEL_MESSAGE_FORMAT, tracks_label)
+        )
+      end
 
       # Tracks-related changes detected: publishing instructions
-      message(TRACKS_PR_INSTRUCTIONS)
+      message(tracks_message)
     end
 
     private
