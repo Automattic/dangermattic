@@ -21,30 +21,30 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '~> 3.2'
 
-  spec.add_dependency 'danger', '~> 9.3'
+  spec.add_dependency 'danger', '~> 9.4'
   spec.add_runtime_dependency 'danger-plugin-api', '~> 1.0'
 
   # Danger plugins
   spec.add_dependency 'danger-junit', '~> 1.0'
-  spec.add_dependency 'danger-rubocop', '~> 0.11'
-  spec.add_dependency 'danger-swiftlint', '~> 0.29'
+  spec.add_dependency 'danger-rubocop', '~> 0.12'
+  spec.add_dependency 'danger-swiftlint', '~> 0.35'
   spec.add_dependency 'danger-xcode_summary', '~> 1.0'
 
   # General ruby development
   spec.add_development_dependency 'bundler', '~> 2.0'
-  spec.add_development_dependency 'rake', '~> 13.0'
+  spec.add_development_dependency 'rake', '~> 13.1'
 
   # Testing support
   spec.add_development_dependency 'rspec', '~> 3.4'
 
   # Linting code and docs
-  spec.add_dependency 'rubocop', '~> 1.56'
+  spec.add_dependency 'rubocop', '~> 1.60'
   spec.add_development_dependency 'rubocop-rake'
   spec.add_development_dependency 'rubocop-rspec'
   spec.add_development_dependency 'yard'
 
   # Makes testing easy via `bundle exec guard`
-  spec.add_development_dependency 'guard', '~> 2.14'
+  spec.add_development_dependency 'guard', '~> 2.18'
   spec.add_development_dependency 'guard-rspec', '~> 4.7'
 
   # This gives you the chance to run a REPL inside your tests
