@@ -34,13 +34,13 @@ jobs:
       - name: "☢️ Danger PR Check"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          RUNNING_ON_FORK: ${{ github.event.pull_request.head.repo.fork }}
+          READ_ONLY_MODE: ${{ github.event.pull_request.head.repo.fork || github.actor == 'dependabot[bot]' }}
           REMOVE_PREVIOUS_COMMENTS: ${{ inputs.remove-previous-comments }}
           DANGER_GITHUB_API_TOKEN: ${{ secrets.github-token }}
         run: |
           echo "--- 🏃 Running Danger: PR Check"
 
-          if [ "$RUNNING_ON_FORK" = true ]; then
+          if [ "$READ_ONLY_MODE" = true ]; then
             danger_output=$(bundle exec danger pr "$PR_URL" --verbose)
 
             echo "$danger_output"
