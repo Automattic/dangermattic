@@ -60,24 +60,10 @@ module Danger
     end
 
     def diff_has_tracks_changes?(tracks_usage_matchers:)
-      tracks_changes_on_additions = diff_has_tracks_changes_for_change_type?(
-        tracks_usage_matchers: tracks_usage_matchers,
-        change_type: :added
-      )
-
-      tracks_changes_on_removals = diff_has_tracks_changes_for_change_type?(
-        tracks_usage_matchers: tracks_usage_matchers,
-        change_type: :removed
-      )
-
-      tracks_changes_on_additions || tracks_changes_on_removals
-    end
-
-    def diff_has_tracks_changes_for_change_type?(tracks_usage_matchers:, change_type:)
       matched_lines = git_utils.matching_lines_in_diff_files(
         files: git_utils.all_changed_files,
         line_matcher: ->(line) { tracks_usage_matchers.any? { |tracks_usage_match| line.match(tracks_usage_match) } },
-        change_type: change_type
+        change_type: %i[added removed]
       )
 
       !matched_lines.empty?

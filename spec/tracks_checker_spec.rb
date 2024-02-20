@@ -68,8 +68,7 @@ module Danger
           it 'does nothing when there are no changes in Tracks-related files' do
             modified_files = ['MyClass.swift']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
-            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: :added).and_return([])
-            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: :removed).and_return([])
+            allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: %i[added removed]).and_return([])
 
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: nil)
 
@@ -84,8 +83,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '-      AnalyticsTracker.track("myEvent1")', change_type: :removed, expect_match: true)
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '      diff text', change_type: :added, expect_match: false)
+            allow_diff_match(modified_files: modified_files, diff_line: '-      AnalyticsTracker.track("myEvent1")', expect_match: true)
 
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: tracks_label)
 
@@ -96,8 +94,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '-      diff', change_type: :removed, expect_match: false)
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '+      AnalyticsTracker.track("evento")', change_type: :added, expect_match: true)
+            allow_diff_match(modified_files: modified_files, diff_line: '+      AnalyticsTracker.track("evento")', expect_match: true)
 
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: nil)
 
@@ -109,8 +106,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '-      AnalyticsTracker.track("evento")', change_type: :removed, expect_match: true)
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '+      AnalyticsTracker.track("myEvent1")', change_type: :added, expect_match: true)
+            allow_diff_match(modified_files: modified_files, diff_line: '-      AnalyticsTracker.track("evento")', expect_match: true)
 
             tracks_label = 'TRACKS PR'
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: tracks_label)
@@ -122,8 +118,7 @@ module Danger
             modified_files = ['MyClass.kt']
             allow(@plugin.git_utils).to receive(:all_changed_files).and_return(modified_files)
 
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '-      AnalyticsHelper.log("event_1")', change_type: :removed, expect_match: false)
-            allow_diff_match_with_change_type(modified_files: modified_files, diff_line: '+      AnalyticsHelper.log("event_2")', change_type: :added, expect_match: false)
+            allow_diff_match(modified_files: modified_files, diff_line: '-      AnalyticsHelper.log("event_1")', expect_match: false)
 
             @plugin.check_tracks_changes(tracks_files: track_files, tracks_usage_matchers: tracks_matchers, tracks_label: nil)
 
@@ -159,8 +154,8 @@ module Danger
         end
       end
 
-      def allow_diff_match_with_change_type(modified_files:, diff_line:, change_type:, expect_match:)
-        allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: change_type) do |args|
+      def allow_diff_match(modified_files:, diff_line:, expect_match:)
+        allow(@plugin.git_utils).to receive(:matching_lines_in_diff_files).with(files: modified_files, line_matcher: kind_of(Proc), change_type: %i[added removed]) do |args|
           expect(args[:line_matcher].call(diff_line)).to be expect_match
 
           result = []
