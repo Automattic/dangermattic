@@ -81,9 +81,11 @@ module Danger
     #
     # @param files [Array<String>] List of file names to check
     # @param line_matcher [Proc] A callable that takes a line and returns true if it matches the desired pattern
-    # @param change_type [Symbol, nil] Change type to filter lines (e.g., :added, :removed) or nil for no filter
+    # @param change_type [Symbol, Array<Symbol>, nil] Change type(s) to filter lines (e.g., `:added`, `:removed`,
+    #                    `:context`, `[:added, :removed]`, …), or nil for no filter
     # @return [Array<MatchedData>] Array of MatchedData objects representing matched lines in files
     def matching_lines_in_diff_files(files:, line_matcher:, change_type: nil)
+      change_types = Array(change_type).map(&:to_sym)
       matched_data = []
 
       files.each do |file|
@@ -92,7 +94,7 @@ module Danger
         diff = danger.git.diff_for_file(file)
 
         diff.patch.each_line do |line|
-          matched_lines << line if line_matcher.call(line) && (change_type.nil? || change_type(diff_line: line) == change_type)
+          matched_lines << line if line_matcher.call(line) && (change_type.nil? || change_types.include?(change_type(diff_line: line)))
         end
 
         matched_data << MatchedData.new(file, matched_lines) unless matched_lines.empty?

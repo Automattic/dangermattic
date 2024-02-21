@@ -63,7 +63,7 @@ module Danger
       matched_lines = git_utils.matching_lines_in_diff_files(
         files: git_utils.all_changed_files,
         line_matcher: ->(line) { tracks_usage_matchers.any? { |tracks_usage_match| line.match(tracks_usage_match) } },
-        change_type: nil
+        change_type: %i[added removed]
       )
 
       !matched_lines.empty?
