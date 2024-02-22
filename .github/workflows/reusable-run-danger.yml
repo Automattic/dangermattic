@@ -36,7 +36,7 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           READ_ONLY_MODE: ${{ github.event.pull_request.head.repo.fork || github.actor == 'dependabot[bot]' }}
           REMOVE_PREVIOUS_COMMENTS: ${{ inputs.remove-previous-comments }}
-          DANGER_GITHUB_API_TOKEN: ${{ secrets.github-token }}
+          DANGER_GITHUB_API_TOKEN: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
         run: |
           echo "--- 🏃 Running Danger: PR Check"
 
