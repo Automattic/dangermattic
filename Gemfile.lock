@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    danger-dangermattic (1.0.0)
+    danger-dangermattic (1.0.1)
       danger (~> 9.4)
       danger-junit (~> 1.0)
       danger-plugin-api (~> 1.0)
