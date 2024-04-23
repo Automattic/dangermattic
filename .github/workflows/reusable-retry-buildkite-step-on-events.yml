@@ -2,20 +2,33 @@ on:
   workflow_call:
     inputs:
       org-slug:
+        description: 'Buildkite organization slug'
         required: true
         type: string
       pipeline-slug:
+        description: 'Slug of the Buildkite pipeline to be run'
         required: true
         type: string
       retry-step-key:
+        description: 'Key of the Buildkite job to be retried'
         required: true
         type: string
-      commit-sha:
+      build-commit-sha:
+        description: 'Commit to check for running Buildkite Builds on. Usually github.event.pull_request.head.sha .'
         required: true
         type: string
+      cancel-running-github-jobs:
+        description: 'Cancel currently in progress Github jobs when new ones are added.'
+        default: true
+        type: boolean
+        required: false
     secrets:
       buildkite-api-token:
         required: true
+
+concurrency:
+  group: danger-buildkite-retry-${{ github.ref }}
+  cancel-in-progress: ${{ inputs.cancel-running-github-jobs }}
 
 jobs:
   retry-buildkite-job:
@@ -27,7 +40,7 @@ jobs:
           PIPELINE_SLUG="${{ inputs.pipeline-slug }}"
           RETRY_STEP_KEY="${{ inputs.retry-step-key }}"
           BUILDKITE_API_ACCESS_TOKEN="${{ secrets.buildkite-api-token }}"
-          COMMIT_SHA="${{ inputs.commit-sha }}"
+          COMMIT_SHA="${{ inputs.build-commit-sha }}"
 
           # Performs a Buildkite request using a http method ($1) and an api path ($2)
           perform_buildkite_request() {
