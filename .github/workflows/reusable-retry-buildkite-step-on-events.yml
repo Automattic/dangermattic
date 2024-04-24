@@ -49,7 +49,9 @@ jobs:
 
             local BUILDKITE_API_URL="https://api.buildkite.com/v2/organizations/$ORG_SLUG/pipelines/$PIPELINE_SLUG/$BUILDKITE_API_PATH"
 
-            local RAW_RESPONSE=$(
+            local RAW_RESPONSE
+
+            RAW_RESPONSE=$(
               curl \
                 --fail-with-body \
                 --silent \
@@ -59,7 +61,7 @@ jobs:
                 "$BUILDKITE_API_URL"
             )
 
-            echo "$RAW_RESPONSE" | tr -d '\n' | jq -R -r
+            echo "$RAW_RESPONSE" | jq
           }
 
           # Gets the build(s) associated with the commit
@@ -87,7 +89,6 @@ jobs:
 
             # Check if the response contains an error message
             RESPONSE_ERROR=$(echo "$RESPONSE" | jq .message 2>/dev/null || true)
-            # if [[ -n "$RESPONSE_ERROR" ]]; then
             if [[ -n "$RESPONSE_ERROR" && "$RESPONSE_ERROR" != 'null' ]]; then
               echo "❌ Buildkite API call failed: $RESPONSE_ERROR"
               exit 1
@@ -106,11 +107,11 @@ jobs:
 
           echo "ℹ️ Build Number: $LATEST_BUILD_NUMBER"
           echo "ℹ️ Job ID for step '$RETRY_STEP_KEY': $SELECTED_JOB_ID"
-          echo "ℹ️ Job state for step '$RETRY_STEP_KEY': $SELECTED_JOB_STATE"
+          echo "ℹ️ Current job state for step '$RETRY_STEP_KEY': $SELECTED_JOB_STATE"
 
           # all states: running, scheduled, passed, failing, failed, blocked, canceled, canceling, skipped, not_run, finished
           ALLOWED_JOB_STATES=("passed" "failed" "canceled" "finished")
-          if [[ " ${ALLOWED_JOB_STATES[@]} " =~ " $SELECTED_JOB_STATE " ]]; then
+          if [[ " ${ALLOWED_JOB_STATES[*]} " =~ $SELECTED_JOB_STATE ]]; then
             BUILDKITE_RETRY_JOB_RESPONSE=$(retry_buildkite_job "$LATEST_BUILD_NUMBER" "$SELECTED_JOB_ID")
             check_buildkite_error "$BUILDKITE_RETRY_JOB_RESPONSE"
 
