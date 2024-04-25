@@ -111,7 +111,7 @@ jobs:
 
           # all states: running, scheduled, passed, failing, failed, blocked, canceled, canceling, skipped, not_run, finished
           ALLOWED_JOB_STATES=("passed" "failed" "canceled" "finished")
-          if [[ " ${ALLOWED_JOB_STATES[*]} " =~ $SELECTED_JOB_STATE ]]; then
+          if [[ " ${ALLOWED_JOB_STATES[*]} " =~ [[:space:]]${SELECTED_JOB_STATE}[[:space:]] ]]; then
             BUILDKITE_RETRY_JOB_RESPONSE=$(retry_buildkite_job "$LATEST_BUILD_NUMBER" "$SELECTED_JOB_ID")
             check_buildkite_error "$BUILDKITE_RETRY_JOB_RESPONSE"
 
