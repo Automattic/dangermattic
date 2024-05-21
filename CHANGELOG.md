@@ -2,6 +2,18 @@
 
 ---
 
+## 1.1.1
+
+### Internal Changes
+
+- Update `danger-rubocop` so that we can run it without `bundle exec`.
+
+## 1.1.0
+
+### New Features
+
+- Reusable GitHub Workflow for retrying Buildkite jobs (#64)
+
 ## 1.0.2
 
 ### Bug Fixes
