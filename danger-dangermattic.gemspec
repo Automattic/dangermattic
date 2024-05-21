@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency 'danger-plugin-api', '~> 1.0'
 
   # Danger plugins
-  spec.add_dependency 'danger-rubocop', '~> 0.12'
+  spec.add_dependency 'danger-rubocop', '~> 0.13'
 
   # General ruby development
   spec.add_development_dependency 'bundler', '~> 2.0'
@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rspec', '~> 3.4'
 
   # Linting code and docs
-  spec.add_dependency 'rubocop', '~> 1.61'
+  spec.add_dependency 'rubocop', '~> 1.63'
   spec.add_development_dependency 'rubocop-rake'
   spec.add_development_dependency 'rubocop-rspec'
   spec.add_development_dependency 'yard'
