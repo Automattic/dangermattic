@@ -35,7 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "🔄 Retry job on the latest Buildkite Build"
+        env:
+          READ_ONLY_MODE: ${{ github.event.pull_request.head.repo.fork || github.actor == 'dependabot[bot]' }}
         run: |
+          [ "$READ_ONLY_MODE" = true ] && { echo "ℹ️ Cannot retry a Buildkite job from GitHub when running in read-only mode (from a fork or a Dependabot Pull Request). Please find the Buildkite job and retry manually."; exit 0; }
+
           ORG_SLUG="${{ inputs.org-slug }}"
           PIPELINE_SLUG="${{ inputs.pipeline-slug }}"
           RETRY_STEP_KEY="${{ inputs.retry-step-key }}"
