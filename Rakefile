@@ -25,7 +25,7 @@ RuboCop::RakeTask.new(:rubocop)
 
 desc 'Generate the docs using YARD'
 task :doc do
-  sh('yard', 'doc')
+  sh('bundle', 'exec', 'yard', 'doc')
   # Open generated doc in browser
   sh('open', 'yard-doc/index.html')
 end
