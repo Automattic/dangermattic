@@ -2,6 +2,24 @@
 
 ---
 
+## Trunk
+
+### Breaking Changes
+
+_None_
+
+### New Features
+
+_None_
+
+### Bug Fixes
+
+_None_
+
+### Internal Changes
+
+- Bump Ruby dependencies (#76)
+
 ## 1.1.1
 
 ### Internal Changes
