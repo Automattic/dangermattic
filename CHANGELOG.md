@@ -18,6 +18,12 @@ _None_
 
 ### Internal Changes
 
+_None_
+
+## 1.1.2
+
+### Internal Changes
+
 - Bump Ruby dependencies (#76)
 
 ## 1.1.1

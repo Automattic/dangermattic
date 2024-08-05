@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    danger-dangermattic (1.1.1)
+    danger-dangermattic (1.1.2)
       danger (~> 9.4)
       danger-plugin-api (~> 1.0)
       danger-rubocop (~> 0.13)
