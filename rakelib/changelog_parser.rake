@@ -1,6 +1,19 @@
+# frozen_string_literal: true
+
+# Parses and updates changelog files for software projects.
+#
+# This class provides functionality to parse a changelog file, identify pending
+# sections for upcoming releases, and update the changelog for new releases based on
+# semantic versioning conventions.
+#
+# @example
+#   parser = ChangelogParser.new(file: 'CHANGELOG.md')
+#   latest_version = parser.parse_pending_section
+#   new_version = parser.guessed_next_semantic_version(current: '1.0.0')
+#   parser.update_for_new_release(new_version: new_version)
 class ChangelogParser
-  PENDING_SECTION_TITLE = 'Trunk'.freeze
-  EMPTY_PLACEHOLDER = '_None_'.freeze
+  PENDING_SECTION_TITLE = 'Trunk'
+  EMPTY_PLACEHOLDER = '_None_'
   SUBSECTIONS_SEMVER_MAP = { 'Breaking Changes': 3, 'New Features': 2, 'Bug Fixes': 1, 'Internal Changes': 1 }.freeze
 
   def initialize(file: 'CHANGELOG.md')

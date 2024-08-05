@@ -1,5 +1,9 @@
+# frozen_string_literal: true
+
 require 'cgi'
 
+# Helper methods for common Git operations: checking / creating branches, preparing a pull request and
+# committing / pushing files.
 module GitHelper
   def self.current_branch
     `git --no-pager branch --show-current`.chomp

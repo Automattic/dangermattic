@@ -1,3 +1,9 @@
+# frozen_string_literal: true
+
+# Provides methods for colored console output and user interaction.
+#
+# The Console module contains methods for printing colored text to the terminal using
+# ANSI escape codes. It also includes utility methods for prompting user input.
 module Console
   # ANSI colors
   RED = 1
@@ -18,7 +24,7 @@ module Console
   end
 
   def self.warning(text)
-    color_puts(title, color_code: RED) # red
+    color_puts(text, color_code: RED) # red
   end
 
   def self.print_indented_lines(lines)
