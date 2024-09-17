@@ -18,13 +18,18 @@ on:
         default: '✅ Yay, issue looks great!'
         type: string
         required: false
+      cancel-running-jobs:
+        description: 'Cancel currently in progress jobs when new ones are added.'
+        default: true
+        type: boolean
+        required: false
     secrets:
       github-token:
         required: true
 
 concurrency:
   group: danger-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ inputs.cancel-running-jobs }}
 
 jobs:
   check-issue-labels:
