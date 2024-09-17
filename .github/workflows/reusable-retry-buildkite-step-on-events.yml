@@ -27,7 +27,7 @@ on:
         required: true
 
 concurrency:
-  group: danger-buildkite-retry-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ inputs.cancel-running-github-jobs }}
 
 jobs:

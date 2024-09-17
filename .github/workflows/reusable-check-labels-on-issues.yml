@@ -28,7 +28,7 @@ on:
         required: true
 
 concurrency:
-  group: danger-${{ github.event.issue.number }}
+  group: ${{ github.workflow }}-${{ github.event.issue.number }}
   cancel-in-progress: ${{ inputs.cancel-running-jobs }}
 
 jobs:
