@@ -1,24 +1,26 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
 on:
   workflow_call:
     inputs:
       org-slug:
-        description: 'Buildkite organization slug'
+        description: Buildkite organization slug
         required: true
         type: string
       pipeline-slug:
-        description: 'Slug of the Buildkite pipeline to be run'
+        description: Slug of the Buildkite pipeline to be run
         required: true
         type: string
       retry-step-key:
-        description: 'Key of the Buildkite job to be retried'
+        description: Key of the Buildkite job to be retried
         required: true
         type: string
       build-commit-sha:
-        description: 'Commit to check for running Buildkite Builds on. Usually github.event.pull_request.head.sha .'
+        description: Commit to check for running Buildkite Builds on. Usually github.event.pull_request.head.sha .
         required: true
         type: string
       cancel-running-github-jobs:
-        description: 'Cancel currently in progress Github jobs when new ones are added.'
+        description: Cancel currently in progress Github jobs when new ones are added.
         default: true
         type: boolean
         required: false
@@ -34,7 +36,7 @@ jobs:
   retry-buildkite-job:
     runs-on: ubuntu-latest
     steps:
-      - name: "🔄 Retry job on the latest Buildkite Build"
+      - name: 🔄 Retry job on the latest Buildkite Build
         env:
           READ_ONLY_MODE: ${{ github.event.pull_request.head.repo.fork || github.actor == 'dependabot[bot]' }}
         run: |

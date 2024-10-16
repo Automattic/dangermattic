@@ -35,6 +35,10 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
 
 All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
 
+## GitHub Workflows
+
+Dangermattic also provides some useful reusable GitHub workflows. For more information on available workflows and how to use them, please refer to the [Workflows README](.github/workflows/README.md).
+
 ## Development
 
 - Clone the repo and run `bundle install` to setup dependencies
@@ -66,3 +70,26 @@ my_new_plugin_checker.check_method(param: my_param_value)
 ```
 
 Please follow the existing naming convention for validation and check plugins: classes end with a `*Checker` suffix and the main validation methods are named with a `check_*` prefix.
+
+## Releasing a new version
+
+To create a new release of the Dangermattic gem, use the `new_release` Rake task:
+
+```
+bundle exec rake new_release
+```
+
+This task will:
+
+1. Parse the `CHANGELOG.md` file to get the latest version and pending changes.
+1. Prompt for the new version number.
+1. Update the `VERSION` constant in the `gem_version.rb` file.
+1. Update the `CHANGELOG.md` file with the new version.
+1. Create a new branch, commit the changes, and push to GitHub.
+1. Open a draft Pull Request for the release.
+
+After running the task, follow the instructions provided to complete the release process:
+
+1. Review and merge the Pull Request.
+1. Create a GitHub release targeting the `trunk` branch, using the changelog content provided.
+1. Publishing the GitHub release with a tag will trigger a CI workflow to publish the new gem version to RubyGems.

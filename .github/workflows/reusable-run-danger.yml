@@ -1,13 +1,15 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
 on:
   workflow_call:
     inputs:
       remove-previous-comments:
-        description: 'Configures Danger to always remove previous comments and add a new one instead of editing the same comment.'
+        description: Configures Danger to always remove previous comments and add a new one instead of editing the same comment.
         default: false
         type: boolean
         required: false
       cancel-running-jobs:
-        description: 'Cancel currently in progress jobs when new ones are added.'
+        description: Cancel currently in progress jobs when new ones are added.
         default: true
         type: boolean
         required: false
@@ -23,15 +25,15 @@ jobs:
   dangermattic:
     runs-on: ubuntu-latest
     steps:
-      - name: "📥 Checkout Repo"
+      - name: 📥 Checkout Repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 100
-      - name: "💎 Ruby Setup"
+      - name: 💎 Ruby Setup
         uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
-      - name: "☢️ Danger PR Check"
+      - name: ☢️ Danger PR Check
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           READ_ONLY_MODE: ${{ github.event.pull_request.head.repo.fork || github.actor == 'dependabot[bot]' }}

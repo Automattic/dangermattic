@@ -1,25 +1,28 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
 on:
   workflow_call:
     inputs:
       label-format-list:
-        description: 'The Regex formats expected for the labels; must be a JSON list'
-        default: '[
-          ".*"
-        ]'
+        description: The Regex formats expected for the labels; must be a JSON list
+        default: |
+          [
+            ".*"
+          ]
         type: string
         required: false
       label-error-message:
-        description: 'Error message to be posted when the labels set don''t match the required list of formats.'
-        default: 'At least one label is required.'
+        description: Error message to be posted when the labels set don't match the required list of formats.
+        default: At least one label is required.
         type: string
         required: false
       label-success-message:
-        description: 'Message to be posted when the labels set fulfill the entire list of expected formats.'
-        default: '✅ Yay, issue looks great!'
+        description: Message to be posted when the labels set fulfill the entire list of expected formats.
+        default: ✅ Yay, issue looks great!
         type: string
         required: false
       cancel-running-jobs:
-        description: 'Cancel currently in progress jobs when new ones are added.'
+        description: Cancel currently in progress jobs when new ones are added.
         default: true
         type: boolean
         required: false
@@ -37,7 +40,7 @@ jobs:
     permissions:
       issues: write
     steps:
-      - name: "🏷️ Check Issue Labels"
+      - name: 🏷️ Check Issue Labels
         env:
           GITHUB_TOKEN: ${{ secrets.github-token }}
           GH_REPO: ${{ github.repository }}
