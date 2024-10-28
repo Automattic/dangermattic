@@ -103,11 +103,11 @@ module Danger
 
     def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:, report_type: :warning)
       # Find all the modified manifest files
-      manifest_modified_files = git.modified_files.select { |f| File.basename(f) == file_name }
+      manifest_modified_files = git_utils.all_changed_files.select { |f| File.basename(f) == file_name }
 
       # For each manifest file, check if the corresponding lockfile (in the same dir) was also modified
       manifest_modified_files.each do |manifest_file|
-        lockfile_modified = git.modified_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
+        lockfile_modified = git_utils.all_changed_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
         next if lockfile_modified
 
         message = format(MESSAGE, manifest_file, lock_file_name, instruction)
@@ -116,10 +116,10 @@ module Danger
     end
 
     def check_manifest_lock_updated_strict(manifest_path:, manifest_lock_path:, instruction:, report_type: :warning)
-      manifest_modified = git.modified_files.include?(manifest_path)
+      manifest_modified = git_utils.all_changed_files.include?(manifest_path)
       return unless manifest_modified
 
-      lockfile_modified = git.modified_files.include?(manifest_lock_path)
+      lockfile_modified = git_utils.all_changed_files.include?(manifest_lock_path)
       return if lockfile_modified
 
       message = format(MESSAGE, manifest_path, File.basename(manifest_lock_path), instruction)
