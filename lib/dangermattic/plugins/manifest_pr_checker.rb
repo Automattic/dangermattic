@@ -79,7 +79,7 @@ module Danger
       check_manifest_lock_updated(
         file_name: 'Package.swift',
         lock_file_name: 'Package.resolved',
-        instruction: 'Please resolve the Swift packages in Xcode',
+        instruction: 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)',
         report_type: report_type
       )
     end
@@ -94,7 +94,7 @@ module Danger
       check_manifest_lock_updated_strict(
         manifest_path: manifest_path,
         manifest_lock_path: manifest_lock_path,
-        instruction: 'Please resolve the Swift packages in Xcode',
+        instruction: 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)',
         report_type: report_type
       )
     end
