@@ -176,34 +176,37 @@ module Danger
           end
         end
 
-        describe '#check_duplicate_package_resolved' do
-          it 'reports a warning when multiple Package.resolved files are found' do
-            allow(Dir).to receive(:glob).with('Modules/**/Package.resolved').and_return(['Modules/Package.resolved'])
-            allow(Dir).to receive(:glob).with('MyApp.xcworkspace/**/Package.resolved').and_return(['MyApp.xcworkspace/xcshareddata/swiftpm/Package.resolved'])
+        describe '#check_swift_duplicate_package_resolved' do
+          it 'reports a warning when there are more Package.resolved files than Package.swift files' do
+            allow(Dir).to receive(:glob).with('./**/Package.swift').and_return(['./App/Package.swift'])
+            allow(Dir).to receive(:glob).with('./**/Package.resolved').and_return([
+                                                                                    './App/Package.resolved',
+                                                                                    './App/xcshareddata/Package.resolved'
+                                                                                  ])
 
-            @plugin.check_duplicate_package_resolved(spm_root_paths: ['Modules', 'MyApp.xcworkspace'])
+            @plugin.check_swift_duplicate_package_resolved
 
-            expected_warning = "Multiple Package.resolved files found:\n" \
-                               "Modules/Package.resolved\n" \
-                               "MyApp.xcworkspace/xcshareddata/swiftpm/Package.resolved\n" \
-                               'Please ensure only one Package.resolved exists.'
+            expected_warning = "Multiple `Package.resolved` files found:\n" \
+                               "```./App/Package.resolved\n" \
+                               "./App/xcshareddata/Package.resolved```\n" \
+                               'Please ensure only one `Package.resolved` exists for each `Package.swift` file.'
             expect(@dangerfile).to report_warnings([expected_warning])
           end
 
-          it 'reports no warning when only one Package.resolved file is found' do
-            allow(Dir).to receive(:glob).with('Modules/**/Package.resolved').and_return(['Modules/Package.resolved'])
-            allow(Dir).to receive(:glob).with('MyApp.xcworkspace/**/Package.resolved').and_return([])
+          it 'reports no warning when Package.resolved count matches Package.swift count' do
+            allow(Dir).to receive(:glob).with('./**/Package.swift').and_return(['./App/Package.swift'])
+            allow(Dir).to receive(:glob).with('./**/Package.resolved').and_return(['./App/Package.resolved'])
 
-            @plugin.check_duplicate_package_resolved(spm_root_paths: ['Modules', 'MyApp.xcworkspace'])
+            @plugin.check_swift_duplicate_package_resolved
 
             expect(@dangerfile).to not_report
           end
 
-          it 'reports no warning when no Package.resolved files are found' do
-            allow(Dir).to receive(:glob).with('Modules/**/Package.resolved').and_return([])
-            allow(Dir).to receive(:glob).with('MyApp.xcworkspace/**/Package.resolved').and_return([])
+          it 'reports no warning when no Package files are found' do
+            allow(Dir).to receive(:glob).with('./**/Package.swift').and_return([])
+            allow(Dir).to receive(:glob).with('./**/Package.resolved').and_return([])
 
-            @plugin.check_duplicate_package_resolved(spm_root_paths: ['Modules', 'MyApp.xcworkspace'])
+            @plugin.check_swift_duplicate_package_resolved
 
             expect(@dangerfile).to not_report
           end

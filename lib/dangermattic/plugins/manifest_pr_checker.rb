@@ -102,16 +102,16 @@ module Danger
     # Check for duplicate Package.resolved files across all provided SwiftPM package directories
     #
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
-    # @param spm_root_paths [Array<String>] Array of paths to SwiftPM package root directories (e.g. ['Modules'])
     #
     # @return [void]
-    def check_duplicate_package_resolved(spm_root_paths:, report_type: :warning)
-      resolved_files = spm_root_paths.flat_map { |root_path| Dir.glob("#{root_path}/**/Package.resolved") }
-      return if resolved_files.length <= 1
+    def check_swift_duplicate_package_resolved(report_type: :warning)
+      package_files = Dir.glob('./**/Package.swift')
+      resolved_files = Dir.glob('./**/Package.resolved')
+      return if package_files.length == resolved_files.length
 
       reporter.report(
-        message: "Multiple Package.resolved files found:\n#{resolved_files.join("\n")}\n" \
-                 'Please ensure only one Package.resolved exists.',
+        message: "Multiple `Package.resolved` files found:\n```#{resolved_files.join("\n")}```\n" \
+                 'Please ensure only one `Package.resolved` exists for each `Package.swift` file.',
         type: report_type
       )
     end
