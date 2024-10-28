@@ -114,7 +114,7 @@ module Danger
 
             @plugin.check_swift_package_resolved_updated
 
-            expected_warning = format(ManifestPRChecker::MESSAGE, 'Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
+            expected_warning = format(ManifestPRChecker::MESSAGE, 'Package.swift', 'Package.resolved', ManifestPRChecker::SWIFT_INSTRUCTION)
             expect(@dangerfile).to report_warnings([expected_warning])
           end
 
@@ -147,7 +147,7 @@ module Danger
               manifest_lock_path: 'Apps/App1/Package.resolved'
             )
 
-            expected_warning = format(ManifestPRChecker::MESSAGE, 'Apps/App1/Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
+            expected_warning = format(ManifestPRChecker::MESSAGE, 'Apps/App1/Package.swift', 'Package.resolved', ManifestPRChecker::SWIFT_INSTRUCTION)
             expect(@dangerfile).to report_warnings([expected_warning])
           end
 

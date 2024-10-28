@@ -29,6 +29,7 @@ module Danger
   #
   class ManifestPRChecker < Plugin
     MESSAGE = '`%s` was changed without updating its corresponding `%s`. %s.'
+    SWIFT_INSTRUCTION = 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)'
 
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.
@@ -79,7 +80,7 @@ module Danger
       check_manifest_lock_updated(
         file_name: 'Package.swift',
         lock_file_name: 'Package.resolved',
-        instruction: 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)',
+        instruction: SWIFT_INSTRUCTION,
         report_type: report_type
       )
     end
@@ -94,7 +95,7 @@ module Danger
       check_manifest_lock_updated_strict(
         manifest_path: manifest_path,
         manifest_lock_path: manifest_lock_path,
-        instruction: 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)',
+        instruction: SWIFT_INSTRUCTION,
         report_type: report_type
       )
     end
