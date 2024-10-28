@@ -107,32 +107,73 @@ module Danger
       end
 
       describe 'Swift Package Manager' do
-        it 'reports a warning when a PR changed the Package.swift but not the Package.resolved' do
-          modified_files = ['Package.swift']
-          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+        describe '#check_swift_package_resolved_updated' do
+          it 'reports a warning when a PR changed the Package.swift but not the Package.resolved' do
+            modified_files = ['Package.swift']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
 
-          @plugin.check_swift_package_resolved_updated
+            @plugin.check_swift_package_resolved_updated
 
-          expected_warning = format(ManifestPRChecker::MESSAGE, 'Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
-          expect(@dangerfile).to report_warnings([expected_warning])
+            expected_warning = format(ManifestPRChecker::MESSAGE, 'Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
+            expect(@dangerfile).to report_warnings([expected_warning])
+          end
+
+          it 'reports no warnings when both the Package.swift and the Package.resolved were updated' do
+            modified_files = ['Package.swift', 'Package.resolved']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+            @plugin.check_swift_package_resolved_updated
+
+            expect(@dangerfile).to not_report
+          end
+
+          it 'reports no warnings when only the Package.resolved was updated' do
+            modified_files = ['Package.resolved']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+            @plugin.check_swift_package_resolved_updated
+
+            expect(@dangerfile).to not_report
+          end
         end
 
-        it 'reports no warnings when both the Package.swift and the Package.resolved were updated' do
-          modified_files = ['Package.swift', 'Package.resolved']
-          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+        describe '#check_swift_package_resolved_updated_strict' do
+          it 'reports a warning when a PR changed the specific Package.swift but not its Package.resolved' do
+            modified_files = ['Apps/App1/Package.swift', 'Apps/App2/Package.swift', 'Apps/App2/Package.resolved']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
 
-          @plugin.check_swift_package_resolved_updated
+            @plugin.check_swift_package_resolved_updated_strict(
+              manifest_path: 'Apps/App1/Package.swift',
+              manifest_lock_path: 'Apps/App1/Package.resolved'
+            )
 
-          expect(@dangerfile).to not_report
-        end
+            expected_warning = format(ManifestPRChecker::MESSAGE, 'Apps/App1/Package.swift', 'Package.resolved', 'Please resolve the Swift packages in Xcode')
+            expect(@dangerfile).to report_warnings([expected_warning])
+          end
 
-        it 'reports no warnings when only the Package.resolved was updated' do
-          modified_files = ['Package.resolved']
-          allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+          it 'reports no warning when both the specific Package.swift and Package.resolved were updated' do
+            modified_files = ['Apps/App1/Package.swift', 'Apps/App1/Package.resolved']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
 
-          @plugin.check_swift_package_resolved_updated
+            @plugin.check_swift_package_resolved_updated_strict(
+              manifest_path: 'Apps/App1/Package.swift',
+              manifest_lock_path: 'Apps/App1/Package.resolved'
+            )
 
-          expect(@dangerfile).to not_report
+            expect(@dangerfile).to not_report
+          end
+
+          it 'reports no warning when the specific Package.swift was not modified' do
+            modified_files = ['Apps/App2/Package.swift', 'Apps/App2/Package.resolved']
+            allow(@plugin.git).to receive(:modified_files).and_return(modified_files)
+
+            @plugin.check_swift_package_resolved_updated_strict(
+              manifest_path: 'Apps/App1/Package.swift',
+              manifest_lock_path: 'Apps/App1/Package.resolved'
+            )
+
+            expect(@dangerfile).to not_report
+          end
         end
       end
     end

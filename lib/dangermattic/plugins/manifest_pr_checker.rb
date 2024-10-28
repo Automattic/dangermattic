@@ -46,7 +46,6 @@ module Danger
     #
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
-    #
     # @return [void]
     def check_gemfile_lock_updated(report_type: :warning)
       check_manifest_lock_updated(
@@ -60,7 +59,6 @@ module Danger
     # Check if the `Podfile` file was modified without a corresponding `Podfile.lock` update
     #
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
-    #
     #
     # @return [void]
     def check_podfile_lock_updated(report_type: :warning)
@@ -76,12 +74,26 @@ module Danger
     #
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
-    #
     # @return [void]
     def check_swift_package_resolved_updated(report_type: :warning)
       check_manifest_lock_updated(
         file_name: 'Package.swift',
         lock_file_name: 'Package.resolved',
+        instruction: 'Please resolve the Swift packages in Xcode',
+        report_type: report_type
+      )
+    end
+
+    # Check if the `Package.swift` file was modified without a corresponding `Package.resolved` update,
+    # checking for exact path matches
+    #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
+    # @return [void]
+    def check_swift_package_resolved_updated_strict(manifest_path:, manifest_lock_path:, report_type: :warning)
+      check_manifest_lock_updated_strict(
+        manifest_path: manifest_path,
+        manifest_lock_path: manifest_lock_path,
         instruction: 'Please resolve the Swift packages in Xcode',
         report_type: report_type
       )
@@ -101,6 +113,17 @@ module Danger
         message = format(MESSAGE, manifest_file, lock_file_name, instruction)
         reporter.report(message: message, type: report_type)
       end
+    end
+
+    def check_manifest_lock_updated_strict(manifest_path:, manifest_lock_path:, instruction:, report_type: :warning)
+      manifest_modified = git.modified_files.include?(manifest_path)
+      return unless manifest_modified
+
+      lockfile_modified = git.modified_files.include?(manifest_lock_path)
+      return if lockfile_modified
+
+      message = format(MESSAGE, manifest_path, File.basename(manifest_lock_path), instruction)
+      reporter.report(message: message, type: report_type)
     end
   end
 end
