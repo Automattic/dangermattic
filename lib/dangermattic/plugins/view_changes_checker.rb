@@ -31,7 +31,7 @@ module Danger
     # displaying a warning if view files have been modified but no screenshot or video is included.
     #
     # @return [void]
-    def check
+    def check(report_type: :warning)
       view_files_modified = git.modified_files.any? do |file|
         VIEW_EXTENSIONS_IOS =~ file || VIEW_EXTENSIONS_ANDROID =~ file
       end
@@ -40,7 +40,7 @@ module Danger
         github.pr_body =~ pattern
       end
 
-      warn(MESSAGE) if view_files_modified && !pr_has_media
+      reporter.report(message: MESSAGE, type: report_type) if view_files_modified && !pr_has_media
     end
   end
 end
