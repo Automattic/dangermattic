@@ -18,7 +18,7 @@ module Danger
     MEDIA_IN_PR_BODY_PATTERNS = [
       %r{https?://\S*\.(gif|jpg|jpeg|png|svg)},
       %r{https?://\S*\.(mp4|avi|mov|mkv)},
-      %r{https?://\S*github\S+/\S+/assets/\d+/},
+      %r{https?://\S*github\S+/\S+/assets/},
       /!\[(.*?)\]\((.*?)\)/,
       /<img\s+[^>]*src\s*=\s*[^>]*>/,
       /<video\s+[^>]*src\s*=\s*[^>]*>/
