@@ -75,9 +75,18 @@ module Danger
         expect(@dangerfile).to not_report
       end
 
-      it 'does nothing when a PR with view code changes has a video defined with a simple URL' do
+      it 'does nothing when a PR with view code changes has a video defined with a simple repo assets URL' do
         allow(@plugin.github).to receive(:pr_body)
           .and_return("see video:\nhttps://github.com/woocommerce/woocommerce-ios/assets/1864060/0e983305-5047-40a3-8829-734e0b582b96 body body")
+
+        @plugin.check
+
+        expect(@dangerfile).to not_report
+      end
+
+      it 'does nothing when a PR with view code changes has a video defined with a simple GitHub assets URL' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see video:\nhttps://github.com/user-attachments/assets/f3461fec-f96c-4376-9e00-f8faf65f3457 body body")
 
         @plugin.check
 
