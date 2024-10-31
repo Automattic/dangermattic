@@ -22,11 +22,19 @@ _None_
 
 ## 1.2.0
 
+### New Features
+
+- `manifest_pr_checker`: add check for `Package.resolved` using full paths [#86]
+
+### Bug Fixes
+
+- `view_changes_checker`:  update GitHub assets URL regex to be less strict [#89]
+
 ## 1.1.2
 
 ### Internal Changes
 
-- Bump Ruby dependencies (#76)
+- Bump Ruby dependencies [#76]
 
 ## 1.1.1
 
@@ -38,19 +46,19 @@ _None_
 
 ### New Features
 
-- Reusable GitHub Workflow for retrying Buildkite jobs (#64)
+- Reusable GitHub Workflow for retrying Buildkite jobs [#64]
 
 ## 1.0.2
 
 ### Bug Fixes
 
-- Clean up and update dependencies. (#62)
+- Clean up and update dependencies. [#62]
 
 ## 1.0.1
 
 ### Bug Fixes
 
-- Fix `tracks_checker` plugin so that only additions / removals in a diff are considered in the check, therefore not including the context parts of the diff. (#58)
+- Fix `tracks_checker` plugin so that only additions / removals in a diff are considered in the check, therefore not including the context parts of the diff. [#58]
 
 ## 1.0.0
 
