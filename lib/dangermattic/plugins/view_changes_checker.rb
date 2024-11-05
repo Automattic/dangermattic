@@ -19,6 +19,7 @@ module Danger
       %r{https?://\S*\.(gif|jpg|jpeg|png|svg)},
       %r{https?://\S*\.(mp4|avi|mov|mkv)},
       %r{https?://\S*github\S+/\S+/assets/},
+      %r{https?://\S*github\S+/storage/user/},
       /!\[(.*?)\]\((.*?)\)/,
       /<img\s+[^>]*src\s*=\s*[^>]*>/,
       /<video\s+[^>]*src\s*=\s*[^>]*>/

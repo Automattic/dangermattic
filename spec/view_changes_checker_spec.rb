@@ -92,6 +92,15 @@ module Danger
 
         expect(@dangerfile).to not_report
       end
+
+      it 'does nothing when a PR with view code changes has a video defined with a simple GHE storage user files URL' do
+        allow(@plugin.github).to receive(:pr_body)
+          .and_return("see image:\nhttps://github.tumblr.net/storage/user/1327/files/9b6fde2b-b20e-4d82-938a-6fab63897723 body body")
+
+        @plugin.check
+
+        expect(@dangerfile).to not_report
+      end
     end
 
     shared_examples 'PR without view code changes' do |modified_files|
