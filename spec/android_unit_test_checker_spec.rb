@@ -348,7 +348,7 @@ module Danger
     end
 
     def expect_class_names_match_report(class_names:, error_report:)
-      # expect(class_names.length).to eq(error_report.length)
+      expect(class_names.length).to eq(error_report.length)
       class_names.zip(error_report).each do |cls, error|
         expect(error).to include "Please add tests for class `#{cls}`"
       end
