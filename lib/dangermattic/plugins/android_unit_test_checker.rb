@@ -29,7 +29,7 @@ module Danger
     CLASS_MODIFIER_EXCEPTIONS = [
       /\s*data\s*/,
       /\s*private\s*/,
-      /\s*enum\s*/,
+      /\s*enum\s*/
     ].freeze
 
     DEFAULT_CLASSES_EXCEPTIONS = [
