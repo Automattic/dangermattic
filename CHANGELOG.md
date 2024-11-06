@@ -14,7 +14,7 @@ _None_
 
 ### Bug Fixes
 
-_None_
+- Fix `android_unit_test_checker` plugin so it doesn't detect private, enum, and data classes. [#92]
 
 ### Internal Changes
 
