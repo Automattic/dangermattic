@@ -24,7 +24,14 @@ module Danger
   #
   class AndroidUnitTestChecker < Plugin
     ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
-    NON_PRIVATE_CLASS_DETECTOR = /(?:\s|public|internal|protected|final|abstract|static)*class\s+([A-Z]\w+)\s*(.*?)\s*{/m
+    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum)*)class\s+([A-Z]\w+)\s*(.*?)\s*{/m
+
+    CLASS_MODIFIER_EXCEPTIONS = [
+      /\s*data\s*/,
+      /\s*private\s*/,
+      /\s*enum\s*/
+    ].freeze
+
     DEFAULT_CLASSES_EXCEPTIONS = [
       /ViewHolder$/,
       /Module$/,
@@ -142,7 +149,7 @@ module Danger
     # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
     def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
       added_lines = git_utils.added_lines(diff_patch: diff_patch)
-      matches = added_lines.scan(NON_PRIVATE_CLASS_DETECTOR)
+      matches = added_lines.scan(CLASS_MODIFIER_DETECTOR)
       matches.reject! do |m|
         class_match_is_exception?(
           m,
@@ -152,7 +159,7 @@ module Danger
         )
       end
 
-      matches.map { |m| ClassViolation.new(m[0], path) }
+      matches.map { |m| ClassViolation.new(m[1], path) }
     end
 
     # Finds the names of removed classes based on the removals the diff patch.
@@ -173,10 +180,11 @@ module Danger
     #
     # @return [void]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
-      return true if classes_exceptions.any? { |re| match[0] =~ re }
+      return true if classes_exceptions.any? { |re| match[1] =~ re }
+      return true if CLASS_MODIFIER_EXCEPTIONS.any? { |re| match[0] =~ re }
 
       subclass_regexp = File.extname(file) == '.java' ? /extends\s+([A-Z]\w+)/m : /\s*:\s*([A-Z]\w+)/m
-      subclass = match[1].scan(subclass_regexp)&.last&.last
+      subclass = match[2].scan(subclass_regexp)&.last&.last
       subclasses_exceptions.any? { |re| subclass =~ re }
     end
 

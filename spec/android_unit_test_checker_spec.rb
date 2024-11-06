@@ -283,6 +283,20 @@ module Danger
 
         expect(@dangerfile).to not_report
       end
+
+      it 'does not report private class' do
+        added_files = %w[
+          PublicAndPrivateType.kt
+          src/androidTest/java/org/test/PublicTypeTest.kt
+        ]
+
+        diff = generate_add_diff_from_fixtures(added_files)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+
+        @plugin.check_missing_tests
+
+        expect(@dangerfile).to not_report
+      end
     end
 
     def generate_add_diff_from_fixtures(paths)
