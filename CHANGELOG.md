@@ -14,12 +14,18 @@ _None_
 
 ### Bug Fixes
 
-- Fix `android_unit_test_checker` plugin so it doesn't detect private, enum, and data classes. [#92]
-- `view_changes_checker`:  update view checker regex to cover GHE user storage URLs [#91]
+_None_
 
 ### Internal Changes
 
 _None_
+
+## 1.2.1
+
+### Bug Fixes
+
+- Fix `android_unit_test_checker` plugin so it doesn't detect private, enum, and data classes. [#92]
+- `view_changes_checker`:  update view checker regex to cover GHE user storage URLs [#91]
 
 ## 1.2.0
 
