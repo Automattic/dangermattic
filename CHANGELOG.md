@@ -14,7 +14,7 @@ _None_
 
 ### Bug Fixes
 
-_None_
+- Add sealed classes as an exception when reporting missing Android unit tests [#94]
 
 ### Internal Changes
 
