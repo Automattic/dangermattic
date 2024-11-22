@@ -24,12 +24,13 @@ module Danger
   #
   class AndroidUnitTestChecker < Plugin
     ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
-    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum)*)class\s+([A-Z]\w+)\s*(.*?)\s*{/m
+    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum|sealed)*)class\s+([A-Z]\w+)\s*(.*?)\s*{/m
 
     CLASS_MODIFIER_EXCEPTIONS = [
       /\s*data\s*/,
       /\s*private\s*/,
-      /\s*enum\s*/
+      /\s*enum\s*/,
+      /\s*sealed\s*/
     ].freeze
 
     DEFAULT_CLASSES_EXCEPTIONS = [
