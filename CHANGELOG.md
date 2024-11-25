@@ -14,7 +14,7 @@ _None_
 
 ### Bug Fixes
 
-_None_
+- `android_unit_test_checker`: add `sealed` and `value` classes as an exception when reporting missing Android unit tests [#94]
 
 ### Internal Changes
 
