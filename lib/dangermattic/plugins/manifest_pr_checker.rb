@@ -29,7 +29,17 @@ module Danger
   #
   class ManifestPRChecker < Plugin
     MESSAGE = '`%s` was changed without updating its corresponding `%s`. %s.'
-    SWIFT_INSTRUCTION = 'Please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`)'
+
+    # The two new lines at the start are intentional.
+    # This will be interpolated in MESSAGE into the final %s.
+    # The first new line moves it to a new line, the second adds visual padding.
+    SWIFT_INSTRUCTION = <<~INSTRUCTION
+
+
+      If the change includes adding, removing, or editing a dependency please resolve the Swift packages as appropriate to your project setup (e.g. in Xcode or by running `swift package resolve`).
+
+      If the change to the `Package.swift` did not modify dependencies, ignoring this warning should be safe, but we recommend double checking and running the package resolution just in case.
+    INSTRUCTION
 
     # Performs all the checks, asserting that changes on `Gemfile`, `Podfile` and `Package.swift` must have corresponding
     # lock file changes.
