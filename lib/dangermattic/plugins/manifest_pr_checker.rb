@@ -32,7 +32,7 @@ module Danger
 
     # The two new lines at the start are intentional.
     # This will be interpolated in MESSAGE into the final %s.
-    # The first new line moves it to a new line, the second add visual padding.
+    # The first new line moves it to a new line, the second adds visual padding.
     SWIFT_INSTRUCTION = <<~INSTRUCTION
 
 
