@@ -38,7 +38,7 @@ module Console
     answer
   end
 
-  def self.confirm(text)
+  def self.confirm?(text)
     color_puts("#{text} [y/n]?", color_code: GREEN)
     answer = $stdin.gets.chomp
     answer.downcase == 'y'
