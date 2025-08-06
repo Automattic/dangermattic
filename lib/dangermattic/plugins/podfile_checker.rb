@@ -86,7 +86,9 @@ module Danger
     private
 
     COMMIT_REFERENCE_REGEXP = /\(from `\S+`, commit `\S+`\)/
+    private_constant :COMMIT_REFERENCE_REGEXP
     BRANCH_REFERENCE_REGEXP = /\(from `\S+`, branch `\S+`\)/
+    private_constant :BRANCH_REFERENCE_REGEXP
 
     def check_podfile_does_not_match(
       regexp:,

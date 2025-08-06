@@ -95,6 +95,7 @@ module Danger
     private
 
     ClassViolation = Struct.new(:classname, :file)
+    private_constant :ClassViolation
 
     # @param git_diff [Git::Diff] the git diff object
     # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
