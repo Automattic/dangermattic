@@ -72,19 +72,19 @@ module Danger
             end
 
             context 'when fail on error is false and a custom message is given' do
-              include_examples 'reporting diff size custom warnings or errors', false, 'this is my custom warning message'
+              it_behaves_like 'reporting diff size custom warnings or errors', false, 'this is my custom warning message'
             end
 
             context 'when fail on error is false' do
-              include_examples 'reporting diff size custom warnings or errors', false
+              it_behaves_like 'reporting diff size custom warnings or errors', false
             end
 
             context 'when fail on error is true' do
-              include_examples 'reporting diff size custom warnings or errors', true
+              it_behaves_like 'reporting diff size custom warnings or errors', true
             end
 
             context 'when a custom error message is given and fail on error is true' do
-              include_examples 'reporting diff size custom warnings or errors', true, 'this is my custom error message'
+              it_behaves_like 'reporting diff size custom warnings or errors', true, 'this is my custom error message'
             end
           end
         end
@@ -163,18 +163,18 @@ module Danger
         end
 
         context 'with the entire diff' do
-          include_examples 'using the default diff size counter, without a file selector', :all
-          include_examples 'using a file selector to filter and count the changes in a diff', :all, [422, 520, 1541]
+          it_behaves_like 'using the default diff size counter, without a file selector', :all
+          it_behaves_like 'using a file selector to filter and count the changes in a diff', :all, [422, 520, 1541]
         end
 
         context 'with the insertions in the diff' do
-          include_examples 'using the default diff size counter, without a file selector', :insertions
-          include_examples 'using a file selector to filter and count the changes in a diff', :insertions, [200, 139, 384]
+          it_behaves_like 'using the default diff size counter, without a file selector', :insertions
+          it_behaves_like 'using a file selector to filter and count the changes in a diff', :insertions, [200, 139, 384]
         end
 
         context 'with the deletions in the diff' do
-          include_examples 'using the default diff size counter, without a file selector', :deletions
-          include_examples 'using a file selector to filter and count the changes in a diff', :deletions, [221, 380, 1157]
+          it_behaves_like 'using the default diff size counter, without a file selector', :deletions
+          it_behaves_like 'using a file selector to filter and count the changes in a diff', :deletions, [221, 380, 1157]
         end
       end
 
@@ -221,19 +221,19 @@ module Danger
           end
 
           context 'when fail on error is false and a custom message is given' do
-            include_examples 'reporting PR length check custom warnings or errors', false, 'this is my custom warning message'
+            it_behaves_like 'reporting PR length check custom warnings or errors', false, 'this is my custom warning message'
           end
 
           context 'when fail on error is false' do
-            include_examples 'reporting PR length check custom warnings or errors', false
+            it_behaves_like 'reporting PR length check custom warnings or errors', false
           end
 
           context 'when fail on error is true' do
-            include_examples 'reporting PR length check custom warnings or errors', true
+            it_behaves_like 'reporting PR length check custom warnings or errors', true
           end
 
           context 'when a custom error message is given and fail on error is true' do
-            include_examples 'reporting PR length check custom warnings or errors', true, 'this is my custom error message'
+            it_behaves_like 'reporting PR length check custom warnings or errors', true, 'this is my custom error message'
           end
         end
       end
