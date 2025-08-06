@@ -98,6 +98,8 @@ module Danger
     # Check if the `Package.swift` file was modified without a corresponding `Package.resolved` update,
     # checking for exact path matches
     #
+    # @param manifest_path [String] The path to the `Package.swift` file.
+    # @param manifest_lock_path [String] The path to the `Package.resolved` file.
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
