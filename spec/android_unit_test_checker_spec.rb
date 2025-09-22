@@ -144,6 +144,21 @@ module Danger
         expect(@dangerfile).to not_report
       end
 
+      it 'detects data classes with no {…} body' do
+        # Ensure the CLASS_MODIFIER_DETECTOR regex doesn't assume class declaration always ends with `{` marking the class body
+        # (which would lead the regex to either miss the data class or extend the regex to the next `{`… that potentially belongs to the next class)
+        # This is especially important given data classes might not have a body at all
+
+        mix_data_plus_normal_class_file = 'MixDataPlusNormalClass.kt'
+        data_and_normal_class_diff = generate_add_diff_from_fixtures([mix_data_plus_normal_class_file])
+
+        allow(@dangerfile.git).to receive(:diff).and_return(data_and_normal_class_diff)
+
+        @plugin.check_missing_tests
+
+        expect_class_names_match_report(class_names: ['DummyClassMissingTest'], error_report: @dangerfile.status_report[:errors])
+      end
+
       it 'does not report that a PR with the tests bypass label is missing tests' do
         added_files = %w[
           Abc.java
