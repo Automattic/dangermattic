@@ -182,7 +182,7 @@ module Danger
     # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
     # @param subclasses_exceptions [Array<String>] Regexes matching base class names to exclude from the check
     #
-    # @return [void]
+    # @return [Boolean]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[1] =~ re }
       return true if CLASS_MODIFIER_EXCEPTIONS.any? { |re| match[0] =~ re }

@@ -159,61 +159,76 @@ module Danger
         expect_class_names_match_report(class_names: ['DummyClassMissingTest'], error_report: @dangerfile.status_report[:errors])
       end
 
-      it 'detects all types of class modifiers' do
-        dayone_source_fixtures_subdir = %w[src main java com dayoneapp dayone]
-        added_files = Dir.glob('**/*.kt', base: fixture_path('android_unit_test_checker', dayone_source_fixtures_subdir))
-                         .map { |file| File.join(dayone_source_fixtures_subdir, file) }
-
-        diff = generate_add_diff_from_fixtures(added_files)
-        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+      context 'when detecting classes and class modifiers' do
+        let(:dayone_source_fixtures_subdir) { %w[src main java com dayoneapp dayone] }
+        let(:added_files) do
+          Dir.glob('**/*.kt', base: fixture_path('android_unit_test_checker', dayone_source_fixtures_subdir))
+             .map { |file| File.join(dayone_source_fixtures_subdir, file) }
+        end
+        let(:diff) { generate_add_diff_from_fixtures(added_files) }
 
         # ClassName => Expected to be detected (true) or ignored (false)
-        expected_detected_classes = {
-          # ApiResult.kt
-          'ApiResult' => false,   # `sealed class ApiResult<T>`
-          'Success' => false,     # `data class Success<T>`
-          'Empty' => true,        # `class Empty<T> : ApiResult<T>`
-          'Failure' => false,     # `data class Failure<T>(…)`
-          'FailureType' => false, # `enum class FailureType`
+        let(:expected_detected_classes) do
+          {
+            # ApiResult.kt
+            'ApiResult' => false,   # `sealed class ApiResult<T>`
+            'Success' => false,     # `data class Success<T>`
+            'Empty' => true,        # `class Empty<T> : ApiResult<T>`
+            'Failure' => false,     # `data class Failure<T>(…)`
+            'FailureType' => false, # `enum class FailureType`
 
-          # WebRecordApi.kt
-          'CursorTime' => false,       # `value class CursorTime`
-          'WebRecordChanges' => false, # `data class WebRecordChanges`
+            # WebRecordApi.kt
+            'CursorTime' => false,       # `value class CursorTime`
+            'WebRecordChanges' => false, # `data class WebRecordChanges`
 
-          # UiStates.kt
-          'LoadKeyUiState' => false, # `sealed class LoadKeyUiState`
+            # UiStates.kt
+            'LoadKeyUiState' => false, # `sealed class LoadKeyUiState`
 
-          # AppIntegrationModule.kt
-          'AppIntegrationHandlers' => false, # `annotation class AppIntegrationHandlers`
+            # AppIntegrationModule.kt
+            'AppIntegrationHandlers' => false, # `annotation class AppIntegrationHandlers`
 
-          # StreaksViewModel.kt
-          'StreaksViewModel' => true,    # `class StreaksViewModel`
-          'Streaks' => false,            # `data class Streaks`
-          'JournalOptionsState' => true, # `class JournalOptionsState`
-          'StreakWeekDay' => false,      # `data class StreakWeekDay`
-          'DayJournaled' => false,       # `value class DayJournaled`
-          'StreakJournal' => false,      # `data class StreakJournal`
-          'DaysOfWeekList' => false,     # `private class DaysOfWeekList`
-          'PreviousDays' => true,        # `class PreviousDays`
+            # StreaksViewModel.kt
+            'StreaksViewModel' => true,    # `class StreaksViewModel`
+            'Streaks' => false,            # `data class Streaks`
+            'JournalOptionsState' => true, # `class JournalOptionsState`
+            'StreakWeekDay' => false,      # `data class StreakWeekDay`
+            'DayJournaled' => false,       # `value class DayJournaled`
+            'StreakJournal' => false,      # `data class StreakJournal`
+            'DaysOfWeekList' => false,     # `private class DaysOfWeekList`
+            'PreviousDays' => true,        # `class PreviousDays`
 
-          # MediaStorageConfiguration.kt
-          'CompressQuality' => false,          # `value class CompressQuality`
-          'MediaStorageConfiguration' => true, # `class MediaStorageConfiguration`
-          'ThumbnailsConfiguration' => true,   # `class ThumbnailsConfiguration`
+            # MediaStorageConfiguration.kt
+            'CompressQuality' => false,          # `value class CompressQuality`
+            'MediaStorageConfiguration' => true, # `class MediaStorageConfiguration`
+            'ThumbnailsConfiguration' => true,   # `class ThumbnailsConfiguration`
 
-          # AccountType.kt
-          'AccountType' => false, # `enum class AccountType`
+            # AccountType.kt
+            'AccountType' => false, # `enum class AccountType`
 
-          # SelectPhotoUseCase.kt
-          'SelectPhotoUseCase' => true, # `class SelectPhotoUseCase`
-          'GetMultipleImages' => false, # `private class GetMultipleImages`
-          'GetSingleImage' => false # `private class GetSingleImage`
-        }
+            # SelectPhotoUseCase.kt
+            'SelectPhotoUseCase' => true, # `class SelectPhotoUseCase`
+            'GetMultipleImages' => false, # `private class GetMultipleImages`
+            'GetSingleImage' => false # `private class GetSingleImage`
+          }
+        end
 
-        # Test with `CLASS_MODIFIER_EXCEPTIONS` excluded (real behavior)
-        @plugin.check_missing_tests
-        expected_violating_classes = expected_detected_classes.filter_map { |k, v| k if v }
-        expect_class_names_match_report(class_names: expected_violating_classes, error_report: @dangerfile.status_report[:errors])
+        before do
+          allow(@dangerfile.git).to receive(:diff).and_return(diff)
+        end
+
+        it 'reports only classes that don\'t have a modifier that is part of modifier exceptions' do
+          @plugin.check_missing_tests
+          expected_violating_classes = expected_detected_classes.filter_map { |k, v| k if v } # only keys whose value is true
+          expect_class_names_match_report(class_names: expected_violating_classes, error_report: @dangerfile.status_report[:errors])
+        end
+
+        it 'validates that the RegEx matches all classes from source code' do
+          # Mock detection of exceptions in order to make `check_missing_tests` report all classes regardless of modifiers
+          # This allows us to validate that our RegEx matches all classes from the source code in the first place
+          allow(@plugin).to receive(:class_match_is_exception?).and_return(false)
+          @plugin.check_missing_tests
+          expect_class_names_match_report(class_names: expected_detected_classes.keys, error_report: @dangerfile.status_report[:errors])
+        end
       end
 
       it 'does not report that a PR with the tests bypass label is missing tests' do
