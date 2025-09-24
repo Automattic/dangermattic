@@ -144,7 +144,7 @@ module Danger
         expect(@dangerfile).to not_report
       end
 
-      it 'detects data classes with no {…} body' do
+      it 'ensures data classes with no {…} body don\'t mess up detection of subsequent classes in the same file' do
         # Ensure the CLASS_MODIFIER_DETECTOR regex doesn't assume class declaration always ends with `{` marking the class body
         # (which would lead the regex to either miss the data class or extend the regex to the next `{`… that potentially belongs to the next class)
         # This is especially important given data classes might not have a body at all
