@@ -24,7 +24,7 @@ module Danger
   #
   class AndroidUnitTestChecker < Plugin
     ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
-    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum|sealed|value|annotation)*)class\s+([A-Z]\w+)\s*(.*?)\s*(?:{|\n\n)/m
+    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum|sealed|value|annotation)*)class\s+([A-Z]\w+)\s*(.*?)\s*({|\n\n)/m
 
     CLASS_MODIFIER_EXCEPTIONS = [
       /\s*data\s*/,
@@ -186,6 +186,7 @@ module Danger
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[1] =~ re }
       return true if CLASS_MODIFIER_EXCEPTIONS.any? { |re| match[0] =~ re }
+      return true unless match[3].include?('{') # Ignore classes that don't have a body
 
       subclass_regexp = File.extname(file) == '.java' ? /extends\s+([A-Z]\w+)/m : /\s*:\s*([A-Z]\w+)/m
       subclass = match[2].scan(subclass_regexp)&.last&.last

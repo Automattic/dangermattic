@@ -173,7 +173,7 @@ module Danger
             # ApiResult.kt
             'ApiResult' => false,   # `sealed class ApiResult<T>`
             'Success' => false,     # `data class Success<T>`
-            'Empty' => true,        # `class Empty<T> : ApiResult<T>`
+            'Empty' => false,       # `class Empty<T> : ApiResult<T>()` (but no body)
             'Failure' => false,     # `data class Failure<T>(…)`
             'FailureType' => false, # `enum class FailureType`
 
@@ -188,19 +188,19 @@ module Danger
             'AppIntegrationHandlers' => false, # `annotation class AppIntegrationHandlers`
 
             # StreaksViewModel.kt
-            'StreaksViewModel' => true,    # `class StreaksViewModel`
-            'Streaks' => false,            # `data class Streaks`
-            'JournalOptionsState' => true, # `class JournalOptionsState`
-            'StreakWeekDay' => false,      # `data class StreakWeekDay`
-            'DayJournaled' => false,       # `value class DayJournaled`
-            'StreakJournal' => false,      # `data class StreakJournal`
-            'DaysOfWeekList' => false,     # `private class DaysOfWeekList`
-            'PreviousDays' => true,        # `class PreviousDays`
+            'StreaksViewModel' => true,     # `class StreaksViewModel`
+            'Streaks' => false,             # `data class Streaks`
+            'JournalOptionsState' => false, # `class JournalOptionsState` (but no body)
+            'StreakWeekDay' => false,       # `data class StreakWeekDay`
+            'DayJournaled' => false,        # `value class DayJournaled`
+            'StreakJournal' => false,       # `data class StreakJournal`
+            'DaysOfWeekList' => false,      # `private class DaysOfWeekList`
+            'PreviousDays' => false,        # `class PreviousDays` (but no body)
 
             # MediaStorageConfiguration.kt
-            'CompressQuality' => false,          # `value class CompressQuality`
-            'MediaStorageConfiguration' => true, # `class MediaStorageConfiguration`
-            'ThumbnailsConfiguration' => true,   # `class ThumbnailsConfiguration`
+            'CompressQuality' => false,           # `value class CompressQuality`
+            'MediaStorageConfiguration' => false, # `class MediaStorageConfiguration` (but no body)
+            'ThumbnailsConfiguration' => false,   # `class ThumbnailsConfiguration` (but no body)
 
             # AccountType.kt
             'AccountType' => false, # `enum class AccountType`
