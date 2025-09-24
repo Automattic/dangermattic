@@ -58,8 +58,12 @@ def testing_dangerfile
   Danger::Dangerfile.new(env, testing_ui)
 end
 
+def fixture_path(*components)
+  File.join('spec', 'fixtures', *components)
+end
+
 def fixture(name)
-  File.read("spec/fixtures/#{name}")
+  File.read(fixture_path(name))
 end
 
 # custom matchers

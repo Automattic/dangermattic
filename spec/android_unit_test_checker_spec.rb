@@ -159,6 +159,63 @@ module Danger
         expect_class_names_match_report(class_names: ['DummyClassMissingTest'], error_report: @dangerfile.status_report[:errors])
       end
 
+      it 'detects all types of class modifiers' do
+        dayone_source_fixtures_subdir = %w[src main java com dayoneapp dayone]
+        added_files = Dir.glob('**/*.kt', base: fixture_path('android_unit_test_checker', dayone_source_fixtures_subdir))
+                         .map { |file| File.join(dayone_source_fixtures_subdir, file) }
+
+        diff = generate_add_diff_from_fixtures(added_files)
+        allow(@dangerfile.git).to receive(:diff).and_return(diff)
+
+        # ClassName => Expected to be detected (true) or ignored (false)
+        expected_detected_classes = {
+          # ApiResult.kt
+          'ApiResult' => false,   # `sealed class ApiResult<T>`
+          'Success' => false,     # `data class Success<T>`
+          'Empty' => true,        # `class Empty<T> : ApiResult<T>`
+          'Failure' => false,     # `data class Failure<T>(…)`
+          'FailureType' => false, # `enum class FailureType`
+
+          # WebRecordApi.kt
+          'CursorTime' => false,       # `value class CursorTime`
+          'WebRecordChanges' => false, # `data class WebRecordChanges`
+
+          # UiStates.kt
+          'LoadKeyUiState' => false, # `sealed class LoadKeyUiState`
+
+          # AppIntegrationModule.kt
+          'AppIntegrationHandlers' => false, # `annotation class AppIntegrationHandlers`
+
+          # StreaksViewModel.kt
+          'StreaksViewModel' => true,    # `class StreaksViewModel`
+          'Streaks' => false,            # `data class Streaks`
+          'JournalOptionsState' => true, # `class JournalOptionsState`
+          'StreakWeekDay' => false,      # `data class StreakWeekDay`
+          'DayJournaled' => false,       # `value class DayJournaled`
+          'StreakJournal' => false,      # `data class StreakJournal`
+          'DaysOfWeekList' => false,     # `private class DaysOfWeekList`
+          'PreviousDays' => true,        # `class PreviousDays`
+
+          # MediaStorageConfiguration.kt
+          'CompressQuality' => false,          # `value class CompressQuality`
+          'MediaStorageConfiguration' => true, # `class MediaStorageConfiguration`
+          'ThumbnailsConfiguration' => true,   # `class ThumbnailsConfiguration`
+
+          # AccountType.kt
+          'AccountType' => false, # `enum class AccountType`
+
+          # SelectPhotoUseCase.kt
+          'SelectPhotoUseCase' => true, # `class SelectPhotoUseCase`
+          'GetMultipleImages' => false, # `private class GetMultipleImages`
+          'GetSingleImage' => false # `private class GetSingleImage`
+        }
+
+        # Test with `CLASS_MODIFIER_EXCEPTIONS` excluded (real behavior)
+        @plugin.check_missing_tests
+        expected_violating_classes = expected_detected_classes.filter_map { |k, v| k if v }
+        expect_class_names_match_report(class_names: expected_violating_classes, error_report: @dangerfile.status_report[:errors])
+      end
+
       it 'does not report that a PR with the tests bypass label is missing tests' do
         added_files = %w[
           Abc.java
@@ -363,7 +420,10 @@ module Danger
     end
 
     def expect_class_names_match_report(class_names:, error_report:)
-      expect(error_report.length).to eq(class_names.length)
+      if error_report.length != class_names.length
+        reported_class_names = error_report.map { |e| e.match(/class `(.*?)`/)[1] }
+        expect(reported_class_names).to eq(class_names)
+      end
       class_names.zip(error_report).each do |cls, error|
         expect(error).to include "Please add tests for class `#{cls}`"
       end
