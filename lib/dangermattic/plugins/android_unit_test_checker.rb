@@ -153,7 +153,7 @@ module Danger
     # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
     def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
       added_lines = git_utils.added_lines(diff_patch: diff_patch)
-      matches = added_lines.scan(CLASS_MODIFIER_DETECTOR)
+      matches = "#{added_lines}\n".scan(CLASS_MODIFIER_DETECTOR) # add a newline to ensure the regex matches the last class in the file
       matches.reject! do |m|
         class_match_is_exception?(
           m,
