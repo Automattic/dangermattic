@@ -160,8 +160,8 @@ module Danger
       end
 
       context 'when detecting classes and class modifiers' do
-        let(:dayone_source_fixtures_subdir) { %w[src main java com dayoneapp dayone] }
         let(:added_files) do
+          dayone_source_fixtures_subdir = %w[src main java com dayoneapp dayone]
           Dir.glob('**/*.kt', base: fixture_path('android_unit_test_checker', dayone_source_fixtures_subdir))
              .map { |file| File.join(dayone_source_fixtures_subdir, file) }
         end
@@ -388,7 +388,7 @@ module Danger
 
     def generate_add_diff_from_fixtures(paths)
       paths.map do |path|
-        content = fixture(File.join('android_unit_test_checker', path))
+        content = fixture('android_unit_test_checker', path)
         diff_str = generate_add_diff(file_path: path, content: content)
 
         GitDiffStruct.new('new', path, diff_str)
@@ -397,7 +397,7 @@ module Danger
 
     def generate_delete_diff_from_fixtures(paths)
       paths.map do |path|
-        content = fixture(File.join('android_unit_test_checker', path))
+        content = fixture('android_unit_test_checker', path)
         diff_str = generate_delete_diff(file_path: path, content: content)
 
         GitDiffStruct.new('deleted', path, diff_str)
