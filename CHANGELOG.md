@@ -14,7 +14,7 @@ _None_
 
 ### Bug Fixes
 
-_None_
+- `android_unit_test_checker`: add `annotation` classes as an exception when reporting missing Android unit tests [#101]
 
 ### Internal Changes
 
