@@ -144,6 +144,93 @@ module Danger
         expect(@dangerfile).to not_report
       end
 
+      it 'ensures data classes with no {…} body don\'t mess up detection of subsequent classes in the same file' do
+        # Ensure the CLASS_MODIFIER_DETECTOR regex doesn't assume class declaration always ends with `{` marking the class body
+        # (which would lead the regex to either miss the data class or extend the regex to the next `{`… that potentially belongs to the next class)
+        # This is especially important given data classes might not have a body at all
+
+        mix_data_plus_normal_class_file = 'MixDataPlusNormalClass.kt'
+        data_and_normal_class_diff = generate_add_diff_from_fixtures([mix_data_plus_normal_class_file])
+
+        allow(@dangerfile.git).to receive(:diff).and_return(data_and_normal_class_diff)
+
+        @plugin.check_missing_tests
+
+        expect_class_names_match_report(class_names: ['DummyClassMissingTest'], error_report: @dangerfile.status_report[:errors])
+      end
+
+      context 'when detecting classes and class modifiers' do
+        let(:added_files) do
+          dayone_source_fixtures_subdir = %w[src main java com dayoneapp dayone]
+          Dir.glob('**/*.kt', base: fixture_path('android_unit_test_checker', dayone_source_fixtures_subdir))
+             .map { |file| File.join(dayone_source_fixtures_subdir, file) }
+        end
+        let(:diff) { generate_add_diff_from_fixtures(added_files) }
+
+        # ClassName => Expected to be detected (true) or ignored (false)
+        let(:expected_detected_classes) do
+          {
+            # ApiResult.kt
+            'ApiResult' => false,   # `sealed class ApiResult<T>`
+            'Success' => false,     # `data class Success<T>`
+            'Empty' => false,       # `class Empty<T> : ApiResult<T>()` (but no body)
+            'Failure' => false,     # `data class Failure<T>(…)`
+            'FailureType' => false, # `enum class FailureType`
+
+            # WebRecordApi.kt
+            'CursorTime' => false,       # `value class CursorTime`
+            'WebRecordChanges' => false, # `data class WebRecordChanges`
+
+            # UiStates.kt
+            'LoadKeyUiState' => false, # `sealed class LoadKeyUiState`
+
+            # AppIntegrationModule.kt
+            'AppIntegrationHandlers' => false, # `annotation class AppIntegrationHandlers`
+
+            # StreaksViewModel.kt
+            'StreaksViewModel' => true,     # `class StreaksViewModel`
+            'Streaks' => false,             # `data class Streaks`
+            'JournalOptionsState' => false, # `class JournalOptionsState` (but no body)
+            'StreakWeekDay' => false,       # `data class StreakWeekDay`
+            'DayJournaled' => false,        # `value class DayJournaled`
+            'StreakJournal' => false,       # `data class StreakJournal`
+            'DaysOfWeekList' => false,      # `private class DaysOfWeekList`
+            'PreviousDays' => false,        # `class PreviousDays` (but no body)
+
+            # MediaStorageConfiguration.kt
+            'CompressQuality' => false,           # `value class CompressQuality`
+            'MediaStorageConfiguration' => false, # `class MediaStorageConfiguration` (but no body)
+            'ThumbnailsConfiguration' => false,   # `class ThumbnailsConfiguration` (but no body)
+
+            # AccountType.kt
+            'AccountType' => false, # `enum class AccountType`
+
+            # SelectPhotoUseCase.kt
+            'SelectPhotoUseCase' => true, # `class SelectPhotoUseCase`
+            'GetMultipleImages' => false, # `private class GetMultipleImages`
+            'GetSingleImage' => false # `private class GetSingleImage`
+          }
+        end
+
+        before do
+          allow(@dangerfile.git).to receive(:diff).and_return(diff)
+        end
+
+        it 'reports only classes that don\'t have a modifier that is part of modifier exceptions' do
+          @plugin.check_missing_tests
+          expected_violating_classes = expected_detected_classes.filter_map { |k, v| k if v } # only keys whose value is true
+          expect_class_names_match_report(class_names: expected_violating_classes, error_report: @dangerfile.status_report[:errors])
+        end
+
+        it 'validates that the RegEx matches all classes from source code' do
+          # Mock detection of exceptions in order to make `check_missing_tests` report all classes regardless of modifiers
+          # This allows us to validate that our RegEx matches all classes from the source code in the first place
+          allow(@plugin).to receive(:class_match_is_exception?).and_return(false)
+          @plugin.check_missing_tests
+          expect_class_names_match_report(class_names: expected_detected_classes.keys, error_report: @dangerfile.status_report[:errors])
+        end
+      end
+
       it 'does not report that a PR with the tests bypass label is missing tests' do
         added_files = %w[
           Abc.java
@@ -301,7 +388,7 @@ module Danger
 
     def generate_add_diff_from_fixtures(paths)
       paths.map do |path|
-        content = fixture(File.join('android_unit_test_checker', path))
+        content = fixture('android_unit_test_checker', path)
         diff_str = generate_add_diff(file_path: path, content: content)
 
         GitDiffStruct.new('new', path, diff_str)
@@ -310,7 +397,7 @@ module Danger
 
     def generate_delete_diff_from_fixtures(paths)
       paths.map do |path|
-        content = fixture(File.join('android_unit_test_checker', path))
+        content = fixture('android_unit_test_checker', path)
         diff_str = generate_delete_diff(file_path: path, content: content)
 
         GitDiffStruct.new('deleted', path, diff_str)
@@ -348,7 +435,10 @@ module Danger
     end
 
     def expect_class_names_match_report(class_names:, error_report:)
-      expect(class_names.length).to eq(error_report.length)
+      if error_report.length != class_names.length
+        reported_class_names = error_report.map { |e| e.match(/class `(.*?)`/)[1] }
+        expect(reported_class_names).to eq(class_names)
+      end
       class_names.zip(error_report).each do |cls, error|
         expect(error).to include "Please add tests for class `#{cls}`"
       end

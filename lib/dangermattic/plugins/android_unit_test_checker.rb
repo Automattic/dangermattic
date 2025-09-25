@@ -24,14 +24,15 @@ module Danger
   #
   class AndroidUnitTestChecker < Plugin
     ANY_CLASS_DETECTOR = /class\s+([A-Z]\w+)\s*(.*?)\s*{/m
-    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum|sealed|value)*)class\s+([A-Z]\w+)\s*(.*?)\s*{/m
+    CLASS_MODIFIER_DETECTOR = /((?:\s|public|internal|protected|private|final|abstract|static|data|enum|sealed|value|annotation)*)class\s+([A-Z]\w+)\s*(.*?)\s*({|\n\n)/m
 
     CLASS_MODIFIER_EXCEPTIONS = [
       /\s*data\s*/,
       /\s*private\s*/,
       /\s*enum\s*/,
       /\s*sealed\s*/,
-      /\s*value\s*/
+      /\s*value\s*/,
+      /\s*annotation\s*/
     ].freeze
 
     DEFAULT_CLASSES_EXCEPTIONS = [
@@ -152,7 +153,7 @@ module Danger
     # @return [Array<ClassViolation>] An array of ClassViolation objects representing the violations found.
     def find_violations(path:, diff_patch:, classes_exceptions:, subclasses_exceptions:)
       added_lines = git_utils.added_lines(diff_patch: diff_patch)
-      matches = added_lines.scan(CLASS_MODIFIER_DETECTOR)
+      matches = "#{added_lines}\n".scan(CLASS_MODIFIER_DETECTOR) # add a newline to ensure the regex matches the last class in the file
       matches.reject! do |m|
         class_match_is_exception?(
           m,
@@ -181,10 +182,11 @@ module Danger
     # @param classes_exceptions [Array<String>] Regexes matching class names to exclude from the check.
     # @param subclasses_exceptions [Array<String>] Regexes matching base class names to exclude from the check
     #
-    # @return [void]
+    # @return [Boolean]
     def class_match_is_exception?(match, file, classes_exceptions, subclasses_exceptions)
       return true if classes_exceptions.any? { |re| match[1] =~ re }
       return true if CLASS_MODIFIER_EXCEPTIONS.any? { |re| match[0] =~ re }
+      return true unless match[3].include?('{') # Ignore classes that don't have a body
 
       subclass_regexp = File.extname(file) == '.java' ? /extends\s+([A-Z]\w+)/m : /\s*:\s*([A-Z]\w+)/m
       subclass = match[2].scan(subclass_regexp)&.last&.last

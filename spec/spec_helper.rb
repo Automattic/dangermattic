@@ -58,8 +58,14 @@ def testing_dangerfile
   Danger::Dangerfile.new(env, testing_ui)
 end
 
-def fixture(name)
-  File.read("spec/fixtures/#{name}")
+# Returns the full path of the fixture at the given subpath (relative to `spec/fixtures`)
+def fixture_path(*path_components)
+  File.join('spec', 'fixtures', *path_components)
+end
+
+# Returns the content of the fixture at the given path (relative to `spec/fixtures`)
+def fixture(*path_components)
+  File.read(fixture_path(*path_components))
 end
 
 # custom matchers
