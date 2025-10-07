@@ -76,13 +76,12 @@ module Danger
     def insertions_size(file_selector: nil)
       return danger.git.insertions unless file_selector
 
-      filtered_files = git_utils.all_changed_files.select(&file_selector)
+      # Only check added and modified files - deleted files have 0 insertions
+      filtered_files = git_utils.added_and_modified_files.select(&file_selector)
 
       filtered_files.sum do |file|
-        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
-
-        danger.git.info_for_file(file)&.[](:insertions).to_i
+        # Use cached stats directly instead of calling info_for_file for each file
+        danger.git.diff.stats[:files][file]&.[](:insertions).to_i
       end
     end
 
@@ -97,10 +96,8 @@ module Danger
       filtered_files = git_utils.all_changed_files.select(&file_selector)
 
       filtered_files.sum do |file|
-        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
-
-        danger.git.info_for_file(file)&.[](:deletions).to_i
+        # Use cached stats directly instead of calling info_for_file for each file
+        danger.git.diff.stats[:files][file]&.[](:deletions).to_i
       end
     end
 
@@ -115,10 +112,11 @@ module Danger
       filtered_files = git_utils.all_changed_files.select(&file_selector)
 
       filtered_files.sum do |file|
-        # stats for a file in the GitHub API might be nil, making `info_for_file()` crash
-        next 0 if danger.git.diff.stats[:files][file].nil?
+        # Use cached stats directly instead of calling info_for_file for each file
+        stats = danger.git.diff.stats[:files][file]
+        next 0 unless stats
 
-        danger.git.info_for_file(file)&.[](:deletions).to_i + danger.git.info_for_file(file)&.[](:insertions).to_i
+        stats[:deletions].to_i + stats[:insertions].to_i
       end
     end
   end

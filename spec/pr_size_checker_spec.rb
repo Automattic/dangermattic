@@ -146,19 +146,20 @@ module Danger
             allow(@plugin.git).to receive_messages(added_files: [added_config, added_file], modified_files: [modified_file1, modified_file2, added_test_file, modified_strings], deleted_files: [deleted_file1, deleted_test_file, deleted_strings, deleted_file2])
 
             allow(@plugin.git).to receive(:diff).and_return(instance_double(Git::Diff))
-            expected_files = { added_test_file => {}, added_config => {}, added_file => {}, modified_file1 => {}, modified_file2 => {}, modified_strings => {}, deleted_file1 => {}, deleted_file2 => {}, deleted_test_file => {}, deleted_strings => {} }
+            # Populate stats hash directly with insertions/deletions data for the optimized code path
+            expected_files = {
+              added_test_file => { insertions: 201 },
+              added_config => { insertions: 311 },
+              added_file => { insertions: 13 },
+              modified_file1 => { insertions: 127, deletions: 159 },
+              modified_file2 => { insertions: 43, deletions: 37 },
+              modified_strings => { insertions: 432, deletions: 297 },
+              deleted_file1 => { deletions: 246 },
+              deleted_file2 => { deletions: 493 },
+              deleted_test_file => { deletions: 222 },
+              deleted_strings => { deletions: 593 }
+            }
             allow(@plugin.git.diff).to receive(:stats).and_return({ files: expected_files })
-
-            allow(@plugin.git).to receive(:info_for_file).with(added_test_file).and_return({ insertions: 201 })
-            allow(@plugin.git).to receive(:info_for_file).with(added_config).and_return({ insertions: 311 })
-            allow(@plugin.git).to receive(:info_for_file).with(added_file).and_return({ insertions: 13 })
-            allow(@plugin.git).to receive(:info_for_file).with(modified_file1).and_return({ insertions: 127, deletions: 159 })
-            allow(@plugin.git).to receive(:info_for_file).with(modified_file2).and_return({ insertions: 43, deletions: 37 })
-            allow(@plugin.git).to receive(:info_for_file).with(modified_strings).and_return({ insertions: 432, deletions: 297 })
-            allow(@plugin.git).to receive(:info_for_file).with(deleted_file1).and_return({ deletions: 246 })
-            allow(@plugin.git).to receive(:info_for_file).with(deleted_file2).and_return({ deletions: 493 })
-            allow(@plugin.git).to receive(:info_for_file).with(deleted_test_file).and_return({ deletions: 222 })
-            allow(@plugin.git).to receive(:info_for_file).with(deleted_strings).and_return({ deletions: 593 })
           end
         end
 
