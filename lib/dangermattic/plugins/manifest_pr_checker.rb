@@ -115,13 +115,19 @@ module Danger
     private
 
     def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:, report_type: :warning)
+      all_files = git_utils.all_changed_files
+
       # Find all the modified manifest files
-      manifest_modified_files = git_utils.all_changed_files.select { |f| File.basename(f) == file_name }
+      manifest_modified_files = all_files.select { |f| File.basename(f) == file_name }
+
+      # Build a hash mapping directory -> set of basenames for O(1) lookup
+      files_by_dir = all_files.group_by { |f| File.dirname(f) }
+                              .transform_values { |files| files.to_set { |f| File.basename(f) } }
 
       # For each manifest file, check if the corresponding lockfile (in the same dir) was also modified
       manifest_modified_files.each do |manifest_file|
-        lockfile_modified = git_utils.all_changed_files.any? { |f| File.dirname(f) == File.dirname(manifest_file) && File.basename(f) == lock_file_name }
-        next if lockfile_modified
+        manifest_dir = File.dirname(manifest_file)
+        next if files_by_dir[manifest_dir]&.include?(lock_file_name)
 
         message = format(MESSAGE, manifest_file, lock_file_name, instruction)
         reporter.report(message: message, type: report_type)
@@ -129,11 +135,10 @@ module Danger
     end
 
     def check_manifest_lock_updated_strict(manifest_path:, manifest_lock_path:, instruction:, report_type: :warning)
-      manifest_modified = git_utils.all_changed_files.include?(manifest_path)
-      return unless manifest_modified
+      all_files_set = git_utils.all_changed_files.to_set
 
-      lockfile_modified = git_utils.all_changed_files.include?(manifest_lock_path)
-      return if lockfile_modified
+      return unless all_files_set.include?(manifest_path)
+      return if all_files_set.include?(manifest_lock_path)
 
       message = format(MESSAGE, manifest_path, File.basename(manifest_lock_path), instruction)
       reporter.report(message: message, type: report_type)
