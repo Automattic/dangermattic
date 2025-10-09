@@ -18,6 +18,12 @@ _None_
 
 ### Internal Changes
 
+_None_
+
+## 1.2.4
+
+### Internal Changes
+
 - `pr_size_checker` and `manifest_pr_checker`: optimize performance for large PRs [#103]
 
 ## 1.2.3
