@@ -41,13 +41,13 @@ steps:
   #################
   # Danger Lint
   #################
-  - label: "☢️ Lint (Danger)"
+  - label: ":danger: Lint (Danger)"
     key: dangerlint
     command: |
       echo "--- :rubygems: Setting up Gems"
       bundle install
 
-      echo "--- ☢️ Run Danger Lint"
+      echo "--- :danger: Run Danger Lint"
       bundle exec danger plugins lint
     plugins: *common_plugins
 
