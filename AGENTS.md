@@ -28,3 +28,8 @@ bundle install
 
 - Tests written with RSpec
 - CI via Buildkite, see `.buildkite`
+- Gem releases are triggered by Git tags pushed to the remote and run in CI.
+
+## Pitfalls
+
+- Together with unit tests, `bundle exec danger plugins lint` must also pass — it validates plugin metadata and code correctness.
