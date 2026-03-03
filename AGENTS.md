@@ -1,8 +1,35 @@
-# AGENTS.md
-
-This file provides guidance to AI agents when working with code in this repository.
-
 ## Overview
 
 Dangermattic is a shared collection of Danger plugins used across Automattic's mobile repositories.
 It provides reusable Danger rules for PR checks, code review automation, and CI enforcement.
+
+## Bootstrap
+
+Requires Ruby at the version specified in `.ruby-version`.
+
+```bash
+bundle install
+```
+
+## Commands
+
+- `bundle exec rake` — run all checks (specs + RuboCop + Danger lint)
+- `bundle exec rspec` — run tests only
+- `bundle exec rubocop` — run linter only
+
+## Project Structure
+
+- `lib/dangermattic/plugins/` — Danger plugin implementations
+- `lib/dangermattic/plugins/common/` — shared helpers used across plugins
+- `spec/` — RSpec tests; each plugin has a matching `*_spec.rb`
+- `spec/fixtures/` — test fixtures
+
+## Conventions
+
+- Tests written with RSpec
+- CI via Buildkite, see `.buildkite`
+- Gem releases are triggered by Git tags pushed to the remote and run in CI.
+
+## Pitfalls
+
+- Together with unit tests, `bundle exec danger plugins lint` must also pass — it validates plugin metadata and code correctness.
