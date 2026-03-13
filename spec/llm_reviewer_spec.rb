@@ -13,8 +13,19 @@ module Danger
         @dangerfile = testing_dangerfile
         @plugin = @dangerfile.llm_reviewer
 
+        @mock_api = double('Octokit::Client') # rubocop:disable RSpec/VerifiedDoubles
         allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
-        allow(@plugin.github).to receive_messages(pr_title: 'Test PR', pr_body: 'Test description')
+        allow(@plugin.github).to receive_messages(
+          pr_title: 'Test PR',
+          pr_body: 'Test description',
+          pr_json: {
+            'head' => { 'sha' => 'abc123' },
+            'base' => { 'repo' => { 'full_name' => 'owner/repo' } },
+            'number' => 42
+          },
+          api: @mock_api
+        )
+        allow(@mock_api).to receive(:pull_request_comments).and_return([])
       end
 
       context 'when max_comments is invalid' do
@@ -77,7 +88,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:warnings]).to eq(['Potential null reference.'])
+          expect(@dangerfile.status_report[:warnings]).to eq(['Potential null reference. <!-- llm-review:warning -->'])
         end
 
         it 'posts inline errors for error-severity findings' do
@@ -91,7 +102,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:errors]).to eq(['SQL injection vulnerability.'])
+          expect(@dangerfile.status_report[:errors]).to eq(['SQL injection vulnerability. <!-- llm-review:error -->'])
         end
 
         it 'posts info messages for info-severity findings' do
@@ -105,7 +116,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:messages]).to eq(['Consider adding a comment.'])
+          expect(@dangerfile.status_report[:messages]).to eq(['Consider adding a comment. <!-- llm-review:info -->'])
         end
 
         it 'reports nothing when LLM returns empty findings' do
@@ -201,7 +212,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:warnings]).to eq(['Issue at wrong line. (in `app/main.rb`)'])
+          expect(@dangerfile.status_report[:warnings]).to eq(['Issue at wrong line. (in `app/main.rb`) <!-- llm-review:warning -->'])
         end
       end
 
@@ -234,7 +245,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:messages]).to eq(['Test.'])
+          expect(@dangerfile.status_report[:messages]).to eq(['Test. <!-- llm-review:info -->'])
         end
       end
 
@@ -346,7 +357,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o', max_comments: 2)
 
-          expect(@dangerfile.status_report[:errors]).to eq(['Error finding.'])
+          expect(@dangerfile.status_report[:errors]).to eq(['Error finding. <!-- llm-review:error -->'])
         end
 
         it 'keeps warnings over info when capping' do
@@ -360,7 +371,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o', max_comments: 2)
 
-          expect(@dangerfile.status_report[:warnings]).to eq(['Warning finding.'])
+          expect(@dangerfile.status_report[:warnings]).to eq(['Warning finding. <!-- llm-review:warning -->'])
         end
       end
 
@@ -513,7 +524,88 @@ module Danger
 
           @plugin.review(model: 'gpt-4o')
 
-          expect(@dangerfile.status_report[:warnings]).to eq(['Unknown severity finding.'])
+          expect(@dangerfile.status_report[:warnings]).to eq(['Unknown severity finding. <!-- llm-review:warning -->'])
+        end
+      end
+
+      context 'when caching findings from previous runs' do
+        let(:mock_provider) { instance_double(OpenAiProvider) }
+
+        before do
+          allow(@plugin.git).to receive_messages(
+            added_files: ['app/main.rb'],
+            modified_files: []
+          )
+          allow(@plugin.git).to receive(:diff_for_file).with('app/main.rb').and_return(
+            instance_double(Git::Diff::DiffFile, patch: "@@ -0,0 +1,1 @@\n+new line\n")
+          )
+          stub_env_keys
+          allow(LlmProvider).to receive(:build).and_return(mock_provider)
+        end
+
+        it 'replays cached findings and skips the LLM call' do
+          cached_comment = double( # rubocop:disable RSpec/VerifiedDoubles
+            'ReviewComment',
+            commit_id: 'abc123',
+            path: 'app/main.rb',
+            line: 1,
+            body: "<td>\n\nSome issue. <!-- llm-review:warning -->\n\n</td>"
+          )
+          allow(@mock_api).to receive(:pull_request_comments).and_return([cached_comment])
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(LlmProvider).not_to have_received(:build)
+          expect(@dangerfile.status_report[:warnings]).to eq(['Some issue. <!-- llm-review:warning -->'])
+        end
+
+        it 'calls the LLM when no cached findings exist for this SHA' do
+          allow(mock_provider).to receive(:chat).and_return({ 'findings' => [] }.to_json)
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(LlmProvider).to have_received(:build)
+        end
+
+        it 'ignores cached comments from a different commit' do
+          stale_comment = double( # rubocop:disable RSpec/VerifiedDoubles
+            'ReviewComment',
+            commit_id: 'old_sha',
+            path: 'app/main.rb',
+            line: 1,
+            body: "<td>\n\nStale. <!-- llm-review:warning -->\n\n</td>"
+          )
+          allow(@mock_api).to receive(:pull_request_comments).and_return([stale_comment])
+          allow(mock_provider).to receive(:chat).and_return({ 'findings' => [] }.to_json)
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(LlmProvider).to have_received(:build)
+        end
+
+        it 'ignores comments without the LLM review tag' do
+          other_comment = double( # rubocop:disable RSpec/VerifiedDoubles
+            'ReviewComment',
+            commit_id: 'abc123',
+            path: 'app/main.rb',
+            line: 1,
+            body: '<td>Some other plugin comment</td>'
+          )
+          allow(@mock_api).to receive(:pull_request_comments).and_return([other_comment])
+          allow(mock_provider).to receive(:chat).and_return({ 'findings' => [] }.to_json)
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(LlmProvider).to have_received(:build)
+        end
+
+        it 'falls through to fresh review when cache check fails' do
+          allow(@mock_api).to receive(:pull_request_comments).and_raise(StandardError, 'API error')
+          allow(mock_provider).to receive(:chat).and_return({ 'findings' => [] }.to_json)
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(LlmProvider).to have_received(:build)
         end
       end
     end

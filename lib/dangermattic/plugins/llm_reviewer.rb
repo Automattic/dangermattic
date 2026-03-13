@@ -31,6 +31,9 @@ module Danger
 
     SEVERITY_MAP = { 'info' => :message, 'warning' => :warning, 'error' => :error }.freeze
 
+    # Pattern to identify and parse LLM review tags in comment bodies
+    LLM_REVIEW_TAG_PATTERN = /<!-- llm-review:(error|warning|info) -->/
+
     DEFAULT_SYSTEM_PROMPT = <<~PROMPT
       You are an expert code reviewer. You will receive a pull request diff and metadata.
       Your job is to identify issues in the CHANGED code (added lines only).
@@ -96,6 +99,14 @@ module Danger
                report_type: :warning, max_diff_size: DEFAULT_MAX_DIFF_SIZE)
       raise ArgumentError, "max_comments must be a positive integer, got #{max_comments.inspect}" unless max_comments.is_a?(Integer) && max_comments >= 1
 
+      # If we already reviewed this exact commit, replay the cached findings so Danger
+      # keeps the existing inline comments without calling the LLM again.
+      cached = load_cached_findings
+      if cached&.any?
+        report_findings(findings: cached, default_severity: report_type)
+        return
+      end
+
       diffs, valid_lines = collect_diffs(file_selector: file_selector, max_diff_size: max_diff_size)
 
       return if diffs.empty?
@@ -124,6 +135,37 @@ module Danger
     end
 
     private
+
+    # Checks existing PR review comments for tagged LLM findings posted against the
+    # current HEAD commit. Returns an array of Finding structs if found, nil otherwise.
+    def load_cached_findings
+      head_sha = github.pr_json['head']['sha']
+      repo = github.pr_json['base']['repo']['full_name']
+      pr_number = github.pr_json['number']
+
+      comments = github.api.pull_request_comments(repo, pr_number)
+      findings = comments.filter_map do |comment|
+        next unless comment.commit_id == head_sha
+
+        tag_match = comment.body.match(LLM_REVIEW_TAG_PATTERN)
+        next unless tag_match
+
+        tagged_message = extract_tagged_message(body: comment.body)
+        next unless tagged_message
+
+        Finding.new(file: comment.path, line: comment.line, severity: tag_match[1], message: tagged_message)
+      end
+
+      findings.empty? ? nil : findings
+    rescue StandardError
+      nil # On any error, fall through to fresh LLM review
+    end
+
+    # Extracts the original tagged message from Danger's inline comment HTML wrapper.
+    def extract_tagged_message(body:)
+      td_match = body.match(%r{<td>\s*\n*(.*?<!-- llm-review:(?:error|warning|info) -->)\s*\n*</td>}m)
+      td_match ? td_match[1].strip : nil
+    end
 
     def build_provider(model:, provider:)
       LlmProvider.build(model: model, provider: provider)
@@ -315,7 +357,11 @@ module Danger
     end
 
     def report_single_finding(finding:, severity:)
-      msg = finding.message
+      msg = if finding.message.match?(LLM_REVIEW_TAG_PATTERN)
+              finding.message
+            else
+              "#{finding.message} <!-- llm-review:#{finding.severity} -->"
+            end
       has_location = finding.file && finding.line
 
       case severity
