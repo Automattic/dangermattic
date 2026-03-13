@@ -73,7 +73,8 @@ module Danger
       }
 
       The "file" field must exactly match a file path from the diff.
-      The "line" field must be a line number from the NEW version of the file (right side of the diff).
+      The "line" field must be a line number from the NEW version of the file. Each added or context
+      line in the diff is annotated with [L<number>] — use that exact number for the "line" field.
       The "severity" field must be one of: "info", "warning", "error".
       The "message" field should be a concise explanation of the issue.
     PROMPT
@@ -201,10 +202,41 @@ module Danger
       parts << "## Changed Files\n"
 
       diffs.each do |diff_data|
-        parts << "### #{diff_data[:file]}\n```diff\n#{diff_data[:patch]}\n```\n"
+        annotated = annotate_patch_with_line_numbers(patch: diff_data[:patch])
+        parts << "### #{diff_data[:file]}\n```diff\n#{annotated}\n```\n"
       end
 
       parts.join("\n")
+    end
+
+    # Annotates each line in a unified diff patch with file line numbers so the LLM
+    # can reference exact lines without counting. Added and context lines get new-file
+    # line numbers; removed lines get old-file line numbers.
+    def annotate_patch_with_line_numbers(patch:)
+      old_line = nil
+      new_line = nil
+
+      patch.each_line.map do |line|
+        hunk_match = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/)
+        if hunk_match
+          old_line = hunk_match[1].to_i
+          new_line = hunk_match[2].to_i
+          line
+        elsif line.start_with?('+') && !line.start_with?('+++')
+          annotated = "[L#{new_line}] #{line}"
+          new_line += 1
+          annotated
+        elsif line.start_with?('-') && !line.start_with?('---')
+          result = line
+          old_line += 1
+          result
+        else
+          annotated = new_line ? "[L#{new_line}] #{line}" : line
+          new_line += 1 if new_line
+          old_line += 1 if old_line
+          annotated
+        end
+      end.join
     end
 
     def parse_response(response_body:)

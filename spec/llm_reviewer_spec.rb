@@ -408,6 +408,57 @@ module Danger
         end
       end
 
+      context 'when annotating diffs with line numbers' do
+        let(:mock_provider) { instance_double(OpenAiProvider) }
+
+        before do
+          allow(@plugin.git).to receive_messages(
+            added_files: ['app/main.rb'],
+            modified_files: []
+          )
+          stub_env_keys
+          allow(LlmProvider).to receive(:build).and_return(mock_provider)
+        end
+
+        it 'annotates added lines with new-file line numbers' do # rubocop:disable RSpec/MultipleExpectations
+          patch = "@@ -0,0 +1,3 @@\n+line one\n+line two\n+line three\n"
+          allow(@plugin.git).to receive(:diff_for_file).with('app/main.rb').and_return(
+            instance_double(Git::Diff::DiffFile, patch: patch)
+          )
+          captured_user_message = nil
+          allow(mock_provider).to receive(:chat) do |user_message:, **_rest|
+            captured_user_message = user_message
+            { 'findings' => [] }.to_json
+          end
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(captured_user_message).to include('[L1] +line one')
+          expect(captured_user_message).to include('[L2] +line two')
+          expect(captured_user_message).to include('[L3] +line three')
+        end
+
+        it 'annotates context lines and skips removed lines' do # rubocop:disable RSpec/MultipleExpectations
+          patch = "@@ -10,4 +10,4 @@\n context\n-old line\n+new line\n more context\n"
+          allow(@plugin.git).to receive(:diff_for_file).with('app/main.rb').and_return(
+            instance_double(Git::Diff::DiffFile, patch: patch)
+          )
+          captured_user_message = nil
+          allow(mock_provider).to receive(:chat) do |user_message:, **_rest|
+            captured_user_message = user_message
+            { 'findings' => [] }.to_json
+          end
+
+          @plugin.review(model: 'gpt-4o')
+
+          expect(captured_user_message).to include('[L10]  context')
+          expect(captured_user_message).to include('[L11] +new line')
+          expect(captured_user_message).to include('[L12]  more context')
+          expect(captured_user_message).to include('-old line')
+          expect(captured_user_message).not_to match(/\[L\d+\].*old line/)
+        end
+      end
+
       context 'when diff exceeds max_diff_size' do
         let(:mock_provider) { instance_double(OpenAiProvider) }
 
