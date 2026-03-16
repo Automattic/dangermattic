@@ -4,8 +4,8 @@ module Danger
   # Plugin for suggesting translation context on new or modified localized strings.
   #
   # Uses the txcontext gem to analyze how strings are used in source code and
-  # generate context descriptions via LLM. Results are posted as inline PR
-  # comments on the changed translation file lines and/or as a summary table.
+  # generate context descriptions via LLM. Results are posted inline on the
+  # changed translation file lines and/or as a summary table.
   #
   # Requires the `txcontext` gem to be in the project's Gemfile and the
   # `ANTHROPIC_API_KEY` environment variable to be set in CI.
@@ -27,38 +27,62 @@ module Danger
   #            report_type: :warning
   #          )
   #
-  # @example Summary table only (no inline comments)
+  # @example Summary table only
   #
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
   #            source_paths: ['WooCommerce/'],
-  #            inline: false,
-  #            summary: true
+  #            report_location: :summary
+  #          )
+  #
+  # @example Inline comments and summary table
+  #
+  #          translation_context_checker.check_context_suggestions(
+  #            translations: 'app/src/main/res/values/strings.xml',
+  #            source_paths: ['app/src/main/java/'],
+  #            report_location: :both
+  #          )
+  #
+  # @example Inline GitHub suggestions that can be applied directly
+  #
+  #          translation_context_checker.check_context_suggestions(
+  #            translations: 'app/src/main/res/values/strings.xml',
+  #            source_paths: ['app/src/main/java/'],
+  #            inline_suggestions: true
   #          )
   #
   # @see Automattic/dangermattic
   # @tags localization, translation, context
   #
   class TranslationContextChecker < Plugin
+    VALID_REPORT_LOCATIONS = %i[inline summary both none].freeze
     STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
     XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
     XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
     XML_PLURALS_KEY_PATTERN = /^\+.*<plurals\s+[^>]*?name=["']([^"']+)["']/
+    XML_FILE_STRING_PATTERN = /<string\s+[^>]*?name=["']([^"']+)["']/
+    XML_FILE_STRING_ARRAY_PATTERN = /<string-array\s+[^>]*?name=["']([^"']+)["']/
+    XML_FILE_PLURALS_PATTERN = /<plurals\s+[^>]*?name=["']([^"']+)["']/
 
     # Analyze new or modified translation keys in the PR and suggest context descriptions
     # to help translators understand how each string is used in the app.
     #
     # @param translations [String, Array<String>] Path(s) to translation file(s) (e.g., Localizable.strings, strings.xml).
     # @param source_paths [String, Array<String>] Path(s) to source code directories to search for string usage.
-    # @param inline [Boolean] (optional) Post inline comments on changed translation lines. Default is true.
-    # @param summary [Boolean] (optional) Post a summary markdown table with all suggestions. Default is true.
+    # @param report_location [Symbol, String] (optional) Where to post suggestions. Values: :inline (default), :summary, :both.
+    # @param inline [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with summary.
+    # @param summary [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with inline.
     # @param report_type [Symbol] (optional) Type of inline report (:message, :warning, :error). Default is :message.
     # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
     # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
+    # @param inline_suggestions [Boolean] (optional) Include GitHub suggestion blocks in inline comments when possible. Default is false.
     #
     # @return [void]
-    def check_context_suggestions(translations:, source_paths:, inline: true, summary: true, report_type: :message,
-                                  provider: :anthropic, model: nil)
+    def check_context_suggestions(translations:, source_paths:, report_location: :inline, inline: nil, summary: nil,
+                                  report_type: :message, provider: :anthropic, model: nil, inline_suggestions: false)
+      report_location = normalize_report_location(report_location, inline: inline, summary: summary)
+      return if report_location.nil? || report_location == :none
+
       unless load_txcontext
         reporter.report(
           message: '`txcontext` gem is required for translation context suggestions. Add it to your Gemfile.',
@@ -103,8 +127,11 @@ module Danger
       valid_results = results.reject { |r| skip_result?(r) }
       return if valid_results.empty?
 
-      post_inline_comments(valid_results, changed_translation_files, report_type) if inline
-      post_summary_table(valid_results) if summary
+      if inline_reporting?(report_location)
+        post_inline_comments(valid_results, changed_translation_files, report_type,
+                             inline_suggestions: inline_suggestions)
+      end
+      post_summary_table(valid_results) if summary_reporting?(report_location)
     end
 
     private
@@ -173,15 +200,15 @@ module Danger
     end
 
     # Post inline comments on the translation file lines where keys were changed.
-    def post_inline_comments(results, translation_files, report_type)
+    def post_inline_comments(results, translation_files, report_type, inline_suggestions: false)
       key_lines = build_key_line_map(translation_files)
 
       results.each do |result|
-        comment = format_inline_message(result)
         locations = key_lines[result.key]
 
         if locations&.any?
           locations.each do |location|
+            comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
             case report_type
             when :warning
               warn(comment, file: location[:file], line: location[:line])
@@ -193,7 +220,7 @@ module Danger
           end
         else
           # Fallback to PR-level comment if line not found
-          reporter.report(message: comment, type: report_type)
+          reporter.report(message: format_inline_message(result), type: report_type)
         end
       end
     end
@@ -201,23 +228,18 @@ module Danger
     # Post a summary markdown table with all context suggestions.
     def post_summary_table(results)
       table = "### Translation Context Suggestions\n\n"
-      table += "| Key | Text | Suggested Context | UI Element |\n"
-      table += "|-----|------|-------------------|------------|\n"
+      table += "| Key | Text | Suggested Context |\n"
+      table += "|-----|------|-------------------|\n"
 
       results.sort_by(&:key).each do |result|
         key = escape_table_cell(result.key)
         text = escape_table_cell(truncate(result.text.to_s, 50))
-        desc = escape_table_cell(result.description.to_s)
-        ui = result.ui_element || '-'
-        table += "| `#{key}` | #{text} | #{desc} | #{ui} |\n"
+        desc = escape_table_cell(format_summary_description(result))
+        table += "| `#{key}` | #{text} | #{desc} |\n"
       end
 
       markdown(table)
     end
-
-    XML_FILE_STRING_PATTERN = /<string\s+[^>]*?name=["']([^"']+)["']/
-    XML_FILE_STRING_ARRAY_PATTERN = /<string-array\s+[^>]*?name=["']([^"']+)["']/
-    XML_FILE_PLURALS_PATTERN = /<plurals\s+[^>]*?name=["']([^"']+)["']/
 
     # Build a map of translation key -> [{ file:, line: }, ...] for inline comment placement.
     # Returns an array of locations per key to handle the same key appearing in multiple files.
@@ -228,7 +250,7 @@ module Danger
         next unless File.exist?(path)
 
         File.readlines(path).each_with_index do |line, idx|
-          location = { file: path, line: idx + 1 }
+          location = { file: path, line: idx + 1, content: line.chomp }
 
           case File.extname(path).downcase
           when '.strings'
@@ -244,17 +266,117 @@ module Danger
       map
     end
 
-    def format_inline_message(result)
-      parts = ["**Translation Context Suggestion**\n#{result.description}"]
+    def format_inline_message(result, location: nil, inline_suggestions: false)
+      parts = ['**Translation Context Suggestion**', result.description.to_s]
+      parts << "*Max length: #{result.max_length}*" if result.max_length
 
-      metadata = []
-      metadata << "UI: #{result.ui_element}" if result.ui_element
-      metadata << "Tone: #{result.tone}" if result.tone
-      metadata << "Max length: #{result.max_length}" if result.max_length
-
-      parts << "*#{metadata.join(' · ')}*" unless metadata.empty?
+      suggestion = format_inline_suggestion(result, location)
+      parts << suggestion if inline_suggestions && suggestion
 
       parts.join("\n")
+    end
+
+    def format_summary_description(result)
+      return result.description.to_s unless result.max_length
+
+      "#{result.description} (Max length: #{result.max_length})"
+    end
+
+    def format_inline_suggestion(result, location)
+      return unless location
+      return unless suggestion_supported?(location)
+
+      comment_line = translator_comment_for(result.description.to_s, location)
+      return unless comment_line
+
+      [
+        '```suggestion',
+        comment_line,
+        location[:content],
+        '```'
+      ].join("\n")
+    end
+
+    def suggestion_supported?(location)
+      return false if location[:content].to_s.strip.empty?
+      return false if existing_translator_comment?(location)
+
+      %w[.strings .xml].include?(File.extname(location[:file]).downcase)
+    end
+
+    def existing_translator_comment?(location)
+      return false unless File.exist?(location[:file])
+
+      previous_line = File.readlines(location[:file])[location[:line] - 2]
+      return false unless previous_line
+
+      stripped = previous_line.strip
+
+      case File.extname(location[:file]).downcase
+      when '.strings'
+        stripped.start_with?('/*') && stripped.end_with?('*/')
+      when '.xml'
+        stripped.start_with?('<!--') && stripped.end_with?('-->')
+      else
+        false
+      end
+    end
+
+    def translator_comment_for(description, location)
+      indentation = location[:content][/^\s*/] || ''
+
+      case File.extname(location[:file]).downcase
+      when '.strings'
+        "#{indentation}/* #{escape_strings_comment(description)} */"
+      when '.xml'
+        "#{indentation}<!-- #{escape_xml_comment(description)} -->"
+      end
+    end
+
+    def escape_strings_comment(text)
+      text.to_s.gsub('*/', '* /')
+    end
+
+    def escape_xml_comment(text)
+      text.to_s.gsub('--', '- -')
+    end
+
+    def normalize_report_location(report_location, inline:, summary:)
+      return normalize_legacy_report_location(inline: inline, summary: summary) unless inline.nil? && summary.nil?
+
+      normalized = report_location.to_sym
+      return normalized if VALID_REPORT_LOCATIONS.include?(normalized)
+
+      reporter.report(
+        message: "Invalid report_location `#{report_location}`. Expected one of: #{VALID_REPORT_LOCATIONS.join(', ')}.",
+        type: :warning
+      )
+      nil
+    rescue NoMethodError
+      reporter.report(
+        message: "Invalid report_location `#{report_location}`. Expected one of: #{VALID_REPORT_LOCATIONS.join(', ')}.",
+        type: :warning
+      )
+      nil
+    end
+
+    def normalize_legacy_report_location(inline:, summary:)
+      legacy_inline = inline.nil? || inline
+      legacy_summary = summary.nil? || summary
+
+      return :both if legacy_inline && legacy_summary
+      return :inline if legacy_inline
+      return :summary if legacy_summary
+
+      :none
+    end
+
+    def inline_reporting?(report_location)
+      %i[inline both].include?(report_location)
+    end
+
+    def summary_reporting?(report_location)
+      %i[summary both].include?(report_location)
     end
 
     def skip_result?(result)
