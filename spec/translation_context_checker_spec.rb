@@ -267,15 +267,15 @@ module Danger
             @plugin.check_context_suggestions(
               translations: strings_path,
               source_paths: ['WooCommerce/'],
-              provider: 'anthropic',
-              model: 'claude-sonnet-4-6-20250514',
+              provider: :anthropic,
+              model: 'claude-sonnet-4-6',
               summary: false
             )
 
             expect(@plugin).to have_received(:run_extraction).with(
               hash_including(
-                provider: 'anthropic',
-                model: 'claude-sonnet-4-6-20250514'
+                provider: :anthropic,
+                model: 'claude-sonnet-4-6'
               )
             )
           end

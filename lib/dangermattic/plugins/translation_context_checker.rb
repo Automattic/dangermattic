@@ -22,8 +22,8 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'app/src/main/res/values/strings.xml',
   #            source_paths: ['app/src/main/java/'],
-  #            provider: 'anthropic',
-  #            model: 'claude-sonnet-4-6-20250514',
+  #            provider: :anthropic,
+  #            model: 'claude-sonnet-4-6',
   #            report_type: :warning
   #          )
   #
@@ -53,12 +53,12 @@ module Danger
     # @param inline [Boolean] (optional) Post inline comments on changed translation lines. Default is true.
     # @param summary [Boolean] (optional) Post a summary markdown table with all suggestions. Default is true.
     # @param report_type [Symbol] (optional) Type of inline report (:message, :warning, :error). Default is :message.
-    # @param provider [String] (optional) LLM provider to use. Default is 'anthropic'.
+    # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
     # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
     #
     # @return [void]
     def check_context_suggestions(translations:, source_paths:, inline: true, summary: true, report_type: :message,
-                                  provider: 'anthropic', model: nil)
+                                  provider: :anthropic, model: nil)
       unless load_txcontext
         reporter.report(
           message: '`txcontext` gem is required for translation context suggestions. Add it to your Gemfile.',
