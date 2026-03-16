@@ -22,6 +22,8 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'app/src/main/res/values/strings.xml',
   #            source_paths: ['app/src/main/java/'],
+  #            provider: 'anthropic',
+  #            model: 'claude-sonnet-4-6-20250514',
   #            report_type: :warning
   #          )
   #
@@ -51,9 +53,12 @@ module Danger
     # @param inline [Boolean] (optional) Post inline comments on changed translation lines. Default is true.
     # @param summary [Boolean] (optional) Post a summary markdown table with all suggestions. Default is true.
     # @param report_type [Symbol] (optional) Type of inline report (:message, :warning, :error). Default is :message.
+    # @param provider [String] (optional) LLM provider to use. Default is 'anthropic'.
+    # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
     #
     # @return [void]
-    def check_context_suggestions(translations:, source_paths:, inline: true, summary: true, report_type: :message)
+    def check_context_suggestions(translations:, source_paths:, inline: true, summary: true, report_type: :message,
+                                  provider: 'anthropic', model: nil)
       unless load_txcontext
         reporter.report(
           message: '`txcontext` gem is required for translation context suggestions. Add it to your Gemfile.',
@@ -81,7 +86,9 @@ module Danger
         results = run_extraction(
           translations: translations,
           source_paths: source_paths,
-          changed_keys: changed_keys
+          changed_keys: changed_keys,
+          provider: provider,
+          model: model
         )
       rescue StandardError => e
         reporter.report(
@@ -148,13 +155,15 @@ module Danger
     # @param changed_keys [Set<String>] Keys to generate context for.
     # @return [Array<Txcontext::ContextExtractor::ExtractionResult>] Extraction results.
     # @raise [StandardError] if extraction fails (caller is responsible for handling).
-    def run_extraction(translations:, source_paths:, changed_keys:)
+    def run_extraction(translations:, source_paths:, changed_keys:, provider:, model:)
       key_filter = changed_keys.map { |k| Regexp.escape(k) }.join(',')
 
       config = Txcontext::Config.new(
         translations: translations,
         source_paths: source_paths,
         key_filter: key_filter,
+        provider: provider,
+        model: model,
         no_cache: true
       )
 

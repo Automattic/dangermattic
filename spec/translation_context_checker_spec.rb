@@ -262,6 +262,23 @@ module Danger
             expect(@dangerfile.status_report[:warnings].length).to eq(1)
             expect(@dangerfile.status_report[:warnings].first).to include('Translation Context Suggestion')
           end
+
+          it 'passes provider and model through to txcontext' do
+            @plugin.check_context_suggestions(
+              translations: strings_path,
+              source_paths: ['WooCommerce/'],
+              provider: 'anthropic',
+              model: 'claude-sonnet-4-6-20250514',
+              summary: false
+            )
+
+            expect(@plugin).to have_received(:run_extraction).with(
+              hash_including(
+                provider: 'anthropic',
+                model: 'claude-sonnet-4-6-20250514'
+              )
+            )
+          end
         end
 
         context 'when the same key exists in multiple translation files' do
