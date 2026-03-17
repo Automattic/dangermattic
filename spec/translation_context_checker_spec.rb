@@ -254,6 +254,52 @@ module Danger
             MESSAGE
           end
 
+          it 'can include a GitHub suggestion block on the Swift source comment line' do
+            source_path = 'OrderDetailViewController.swift'
+            source_result = ExtractionResultStruct.new(
+              key: 'Add a tracking',
+              text: 'Add a tracking',
+              description: 'Button label in the order detail screen that initiates shipment tracking setup.',
+              ui_element: 'button',
+              tone: 'neutral',
+              max_length: nil,
+              locations: ["#{source_path}:2"],
+              error: nil
+            )
+            source_content = [
+              "static let addTracking = NSLocalizedString(\n",
+              "    \"Add a tracking\",\n",
+              "    comment: \"\"\n",
+              ")\n"
+            ]
+
+            allow(@plugin).to receive(:run_extraction).and_return([source_result])
+            allow(File).to receive(:exist?).with(source_path).and_return(true)
+            allow(File).to receive(:readlines).with(source_path).and_return(source_content)
+            allow(@plugin).to receive(:message)
+
+            expected_message = <<~MESSAGE.chomp
+              **Translation Context Suggestion**
+
+              ```suggestion
+                  comment: "Button label in the order detail screen that initiates shipment tracking setup."
+              ```
+            MESSAGE
+
+            @plugin.check_context_suggestions(
+              translations: strings_path,
+              source_paths: ['WooCommerce/'],
+              inline_suggestions: true,
+              inline_suggestion_target: :source
+            )
+
+            expect(@plugin).to have_received(:message).with(
+              expected_message,
+              file: source_path,
+              line: 3
+            )
+          end
+
           it 'posts inline comments by default' do
             @plugin.check_context_suggestions(
               translations: strings_path,
@@ -660,6 +706,24 @@ module Danger
           SUGGESTION
         end
 
+        it 'formats a Swift suggestion by replacing the comment argument' do
+          result = ExtractionResultStruct.new(description: 'Button label for saving changes.', max_length: 20)
+          location = {
+            file: 'OrderDetailViewController.swift',
+            line: 3,
+            content: '    comment: ""',
+            suggestion_target: :source
+          }
+
+          suggestion = @plugin.send(:format_inline_suggestion, result, location)
+
+          expect(suggestion).to eq(<<~SUGGESTION.chomp)
+            ```suggestion
+                comment: "Button label for saving changes. Max length: 20."
+            ```
+          SUGGESTION
+        end
+
         it 'formats an XML suggestion as a translator comment' do
           result = ExtractionResultStruct.new(description: 'Status label shown while the order is processing.')
           location = {
@@ -699,6 +763,35 @@ module Danger
           )
 
           expect(@plugin.send(:format_inline_suggestion, result, location)).to be_nil
+        end
+      end
+
+      describe '#build_source_line_locations' do
+        it 'maps source matches to the Swift comment line' do
+          result = ExtractionResultStruct.new(
+            description: 'Button label for saving changes.',
+            locations: ['OrderDetailViewController.swift:2']
+          )
+          source_content = [
+            "static let save = NSLocalizedString(\n",
+            "    \"save\",\n",
+            "    comment: \"\"\n",
+            ")\n"
+          ]
+
+          allow(File).to receive(:exist?).with('OrderDetailViewController.swift').and_return(true)
+          allow(File).to receive(:readlines).with('OrderDetailViewController.swift').and_return(source_content)
+
+          expect(@plugin.send(:build_source_line_locations, result)).to eq(
+            [
+              {
+                file: 'OrderDetailViewController.swift',
+                line: 3,
+                content: '    comment: ""',
+                suggestion_target: :source
+              }
+            ]
+          )
         end
       end
 

@@ -51,11 +51,22 @@ module Danger
   #            inline_suggestions: true
   #          )
   #
+  # @example Inline source-code suggestions for Swift localization comments
+  #
+  #          translation_context_checker.check_context_suggestions(
+  #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
+  #            source_paths: ['WooCommerce/Classes/'],
+  #            inline_suggestions: true,
+  #            inline_suggestion_target: :source
+  #          )
+  #
   # @see Automattic/dangermattic
   # @tags localization, translation, context
   #
+  # rubocop:disable Metrics/ClassLength
   class TranslationContextChecker < Plugin
     VALID_REPORT_LOCATIONS = %i[inline summary both none].freeze
+    VALID_INLINE_SUGGESTION_TARGETS = %i[translation source].freeze
     STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
     XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
     XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
@@ -63,6 +74,7 @@ module Danger
     XML_FILE_STRING_PATTERN = /<string\s+[^>]*?name=["']([^"']+)["']/
     XML_FILE_STRING_ARRAY_PATTERN = /<string-array\s+[^>]*?name=["']([^"']+)["']/
     XML_FILE_PLURALS_PATTERN = /<plurals\s+[^>]*?name=["']([^"']+)["']/
+    SWIFT_COMMENT_ARGUMENT_PATTERN = /comment:\s*"((?:\\.|[^"\\])*)"/
 
     # Analyze new or modified translation keys in the PR and suggest context descriptions
     # to help translators understand how each string is used in the app.
@@ -76,12 +88,17 @@ module Danger
     # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
     # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
     # @param inline_suggestions [Boolean] (optional) Include GitHub suggestion blocks in inline comments when possible. Default is false.
+    # @param inline_suggestion_target [Symbol, String] (optional) Target for inline suggestions. Values: :translation (default), :source.
     #
     # @return [void]
     def check_context_suggestions(translations:, source_paths:, report_location: :inline, inline: nil, summary: nil,
-                                  report_type: :message, provider: :anthropic, model: nil, inline_suggestions: false)
+                                  report_type: :message, provider: :anthropic, model: nil, inline_suggestions: false,
+                                  inline_suggestion_target: :translation)
       report_location = normalize_report_location(report_location, inline: inline, summary: summary)
       return if report_location.nil? || report_location == :none
+
+      inline_suggestion_target = normalize_inline_suggestion_target(inline_suggestion_target)
+      return if inline_suggestions && inline_suggestion_target.nil?
 
       unless load_txcontext
         reporter.report(
@@ -129,7 +146,8 @@ module Danger
 
       if inline_reporting?(report_location)
         post_inline_comments(valid_results, changed_translation_files, report_type,
-                             inline_suggestions: inline_suggestions)
+                             inline_suggestions: inline_suggestions,
+                             inline_suggestion_target: inline_suggestion_target)
       end
       post_summary_table(valid_results) if summary_reporting?(report_location)
     end
@@ -200,11 +218,17 @@ module Danger
     end
 
     # Post inline comments on the translation file lines where keys were changed.
-    def post_inline_comments(results, translation_files, report_type, inline_suggestions: false)
+    def post_inline_comments(results, translation_files, report_type, inline_suggestions: false,
+                             inline_suggestion_target: :translation)
       key_lines = build_key_line_map(translation_files)
 
       results.each do |result|
-        locations = key_lines[result.key]
+        locations = resolve_inline_locations(
+          result,
+          key_lines,
+          inline_suggestions: inline_suggestions,
+          inline_suggestion_target: inline_suggestion_target
+        )
 
         if locations&.any?
           locations.each do |location|
@@ -289,7 +313,8 @@ module Danger
 
     def format_inline_suggestion(result, location)
       return unless location
-      return unless suggestion_supported?(location)
+      return format_source_inline_suggestion(result, location) if location[:suggestion_target] == :source
+      return unless translation_suggestion_supported?(location)
 
       comment_line = translator_comment_for(result, location)
       return unless comment_line
@@ -302,11 +327,29 @@ module Danger
       ].join("\n")
     end
 
-    def suggestion_supported?(location)
+    def format_source_inline_suggestion(result, location)
+      return unless source_suggestion_supported?(location)
+
+      updated_line = update_swift_comment_argument(location[:content], suggestion_comment_text(result))
+      return if updated_line.nil? || updated_line == location[:content]
+
+      [
+        '```suggestion',
+        updated_line,
+        '```'
+      ].join("\n")
+    end
+
+    def translation_suggestion_supported?(location)
       return false if location[:content].to_s.strip.empty?
       return false if existing_translator_comment?(location)
 
       %w[.strings .xml].include?(File.extname(location[:file]).downcase)
+    end
+
+    def source_suggestion_supported?(location)
+      File.extname(location[:file]).downcase == '.swift' &&
+        location[:content].to_s.match?(SWIFT_COMMENT_ARGUMENT_PATTERN)
     end
 
     def existing_translator_comment?(location)
@@ -345,8 +388,24 @@ module Danger
       "#{result.description} Max length: #{result.max_length}."
     end
 
+    def update_swift_comment_argument(content, comment_text)
+      replacement = "comment: \"#{escape_swift_string(comment_text)}\""
+
+      content.sub(SWIFT_COMMENT_ARGUMENT_PATTERN, replacement)
+    end
+
     def escape_strings_comment(text)
       text.to_s.gsub('*/', '* /')
+    end
+
+    def escape_swift_string(text)
+      text
+        .to_s
+        .gsub('\\', '\\\\')
+        .gsub('"', '\\"')
+        .gsub("\r", '\\r')
+        .gsub("\n", '\\n')
+        .gsub("\t", '\\t')
     end
 
     def escape_xml_comment(text)
@@ -387,6 +446,74 @@ module Danger
       %i[inline both].include?(report_location)
     end
 
+    def normalize_inline_suggestion_target(inline_suggestion_target)
+      normalized = inline_suggestion_target.to_sym
+      return normalized if VALID_INLINE_SUGGESTION_TARGETS.include?(normalized)
+
+      reporter.report(
+        message: "Invalid inline_suggestion_target `#{inline_suggestion_target}`. " \
+                 "Expected one of: #{VALID_INLINE_SUGGESTION_TARGETS.join(', ')}.",
+        type: :warning
+      )
+      nil
+    rescue NoMethodError
+      reporter.report(
+        message: "Invalid inline_suggestion_target `#{inline_suggestion_target}`. " \
+                 "Expected one of: #{VALID_INLINE_SUGGESTION_TARGETS.join(', ')}.",
+        type: :warning
+      )
+      nil
+    end
+
+    def resolve_inline_locations(result, key_lines, inline_suggestions:, inline_suggestion_target:)
+      if inline_suggestions && inline_suggestion_target == :source
+        source_locations = build_source_line_locations(result)
+        return source_locations if source_locations.any?
+      end
+
+      Array(key_lines[result.key]).map { |location| location.merge(suggestion_target: :translation) }
+    end
+
+    def build_source_line_locations(result)
+      Array(result.locations).filter_map do |entry|
+        parse_source_location(entry)
+      end
+    end
+
+    def parse_source_location(entry)
+      match = entry.to_s.match(/\A(.+):(\d+)\z/)
+      return unless match
+
+      file = match[1]
+      line = match[2].to_i
+      return unless File.exist?(file)
+
+      lines = File.readlines(file).map(&:chomp)
+      return if line < 1 || line > lines.length
+
+      comment_line_index = find_swift_comment_line(lines, line - 1)
+      return unless comment_line_index
+
+      {
+        file: file,
+        line: comment_line_index + 1,
+        content: lines[comment_line_index],
+        suggestion_target: :source
+      }
+    end
+
+    def find_swift_comment_line(lines, start_index, lookahead: 8)
+      end_index = [lines.length - 1, start_index + lookahead].min
+
+      (start_index..end_index).each do |index|
+        line = lines[index]
+        return index if line.match?(SWIFT_COMMENT_ARGUMENT_PATTERN)
+        break if index > start_index && line.match?(/^\s*\)\s*,?\s*$/)
+      end
+
+      nil
+    end
+
     def summary_reporting?(report_location)
       %i[summary both].include?(report_location)
     end
@@ -407,4 +534,5 @@ module Danger
       "#{text[0, length - 3]}..."
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end
