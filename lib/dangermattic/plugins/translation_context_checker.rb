@@ -291,7 +291,7 @@ module Danger
 
     def format_inline_message(result, location: nil, inline_suggestions: false)
       suggestion = format_inline_suggestion(result, location)
-      return suggestion if inline_suggestions && suggestion
+      return suggestion if inline_suggestions
 
       parts = ['**Translation Context Suggestion**', result.description.to_s]
       parts << "*Max length: #{result.max_length}*" if result.max_length

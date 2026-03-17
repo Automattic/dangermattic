@@ -764,6 +764,30 @@ module Danger
         end
       end
 
+      describe '#format_inline_message with inline suggestions' do
+        it 'returns nil when inline suggestions are enabled but a suggestion cannot be generated' do
+          result = ExtractionResultStruct.new(description: 'Screen title shown at the top of the settings screen.')
+          location = {
+            file: 'strings.xml',
+            line: 3,
+            content: '  <string name="settings_title">Settings</string>'
+          }
+
+          allow(File).to receive(:exist?).with(location[:file]).and_return(true)
+          allow(File).to receive(:readlines).with(location[:file]).and_return(
+            [
+              "<resources>\n",
+              "  <!-- Existing context -->\n",
+              "  <string name=\"settings_title\">Settings</string>\n"
+            ]
+          )
+
+          message = @plugin.send(:format_inline_message, result, location: location, inline_suggestions: true)
+
+          expect(message).to be_nil
+        end
+      end
+
       describe '#build_source_line_locations' do
         it 'maps source matches to the Swift comment line' do
           result = ExtractionResultStruct.new(
