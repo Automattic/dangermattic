@@ -267,11 +267,16 @@ module Danger
     end
 
     def format_inline_message(result, location: nil, inline_suggestions: false)
+      suggestion = format_inline_suggestion(result, location)
+      if inline_suggestions && suggestion
+        return [
+          '**Translation Context Suggestion**',
+          suggestion
+        ].join("\n\n")
+      end
+
       parts = ['**Translation Context Suggestion**', result.description.to_s]
       parts << "*Max length: #{result.max_length}*" if result.max_length
-
-      suggestion = format_inline_suggestion(result, location)
-      parts << suggestion if inline_suggestions && suggestion
 
       parts.join("\n")
     end
@@ -286,7 +291,7 @@ module Danger
       return unless location
       return unless suggestion_supported?(location)
 
-      comment_line = translator_comment_for(result.description.to_s, location)
+      comment_line = translator_comment_for(result, location)
       return unless comment_line
 
       [
@@ -322,15 +327,22 @@ module Danger
       end
     end
 
-    def translator_comment_for(description, location)
+    def translator_comment_for(result, location)
       indentation = location[:content][/^\s*/] || ''
+      comment_text = suggestion_comment_text(result)
 
       case File.extname(location[:file]).downcase
       when '.strings'
-        "#{indentation}/* #{escape_strings_comment(description)} */"
+        "#{indentation}/* #{escape_strings_comment(comment_text)} */"
       when '.xml'
-        "#{indentation}<!-- #{escape_xml_comment(description)} -->"
+        "#{indentation}<!-- #{escape_xml_comment(comment_text)} -->"
       end
+    end
+
+    def suggestion_comment_text(result)
+      return result.description.to_s unless result.max_length
+
+      "#{result.description} Max length: #{result.max_length}."
     end
 
     def escape_strings_comment(text)

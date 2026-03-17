@@ -246,7 +246,7 @@ module Danger
 
             expect(@dangerfile.status_report[:messages]).to eq([<<~MESSAGE.chomp])
               **Translation Context Suggestion**
-              Button label in the order detail screen that initiates shipment tracking setup.
+
               ```suggestion
               /* Button label in the order detail screen that initiates shipment tracking setup. */
               "Add a tracking" = "Add a tracking";
@@ -640,7 +640,7 @@ module Danger
 
       describe '#format_inline_suggestion' do
         it 'formats a .strings suggestion as a translator comment' do
-          result = ExtractionResultStruct.new(description: 'Button label for saving changes.')
+          result = ExtractionResultStruct.new(description: 'Button label for saving changes.', max_length: 20)
           location = {
             file: 'Localizable.strings',
             line: 2,
@@ -654,7 +654,7 @@ module Danger
 
           expect(suggestion).to eq(<<~SUGGESTION.chomp)
             ```suggestion
-                /* Button label for saving changes. */
+                /* Button label for saving changes. Max length: 20. */
                 "save" = "Save";
             ```
           SUGGESTION
