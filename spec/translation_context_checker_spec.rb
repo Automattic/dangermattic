@@ -215,7 +215,7 @@ module Danger
               source_paths: ['WooCommerce/']
             )
 
-            expect(@dangerfile.status_report[:messages]).to eq(
+            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq(
               ['**Translation Context Suggestion**' \
                "\nButton label in the order detail screen that initiates shipment tracking setup."]
             )
@@ -244,9 +244,7 @@ module Danger
               inline_suggestions: true
             )
 
-            expect(@dangerfile.status_report[:messages]).to eq([<<~MESSAGE.chomp])
-              **Translation Context Suggestion**
-
+            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([<<~MESSAGE.chomp])
               ```suggestion
               /* Button label in the order detail screen that initiates shipment tracking setup. */
               "Add a tracking" = "Add a tracking";
@@ -276,11 +274,9 @@ module Danger
             allow(@plugin).to receive(:run_extraction).and_return([source_result])
             allow(File).to receive(:exist?).with(source_path).and_return(true)
             allow(File).to receive(:readlines).with(source_path).and_return(source_content)
-            allow(@plugin).to receive(:message)
+            allow(@plugin).to receive(:markdown)
 
             expected_message = <<~MESSAGE.chomp
-              **Translation Context Suggestion**
-
               ```suggestion
                   comment: "Button label in the order detail screen that initiates shipment tracking setup."
               ```
@@ -293,7 +289,7 @@ module Danger
               inline_suggestion_target: :source
             )
 
-            expect(@plugin).to have_received(:message).with(
+            expect(@plugin).to have_received(:markdown).with(
               expected_message,
               file: source_path,
               line: 3
@@ -306,8 +302,8 @@ module Danger
               source_paths: ['WooCommerce/']
             )
 
-            expect(@dangerfile.status_report[:messages].length).to eq(1)
-            expect(@dangerfile.status_report[:markdowns]).to be_empty
+            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile.status_report[:markdowns].length).to eq(1)
           end
 
           it 'posts both inline comments and summary when requested' do
@@ -317,8 +313,8 @@ module Danger
               report_location: :both
             )
 
-            expect(@dangerfile.status_report[:messages].length).to eq(1)
-            expect(@dangerfile.status_report[:markdowns].length).to eq(1)
+            expect(@dangerfile.status_report[:messages]).to be_empty
+            expect(@dangerfile.status_report[:markdowns].length).to eq(2)
           end
 
           it 'supports the legacy inline and summary flags' do
@@ -333,7 +329,9 @@ module Danger
             expect(@dangerfile.status_report[:markdowns].length).to eq(1)
           end
 
-          it 'uses warning report type when specified' do
+          it 'uses warning report type for PR-level fallback comments' do
+            allow(@plugin).to receive(:resolve_inline_locations).and_return([])
+
             @plugin.check_context_suggestions(
               translations: strings_path,
               source_paths: ['WooCommerce/'],
@@ -418,7 +416,7 @@ module Danger
               source_paths: ['app/src/main/java/']
             )
 
-            messages = @dangerfile.status_report[:messages]
+            messages = @dangerfile.status_report[:markdowns].map(&:message)
             expect(messages.length).to eq(2)
             expect(messages).to all(include('Greeting label on the home screen'))
           end

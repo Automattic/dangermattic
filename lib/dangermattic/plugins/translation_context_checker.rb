@@ -145,9 +145,13 @@ module Danger
       return if valid_results.empty?
 
       if inline_reporting?(report_location)
-        post_inline_comments(valid_results, changed_translation_files, report_type,
-                             inline_suggestions: inline_suggestions,
-                             inline_suggestion_target: inline_suggestion_target)
+        post_inline_comments(
+          valid_results,
+          changed_translation_files,
+          report_type,
+          inline_suggestions: inline_suggestions,
+          inline_suggestion_target: inline_suggestion_target
+        )
       end
       post_summary_table(valid_results) if summary_reporting?(report_location)
     end
@@ -233,14 +237,9 @@ module Danger
         if locations&.any?
           locations.each do |location|
             comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
-            case report_type
-            when :warning
-              warn(comment, file: location[:file], line: location[:line])
-            when :error
-              failure(comment, file: location[:file], line: location[:line])
-            else
-              message(comment, file: location[:file], line: location[:line])
-            end
+            next if comment.to_s.empty?
+
+            markdown(comment, file: location[:file], line: location[:line])
           end
         else
           # Fallback to PR-level comment if line not found
@@ -292,12 +291,7 @@ module Danger
 
     def format_inline_message(result, location: nil, inline_suggestions: false)
       suggestion = format_inline_suggestion(result, location)
-      if inline_suggestions && suggestion
-        return [
-          '**Translation Context Suggestion**',
-          suggestion
-        ].join("\n\n")
-      end
+      return suggestion if inline_suggestions && suggestion
 
       parts = ['**Translation Context Suggestion**', result.description.to_s]
       parts << "*Max length: #{result.max_length}*" if result.max_length
