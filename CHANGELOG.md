@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-- Add `llm_reviewer` plugin for automated LLM-based code reviews with inline PR comments (supports OpenAI and Anthropic APIs)
+- Add `llm_reviewer` plugin for automated LLM-based code reviews with inline PR comments, configurable severity, and OpenAI / Anthropic provider support
 
 ### Bug Fixes
 
