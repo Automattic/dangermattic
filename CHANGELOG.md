@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-_None_
+- Add `translation_context_checker` plugin to suggest translator context for changed localization keys using `txcontext`, with inline and summary reporting options
 
 ### Bug Fixes
 

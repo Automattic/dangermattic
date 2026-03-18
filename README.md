@@ -8,6 +8,21 @@ Add to your project's `Gemfile`
 gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 ```
 
+### Translation context plugin setup
+
+`translation_context_checker` also requires the unpublished `txcontext` gem:
+
+```ruby
+gem 'txcontext', git: 'https://github.com/iangmaia/txcontext'
+```
+
+Expose `ANTHROPIC_API_KEY` in CI so `txcontext` can generate context suggestions:
+
+```yaml
+env:
+  ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
+```
+
 ## Example of available plugins and their usage
 
 Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
@@ -26,6 +41,15 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```ruby
     # Reports a warning if a pull request diff size is greater than 300
     pr_size_checker.check_diff_size(max_size: 300)
+    ```
+- `translation_context_checker` - Suggests translator-facing context for changed localization keys
+    ```ruby
+    # Suggests inline context for changed iOS strings
+    translation_context_checker.check_context_suggestions(
+      translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
+      source_paths: ['WooCommerce/', 'Modules/Sources/'],
+      report_location: :inline
+    )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
     ```ruby
