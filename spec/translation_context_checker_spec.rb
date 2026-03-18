@@ -20,6 +20,81 @@ module Danger
                                                         :locations, :error, keyword_init: true))
       end
 
+      def expect_no_danger_output
+        expect(@dangerfile).to not_report
+        expect(@dangerfile.status_report[:markdowns]).to be_empty
+      end
+
+      def expect_plain_text_translation_suggestion
+        expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
+          satisfy('plain text suggestion') do |message|
+            message.include?('**Translation Context Suggestion**') &&
+              !message.include?('```suggestion')
+          end
+        )
+      end
+
+      def build_extraction_result(**overrides)
+        ExtractionResultStruct.new(
+          {
+            key: 'default_key',
+            text: 'Default text',
+            description: 'Default description',
+            ui_element: nil,
+            tone: nil,
+            max_length: nil,
+            locations: [],
+            error: nil
+          }.merge(overrides)
+        )
+      end
+
+      shared_examples 'an invalid option warning' do |method_args:, warning:|
+        it "warns for #{method_args.keys.last} without loading txcontext" do
+          allow(@plugin).to receive(:load_txcontext)
+
+          @plugin.check_context_suggestions(
+            translations: 'Localizable.strings',
+            source_paths: ['Sources/'],
+            **method_args
+          )
+
+          expect(@plugin).not_to have_received(:load_txcontext)
+          expect(@dangerfile.status_report.slice(:warnings, :errors, :messages, :markdowns)).to eq(
+            warnings: [warning],
+            errors: [],
+            messages: [],
+            markdowns: []
+          )
+        end
+      end
+
+      shared_examples 'a skipped extraction result' do |description, result_attributes|
+        it description do
+          allow(@plugin).to receive(:run_extraction).and_return([ExtractionResultStruct.new(**result_attributes)])
+
+          @plugin.check_context_suggestions(
+            translations: strings_path,
+            source_paths: ['Sources/']
+          )
+
+          expect_no_danger_output
+        end
+      end
+
+      shared_examples 'a key line map example' do |path:, content:, expected_locations:|
+        it "maps keys for #{path}" do
+          allow(File).to receive(:exist?).with(path).and_return(true)
+          allow(File).to receive(:readlines).with(path).and_return(content)
+
+          result = @plugin.send(:build_key_line_map, [path])
+
+          expected_locations.each do |key, locations|
+            expect(result[key]).to eq(locations)
+          end
+        end
+      end
+
       describe '#check_context_suggestions' do
         context 'when txcontext gem is not available' do
           before do
@@ -51,8 +126,34 @@ module Danger
               source_paths: ['Sources/']
             )
 
-            expect(@dangerfile).to not_report
+            expect_no_danger_output
           end
+        end
+
+        context 'when reporting is disabled' do
+          it 'returns without loading txcontext when both legacy flags are false' do
+            allow(@plugin).to receive(:load_txcontext)
+
+            @plugin.check_context_suggestions(
+              translations: 'Localizable.strings',
+              source_paths: ['Sources/'],
+              inline: false,
+              summary: false
+            )
+
+            expect(@plugin).not_to have_received(:load_txcontext)
+            expect_no_danger_output
+          end
+        end
+
+        context 'when an option value is invalid' do
+          it_behaves_like 'an invalid option warning',
+                          method_args: { report_location: :sideways },
+                          warning: 'Invalid report_location `sideways`. Expected one of: inline, summary, both, none.'
+
+          it_behaves_like 'an invalid option warning',
+                          method_args: { inline_suggestions: true, inline_suggestion_target: :everywhere },
+                          warning: 'Invalid inline_suggestion_target `everywhere`. Expected one of: translation, source.'
         end
 
         context 'when .strings file is changed' do
@@ -185,17 +286,27 @@ module Danger
               "Add a tracking" = "Add a tracking";
             STRINGS
           end
+          let(:source_paths) { ['WooCommerce/'] }
+          let(:suggested_context) do
+            'Button label in the order detail screen that initiates shipment tracking setup.'
+          end
+          let(:translation_suggestion_markdown) do
+            <<~MESSAGE.chomp
+              ```suggestion
+              /* #{suggested_context} */
+              "Add a tracking" = "Add a tracking";
+              ```
+            MESSAGE
+          end
 
           let(:mock_result) do
-            ExtractionResultStruct.new(
+            build_extraction_result(
               key: 'Add a tracking',
               text: 'Add a tracking',
-              description: 'Button label in the order detail screen that initiates shipment tracking setup.',
+              description: suggested_context,
               ui_element: 'button',
               tone: 'neutral',
-              max_length: nil,
-              locations: ['OrderDetailViewController.swift:42'],
-              error: nil
+              locations: ['OrderDetailViewController.swift:42']
             )
           end
 
@@ -209,47 +320,67 @@ module Danger
             allow(File).to receive(:readlines).with(strings_path).and_return(strings_content.lines)
           end
 
-          it 'posts inline message with context suggestion' do
+          def check_strings_context(**kwargs)
             @plugin.check_context_suggestions(
               translations: strings_path,
-              source_paths: ['WooCommerce/']
+              source_paths: source_paths,
+              **kwargs
             )
+          end
+
+          it 'posts inline message with context suggestion' do
+            check_strings_context
 
             expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq(
-              ['**Translation Context Suggestion**' \
-               "\nButton label in the order detail screen that initiates shipment tracking setup."]
+              ["**Translation Context Suggestion**\n#{suggested_context}"]
             )
           end
 
           it 'posts a summary markdown table' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              report_location: :summary
-            )
+            check_strings_context(report_location: :summary)
 
             expect(@dangerfile.status_report[:markdowns].first.message).to eq(<<~MARKDOWN)
               ### Translation Context Suggestions
 
               | Key | Text | Suggested Context |
               |-----|------|-------------------|
-              | `Add a tracking` | Add a tracking | Button label in the order detail screen that initiates shipment tracking setup. |
+              | `Add a tracking` | Add a tracking | #{suggested_context} |
             MARKDOWN
           end
 
           it 'can include a GitHub suggestion block in inline comments' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              inline_suggestions: true
-            )
+            check_strings_context(inline_suggestions: true)
 
-            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([<<~MESSAGE.chomp])
-              ```suggestion
-              /* Button label in the order detail screen that initiates shipment tracking setup. */
-              "Add a tracking" = "Add a tracking";
-              ```
-            MESSAGE
+            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
+          end
+
+          it 'falls back to the translation file when source suggestions cannot resolve a Swift comment line' do
+            source_path = 'OrderDetailViewController.swift'
+            source_result = build_extraction_result(
+              key: 'Add a tracking',
+              text: 'Add a tracking',
+              description: suggested_context,
+              ui_element: 'button',
+              tone: 'neutral',
+              locations: ["#{source_path}:1"]
+            )
+            source_content = [
+              "static let first = NSLocalizedString(\n",
+              "    \"first\",\n",
+              ")\n",
+              "static let second = NSLocalizedString(\n",
+              "    \"second\",\n",
+              "    comment: \"\"\n",
+              ")\n"
+            ]
+
+            allow(@plugin).to receive(:run_extraction).and_return([source_result])
+            allow(File).to receive(:exist?).with(source_path).and_return(true)
+            allow(File).to receive(:readlines).with(source_path).and_return(source_content)
+
+            check_strings_context(inline_suggestions: true, inline_suggestion_target: :source)
+
+            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
           end
 
           context 'when the added string already has a translator comment' do
@@ -278,19 +409,10 @@ module Danger
             end
 
             it 'posts a replacement preview instead of skipping the string' do
-              @plugin.check_context_suggestions(
-                translations: strings_path,
-                source_paths: ['WooCommerce/'],
-                inline_suggestions: true
-              )
+              check_strings_context(inline_suggestions: true)
 
               expect(@plugin.inline_markdown_poster).to have_received(:post).with(
-                markdown: <<~MESSAGE.chomp,
-                  ```suggestion
-                  /* Button label in the order detail screen that initiates shipment tracking setup. */
-                  "Add a tracking" = "Add a tracking";
-                  ```
-                MESSAGE
+                markdown: translation_suggestion_markdown,
                 file: strings_path,
                 line: 3,
                 start_line: 2,
@@ -323,18 +445,9 @@ module Danger
             end
 
             it 'posts a plain text suggestion instead of a code suggestion' do
-              @plugin.check_context_suggestions(
-                translations: strings_path,
-                source_paths: ['WooCommerce/'],
-                inline_suggestions: true
-              )
+              check_strings_context(inline_suggestions: true)
 
-              expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
-                satisfy('plain text suggestion') do |message|
-                  message.include?('**Translation Context Suggestion**') &&
-                    !message.include?('```suggestion')
-                end
-              )
+              expect_plain_text_translation_suggestion
             end
 
             it 'still detects long existing comments outside the previous scan cap' do
@@ -353,49 +466,29 @@ module Danger
                 ]
               )
 
-              @plugin.check_context_suggestions(
-                translations: strings_path,
-                source_paths: ['WooCommerce/'],
-                inline_suggestions: true
-              )
+              check_strings_context(inline_suggestions: true)
 
-              expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
-                satisfy('plain text suggestion') do |message|
-                  message.include?('**Translation Context Suggestion**') &&
-                    !message.include?('```suggestion')
-                end
-              )
+              expect_plain_text_translation_suggestion
             end
           end
 
           it 'falls back to plain text when inline_markdown_poster fails' do
             allow(@plugin.inline_markdown_poster).to receive(:post).and_return(false)
 
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              inline_suggestions: true
-            )
+            check_strings_context(inline_suggestions: true)
 
-            expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
-              satisfy('plain text suggestion') do |message|
-                message.include?('**Translation Context Suggestion**') &&
-                  !message.include?('```suggestion')
-              end
-            )
+            expect_plain_text_translation_suggestion
           end
 
           it 'can include a GitHub suggestion block on the Swift source comment line' do
             source_path = 'OrderDetailViewController.swift'
-            source_result = ExtractionResultStruct.new(
+            source_result = build_extraction_result(
               key: 'Add a tracking',
               text: 'Add a tracking',
-              description: 'Button label in the order detail screen that initiates shipment tracking setup.',
+              description: suggested_context,
               ui_element: 'button',
               tone: 'neutral',
-              max_length: nil,
-              locations: ["#{source_path}:2"],
-              error: nil
+              locations: ["#{source_path}:2"]
             )
             source_content = [
               "static let addTracking = NSLocalizedString(\n",
@@ -410,16 +503,11 @@ module Danger
 
             expected_message = <<~MESSAGE.chomp
               ```suggestion
-                  comment: "Button label in the order detail screen that initiates shipment tracking setup."
+                  comment: "#{suggested_context}"
               ```
             MESSAGE
 
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              inline_suggestions: true,
-              inline_suggestion_target: :source
-            )
+            check_strings_context(inline_suggestions: true, inline_suggestion_target: :source)
 
             markdown = @dangerfile.status_report[:markdowns].first
             expect(markdown).to have_attributes(
@@ -430,33 +518,21 @@ module Danger
           end
 
           it 'posts inline comments by default' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/']
-            )
+            check_strings_context
 
             expect(@dangerfile.status_report[:messages]).to be_empty
             expect(@dangerfile.status_report[:markdowns].length).to eq(1)
           end
 
           it 'posts both inline comments and summary when requested' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              report_location: :both
-            )
+            check_strings_context(report_location: :both)
 
             expect(@dangerfile.status_report[:messages]).to be_empty
             expect(@dangerfile.status_report[:markdowns].length).to eq(2)
           end
 
           it 'supports the legacy inline and summary flags' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              inline: false,
-              summary: true
-            )
+            check_strings_context(inline: false, summary: true)
 
             expect(@dangerfile.status_report[:messages]).to be_empty
             expect(@dangerfile.status_report[:markdowns].length).to eq(1)
@@ -465,29 +541,90 @@ module Danger
           it 'uses warning report type for PR-level fallback comments' do
             allow(@plugin).to receive(:resolve_inline_locations).and_return([])
 
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              report_type: :warning
-            )
+            check_strings_context(report_type: :warning)
 
             expect(@dangerfile.status_report[:warnings].length).to eq(1)
             expect(@dangerfile.status_report[:warnings].first).to include('Translation Context Suggestion')
           end
 
           it 'passes provider and model through to txcontext' do
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['WooCommerce/'],
-              provider: :anthropic,
-              model: 'claude-sonnet-4-6'
-            )
+            check_strings_context(provider: :anthropic, model: 'claude-sonnet-4-6')
 
             expect(@plugin).to have_received(:run_extraction).with(
               hash_including(
                 provider: :anthropic,
                 model: 'claude-sonnet-4-6'
               )
+            )
+          end
+        end
+
+        context 'when an XML string has an added multi-line translator comment' do
+          let(:xml_path) { 'app/src/main/res/values/strings.xml' }
+          let(:xml_diff) do
+            <<~DIFF
+              diff --git a/#{xml_path} b/#{xml_path}
+              --- a/#{xml_path}
+              +++ b/#{xml_path}
+              @@ -1,2 +1,6 @@
+               <resources>
+              +  <!--
+              +    Existing context
+              +  -->
+              +  <string name="add_tracking">Add a tracking</string>
+               </resources>
+            DIFF
+          end
+          let(:xml_content) do
+            <<~XML
+              <resources>
+                <!--
+                  Existing context
+                -->
+                <string name="add_tracking">Add a tracking</string>
+              </resources>
+            XML
+          end
+          let(:mock_result) do
+            build_extraction_result(
+              key: 'add_tracking',
+              text: 'Add a tracking',
+              description: 'Button label in the order detail screen that initiates shipment tracking setup.',
+              ui_element: 'button',
+              tone: 'neutral'
+            )
+          end
+
+          before do
+            allow(@plugin).to receive_messages(load_txcontext: true, run_extraction: [mock_result])
+            allow(@plugin.git).to receive(:modified_files).and_return([xml_path])
+            allow(@plugin.git).to receive(:diff_for_file)
+              .with(xml_path)
+              .and_return(GitDiffStruct.new('modified', xml_path, xml_diff))
+            allow(File).to receive(:exist?).with(xml_path).and_return(true)
+            allow(File).to receive(:readlines).with(xml_path).and_return(xml_content.lines)
+            allow(@plugin.inline_markdown_poster).to receive(:post).and_return(true)
+          end
+
+          it 'suggests replacing the existing XML comment block in place' do
+            @plugin.check_context_suggestions(
+              translations: xml_path,
+              source_paths: ['app/src/main/java/'],
+              inline_suggestions: true
+            )
+
+            expect(@plugin.inline_markdown_poster).to have_received(:post).with(
+              markdown: <<~MESSAGE.chomp,
+                ```suggestion
+                  <!-- Button label in the order detail screen that initiates shipment tracking setup. -->
+                  <string name="add_tracking">Add a tracking</string>
+                ```
+              MESSAGE
+              file: xml_path,
+              line: 5,
+              start_line: 2,
+              side: 'RIGHT',
+              start_side: 'RIGHT'
             )
           end
         end
@@ -520,15 +657,11 @@ module Danger
           let(:content_a) { ["<resources>\n", "  <string name=\"greeting\">Hello</string>\n", "</resources>\n"] }
           let(:content_b) { ["<resources>\n", "  <string name=\"greeting\">Hola</string>\n", "</resources>\n"] }
           let(:mock_result) do
-            ExtractionResultStruct.new(
+            build_extraction_result(
               key: 'greeting',
               text: 'Hello',
               description: 'Greeting label on the home screen.',
-              ui_element: 'label',
-              tone: nil,
-              max_length: nil,
-              locations: [],
-              error: nil
+              ui_element: 'label'
             )
           end
 
@@ -576,47 +709,31 @@ module Danger
               .and_return(GitDiffStruct.new('modified', strings_path, strings_diff))
           end
 
-          it 'skips results with errors' do
-            error_result = ExtractionResultStruct.new(
-              key: 'Missing Key',
-              text: 'Missing',
-              description: 'Processing failed',
-              ui_element: nil,
-              tone: nil,
-              max_length: nil,
-              locations: [],
-              error: 'API error'
-            )
-            allow(@plugin).to receive(:run_extraction).and_return([error_result])
+          it_behaves_like 'a skipped extraction result',
+                          'skips results with errors',
+                          {
+                            key: 'Missing Key',
+                            text: 'Missing',
+                            description: 'Processing failed',
+                            ui_element: nil,
+                            tone: nil,
+                            max_length: nil,
+                            locations: [],
+                            error: 'API error'
+                          }
 
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['Sources/']
-            )
-
-            expect(@dangerfile).to not_report
-          end
-
-          it 'skips results with no usage found' do
-            no_usage_result = ExtractionResultStruct.new(
-              key: 'Missing Key',
-              text: 'Missing',
-              description: 'No usage found in source code',
-              ui_element: nil,
-              tone: nil,
-              max_length: nil,
-              locations: [],
-              error: nil
-            )
-            allow(@plugin).to receive(:run_extraction).and_return([no_usage_result])
-
-            @plugin.check_context_suggestions(
-              translations: strings_path,
-              source_paths: ['Sources/']
-            )
-
-            expect(@dangerfile).to not_report
-          end
+          it_behaves_like 'a skipped extraction result',
+                          'skips results with no usage found',
+                          {
+                            key: 'Missing Key',
+                            text: 'Missing',
+                            description: 'No usage found in source code',
+                            ui_element: nil,
+                            tone: nil,
+                            max_length: nil,
+                            locations: [],
+                            error: nil
+                          }
         end
 
         context 'when extraction raises an error' do
@@ -672,88 +789,118 @@ module Danger
               source_paths: 'Sources/'
             )
 
-            expect(@dangerfile).to not_report
+            expect_no_danger_output
           end
         end
       end
 
+      describe '#run_extraction' do
+        it 'builds the txcontext config with escaped changed keys and returns extractor results' do
+          stub_const('Txcontext', Module.new)
+          stub_const('Txcontext::Config', Class.new)
+          stub_const('Txcontext::ContextExtractor', Class.new)
+
+          changed_keys = Set.new(['save.button', 'cart+cta'])
+          config = instance_double(Txcontext::Config)
+          extractor = instance_double(Txcontext::ContextExtractor)
+
+          allow(Txcontext::Config).to receive(:new).and_return(config)
+          allow(Txcontext::ContextExtractor).to receive(:new).and_return(extractor)
+          allow(extractor).to receive(:run)
+          allow(extractor).to receive(:results).and_return([:result])
+
+          results = @plugin.send(
+            :run_extraction,
+            translations: ['Localizable.strings'],
+            source_paths: ['Sources/'],
+            changed_keys: changed_keys,
+            provider: :anthropic,
+            model: 'claude-sonnet-4-6'
+          )
+
+          expect(Txcontext::Config).to have_received(:new).with(
+            translations: ['Localizable.strings'],
+            source_paths: ['Sources/'],
+            key_filter: 'save\.button,cart\+cta',
+            provider: :anthropic,
+            model: 'claude-sonnet-4-6',
+            no_cache: true
+          )
+          expect(results).to eq([:result])
+        end
+      end
+
+      describe '#load_txcontext' do
+        it 'returns true when txcontext can be required' do
+          allow(@plugin).to receive(:require).with('txcontext').and_return(true)
+
+          expect(@plugin.send(:load_txcontext)).to be true
+        end
+
+        it 'returns false when requiring txcontext raises LoadError' do
+          allow(@plugin).to receive(:require).with('txcontext').and_raise(LoadError)
+
+          expect(@plugin.send(:load_txcontext)).to be false
+        end
+      end
+
       describe '#build_key_line_map' do
-        it 'maps .strings keys to their line numbers' do
-          path = 'Localizable.strings'
-          content = [
-            "/* Comment */\n",
-            "\"first_key\" = \"First\";\n",
-            "\n",
-            "\"second_key\" = \"Second\";\n"
-          ]
+        it_behaves_like 'a key line map example',
+                        path: 'Localizable.strings',
+                        content: [
+                          "/* Comment */\n",
+                          "\"first_key\" = \"First\";\n",
+                          "\n",
+                          "\"second_key\" = \"Second\";\n"
+                        ],
+                        expected_locations: {
+                          'first_key' => [{ file: 'Localizable.strings', line: 2, content: '"first_key" = "First";' }],
+                          'second_key' => [{ file: 'Localizable.strings', line: 4, content: '"second_key" = "Second";' }]
+                        }
 
-          allow(File).to receive(:exist?).with(path).and_return(true)
-          allow(File).to receive(:readlines).with(path).and_return(content)
+        it_behaves_like 'a key line map example',
+                        path: 'strings.xml',
+                        content: [
+                          "<resources>\n",
+                          "  <string name=\"app_name\">My App</string>\n",
+                          "  <string name=\"greeting\">Hello</string>\n",
+                          "</resources>\n"
+                        ],
+                        expected_locations: {
+                          'app_name' => [{ file: 'strings.xml', line: 2, content: '  <string name="app_name">My App</string>' }],
+                          'greeting' => [{ file: 'strings.xml', line: 3, content: '  <string name="greeting">Hello</string>' }]
+                        }
 
-          result = @plugin.send(:build_key_line_map, [path])
+        it_behaves_like 'a key line map example',
+                        path: 'strings.xml',
+                        content: [
+                          "<resources>\n",
+                          "  <string-array name=\"sort_options\">\n",
+                          "    <item>Name</item>\n",
+                          "  </string-array>\n",
+                          "  <plurals name=\"item_count\">\n",
+                          "    <item quantity=\"one\">%d item</item>\n",
+                          "  </plurals>\n",
+                          "</resources>\n"
+                        ],
+                        expected_locations: {
+                          'sort_options' => [{ file: 'strings.xml', line: 2, content: '  <string-array name="sort_options">' }],
+                          'item_count' => [{ file: 'strings.xml', line: 5, content: '  <plurals name="item_count">' }]
+                        }
 
-          expect(result['first_key']).to eq([{ file: path, line: 2, content: '"first_key" = "First";' }])
-          expect(result['second_key']).to eq([{ file: path, line: 4, content: '"second_key" = "Second";' }])
-        end
-
-        it 'maps strings.xml <string> keys to their line numbers' do
-          path = 'strings.xml'
-          content = [
-            "<resources>\n",
-            "  <string name=\"app_name\">My App</string>\n",
-            "  <string name=\"greeting\">Hello</string>\n",
-            "</resources>\n"
-          ]
-
-          allow(File).to receive(:exist?).with(path).and_return(true)
-          allow(File).to receive(:readlines).with(path).and_return(content)
-
-          result = @plugin.send(:build_key_line_map, [path])
-
-          expect(result['app_name']).to eq([{ file: path, line: 2, content: '  <string name="app_name">My App</string>' }])
-          expect(result['greeting']).to eq([{ file: path, line: 3, content: '  <string name="greeting">Hello</string>' }])
-        end
-
-        it 'maps strings.xml <string-array> and <plurals> keys to their line numbers' do
-          path = 'strings.xml'
-          content = [
-            "<resources>\n",
-            "  <string-array name=\"sort_options\">\n",
-            "    <item>Name</item>\n",
-            "  </string-array>\n",
-            "  <plurals name=\"item_count\">\n",
-            "    <item quantity=\"one\">%d item</item>\n",
-            "  </plurals>\n",
-            "</resources>\n"
-          ]
-
-          allow(File).to receive(:exist?).with(path).and_return(true)
-          allow(File).to receive(:readlines).with(path).and_return(content)
-
-          result = @plugin.send(:build_key_line_map, [path])
-
-          expect(result['sort_options']).to eq([{ file: path, line: 2, content: '  <string-array name="sort_options">' }])
-          expect(result['item_count']).to eq([{ file: path, line: 5, content: '  <plurals name="item_count">' }])
-        end
-
-        it 'matches XML tags with reordered attributes' do
-          path = 'strings.xml'
-          content = [
-            "<resources>\n",
-            "  <string formatted=\"false\" name=\"app_name\">My App</string>\n",
-            "  <plurals translatable=\"false\" name=\"item_count\">\n",
-            "  </plurals>\n",
-            "</resources>\n"
-          ]
-
-          allow(File).to receive(:exist?).with(path).and_return(true)
-          allow(File).to receive(:readlines).with(path).and_return(content)
-
-          result = @plugin.send(:build_key_line_map, [path])
-
-          expect(result['app_name']).to eq([{ file: path, line: 2, content: '  <string formatted="false" name="app_name">My App</string>' }])
-          expect(result['item_count']).to eq([{ file: path, line: 3, content: '  <plurals translatable="false" name="item_count">' }])
-        end
+        it_behaves_like 'a key line map example',
+                        path: 'strings.xml',
+                        content: [
+                          "<resources>\n",
+                          "  <string formatted=\"false\" name=\"app_name\">My App</string>\n",
+                          "  <plurals translatable=\"false\" name=\"item_count\">\n",
+                          "  </plurals>\n",
+                          "</resources>\n"
+                        ],
+                        expected_locations: {
+                          'app_name' => [{ file: 'strings.xml', line: 2, content: '  <string formatted="false" name="app_name">My App</string>' }],
+                          'item_count' => [{ file: 'strings.xml', line: 3, content: '  <plurals translatable="false" name="item_count">' }]
+                        }
 
         it 'collects locations from multiple files for the same key' do
           path_a = 'res/values/strings.xml'
@@ -861,7 +1008,7 @@ module Danger
 
       describe '#format_inline_message' do
         it 'formats a result with max length metadata only' do
-          result = ExtractionResultStruct.new(
+          result = build_extraction_result(
             description: 'Button to save user profile changes.',
             ui_element: 'button',
             tone: 'neutral',
@@ -876,7 +1023,7 @@ module Danger
         end
 
         it 'omits metadata line when no metadata present' do
-          result = ExtractionResultStruct.new(
+          result = build_extraction_result(
             description: 'A label.',
             ui_element: nil,
             tone: nil,
@@ -892,7 +1039,7 @@ module Danger
 
       describe '#format_inline_suggestion' do
         it 'formats a .strings suggestion as a translator comment' do
-          result = ExtractionResultStruct.new(description: 'Button label for saving changes.', max_length: 20)
+          result = build_extraction_result(description: 'Button label for saving changes.', max_length: 20)
           location = {
             file: 'Localizable.strings',
             line: 2,
@@ -913,7 +1060,7 @@ module Danger
         end
 
         it 'formats a Swift suggestion by replacing the comment argument' do
-          result = ExtractionResultStruct.new(description: 'Button label for saving changes.', max_length: 20)
+          result = build_extraction_result(description: 'Button label for saving changes.', max_length: 20)
           location = {
             file: 'OrderDetailViewController.swift',
             line: 3,
@@ -931,7 +1078,7 @@ module Danger
         end
 
         it 'formats an XML suggestion as a translator comment' do
-          result = ExtractionResultStruct.new(description: 'Status label shown while the order is processing.')
+          result = build_extraction_result(description: 'Status label shown while the order is processing.')
           location = {
             file: 'strings.xml',
             line: 2,
@@ -952,7 +1099,7 @@ module Danger
         end
 
         it 'formats the same suggestion body when a translator comment already exists' do
-          result = ExtractionResultStruct.new(description: 'Status label shown while the order is processing.')
+          result = build_extraction_result(description: 'Status label shown while the order is processing.')
           location = {
             file: 'strings.xml',
             line: 3,
@@ -969,7 +1116,7 @@ module Danger
         end
 
         it 'returns nil when an existing comment is present but not in added lines' do
-          result = ExtractionResultStruct.new(description: 'Status label shown while processing.')
+          result = build_extraction_result(description: 'Status label shown while processing.')
           location = {
             file: 'strings.xml',
             line: 3,
@@ -983,7 +1130,7 @@ module Danger
 
       describe '#format_inline_message with inline suggestions' do
         it 'returns nil when inline suggestions are enabled but a suggestion cannot be generated' do
-          result = ExtractionResultStruct.new(description: 'Screen title shown at the top of the settings screen.')
+          result = build_extraction_result(description: 'Screen title shown at the top of the settings screen.')
           location = {
             file: 'settings.txt',
             line: 1,
@@ -996,9 +1143,38 @@ module Danger
         end
       end
 
+      describe '#post_summary_table' do
+        it 'sorts rows, escapes table cells, truncates long text, and includes max length' do
+          results = [
+            build_extraction_result(
+              key: 'b|key',
+              text: 'x' * 55,
+              description: "Line one |\nline two",
+              max_length: 20
+            ),
+            build_extraction_result(
+              key: 'a_key',
+              text: 'Short',
+              description: 'First row'
+            )
+          ]
+
+          @plugin.send(:post_summary_table, results)
+
+          expect(@dangerfile.status_report[:markdowns].first.message).to eq(<<~MARKDOWN)
+            ### Translation Context Suggestions
+
+            | Key | Text | Suggested Context |
+            |-----|------|-------------------|
+            | `a_key` | Short | First row |
+            | `b\\|key` | #{'x' * 47}... | Line one \\| line two (Max length: 20) |
+          MARKDOWN
+        end
+      end
+
       describe '#build_source_line_locations' do
         it 'maps source matches to the Swift comment line' do
-          result = ExtractionResultStruct.new(
+          result = build_extraction_result(
             description: 'Button label for saving changes.',
             locations: ['OrderDetailViewController.swift:2']
           )
@@ -1027,22 +1203,22 @@ module Danger
 
       describe '#skip_result?' do
         it 'skips results with errors' do
-          result = ExtractionResultStruct.new(error: 'API error', description: 'some desc')
+          result = build_extraction_result(error: 'API error', description: 'some desc')
           expect(@plugin.send(:skip_result?, result)).to be true
         end
 
         it 'skips results with no usage found' do
-          result = ExtractionResultStruct.new(error: nil, description: 'No usage found in source code')
+          result = build_extraction_result(error: nil, description: 'No usage found in source code')
           expect(@plugin.send(:skip_result?, result)).to be true
         end
 
         it 'skips results with processing failed' do
-          result = ExtractionResultStruct.new(error: nil, description: 'Processing failed')
+          result = build_extraction_result(error: nil, description: 'Processing failed')
           expect(@plugin.send(:skip_result?, result)).to be true
         end
 
         it 'does not skip valid results' do
-          result = ExtractionResultStruct.new(error: nil, description: 'Button label for saving.')
+          result = build_extraction_result(error: nil, description: 'Button label for saving.')
           expect(@plugin.send(:skip_result?, result)).to be false
         end
       end

@@ -24,6 +24,25 @@ module Danger
         expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq(['```suggestion\ncomment\n```'])
       end
 
+      it 'uses the normal Danger markdown path for ranged comments when Danger supports them' do
+        allow(@plugin).to receive(:danger_supports_ranged_inline_markdown?).and_return(true)
+        allow(@plugin.danger).to receive(:markdown)
+
+        @plugin.post(
+          markdown: '```suggestion\ncomment\n```',
+          file: 'Localizable.strings',
+          line: 3,
+          start_line: 2
+        )
+
+        expect(@plugin.danger).to have_received(:markdown).with(
+          '```suggestion\ncomment\n```',
+          file: 'Localizable.strings',
+          line: 3,
+          start_line: 2
+        )
+      end
+
       it 'falls back to the GitHub review comment API for ranged comments when Danger does not support them' do
         github_api = instance_double(Octokit::Client)
         github_plugin = instance_double(
@@ -97,6 +116,15 @@ module Danger
           )
         end
 
+        it 'detects ranged inline markdown support from the Danger markdown signature' do
+          markdown_initializer = instance_double(UnboundMethod, parameters: [%i[req message], %i[key start_line]])
+
+          allow(@plugin).to receive(:danger_supports_ranged_inline_markdown?).and_call_original
+          allow(Danger::Markdown).to receive(:instance_method).with(:initialize).and_return(markdown_initializer)
+
+          expect(@plugin.send(:danger_supports_ranged_inline_markdown?)).to be true
+        end
+
         it 'skips when an identical comment already exists' do
           existing_comment = {
             'id' => 100,
@@ -105,7 +133,12 @@ module Danger
             'line' => 3,
             'start_line' => 2
           }
-          allow(github_api).to receive(:pull_request_comments).and_return([existing_comment])
+          allow(github_api).to receive_messages(
+            pull_request_comments: [existing_comment],
+            create_pull_request_comment: {},
+            update_pull_request_comment: {},
+            delete_pull_request_comment: {}
+          )
 
           result = @plugin.post(
             markdown: 'content',
@@ -115,7 +148,40 @@ module Danger
           )
 
           expect(result).to be true
-          expect(github_api).not_to have_received(:create_pull_request_comment) if github_api.respond_to?(:create_pull_request_comment)
+          expect(github_api).not_to have_received(:create_pull_request_comment)
+        end
+
+        it 'ignores unmanaged comments at the same location' do
+          human_comment = {
+            'id' => 100,
+            'body' => 'Human review comment',
+            'path' => 'Localizable.strings',
+            'line' => 3,
+            'start_line' => 2
+          }
+          allow(github_api).to receive_messages(
+            pull_request_comments: [human_comment],
+            create_pull_request_comment: {}
+          )
+
+          @plugin.post(
+            markdown: 'managed content',
+            file: 'Localizable.strings',
+            line: 3,
+            start_line: 2
+          )
+
+          expect(github_api).to have_received(:create_pull_request_comment).with(
+            'Automattic/dangermattic',
+            42,
+            "<!-- dangermattic-inline-markdown-poster -->\nmanaged content",
+            'abc123',
+            'Localizable.strings',
+            3,
+            start_line: 2,
+            side: 'RIGHT',
+            start_side: 'RIGHT'
+          )
         end
 
         it 'updates an existing comment with different body' do

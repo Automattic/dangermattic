@@ -110,10 +110,11 @@ RSpec::Matchers.define :not_report do
   match do |dangerfile|
     dangerfile.status_report[:errors]&.empty? &&
       dangerfile.status_report[:warnings]&.empty? &&
-      dangerfile.status_report[:messages]&.empty?
+      dangerfile.status_report[:messages]&.empty? &&
+      dangerfile.status_report[:markdowns]&.empty?
   end
 
   failure_message do |dangerfile|
-    "expected no warnings or errors to be reported, got instead:\n#{dangerfile.status_report}"
+    "expected no warnings, errors, messages, or markdowns to be reported, got instead:\n#{dangerfile.status_report}"
   end
 end
