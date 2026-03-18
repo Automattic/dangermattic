@@ -84,7 +84,8 @@ module Danger
     # @param report_location [Symbol, String] (optional) Where to post suggestions. Values: :inline (default), :summary, :both.
     # @param inline [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with summary.
     # @param summary [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with inline.
-    # @param report_type [Symbol] (optional) Type of inline report (:message, :warning, :error). Default is :message.
+    # @param report_type [Symbol] (optional) Severity for PR-level fallback comments (:message, :warning, :error). Default is :message.
+    #   Only applies when inline placement fails and the comment falls back to a PR-level report.
     # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
     # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
     # @param inline_suggestions [Boolean] (optional) Include GitHub suggestion blocks in inline comments when possible. Default is false.
@@ -94,10 +95,13 @@ module Danger
     def check_context_suggestions(translations:, source_paths:, report_location: :inline, inline: nil, summary: nil,
                                   report_type: :message, provider: :anthropic, model: nil, inline_suggestions: false,
                                   inline_suggestion_target: :translation)
+      @file_lines_cache = {}
+
       report_location = normalize_report_location(report_location, inline: inline, summary: summary)
       return if report_location.nil? || report_location == :none
 
-      inline_suggestion_target = normalize_inline_suggestion_target(inline_suggestion_target)
+      inline_suggestion_target = normalize_enum_param(inline_suggestion_target, VALID_INLINE_SUGGESTION_TARGETS,
+                                                      'inline_suggestion_target')
       return if inline_suggestions && inline_suggestion_target.nil?
 
       unless load_txcontext
@@ -175,14 +179,9 @@ module Danger
       keys = Set.new
 
       translation_files.each do |path|
-        diff = danger.git.diff_for_file(path)
-        next unless diff
-
         ext = File.extname(path).downcase
 
-        diff.patch.each_line do |line|
-          next unless line.start_with?('+') && !line.start_with?('+++')
-
+        each_added_diff_line(path) do |line, _line_number|
           case ext
           when '.strings'
             keys << Regexp.last_match(1) if line =~ STRINGS_KEY_PATTERN
@@ -222,6 +221,12 @@ module Danger
     end
 
     # Post inline comments on the translation file lines where keys were changed.
+    #
+    # When inline_suggestions is enabled, suggestions are posted via
+    # inline_markdown_poster which handles both single-line (via Danger) and
+    # multi-line (via raw GitHub API) cases. If posting fails, a plain-text
+    # fallback is attempted. If no inline location is found at all, a PR-level
+    # comment is posted using report_type severity.
     def post_inline_comments(results, translation_files, report_type, inline_suggestions: false,
                              inline_suggestion_target: :translation)
       key_lines = build_key_line_map(translation_files)
@@ -246,8 +251,6 @@ module Danger
             next if comment.to_s.empty?
 
             if inline_suggestions
-              # Keep callers on a Danger-shaped API while the helper bridges the
-              # missing ranged-inline-markdown support in released Danger.
               next if inline_markdown_poster.post(
                 markdown: comment,
                 file: location[:file],
@@ -289,16 +292,17 @@ module Danger
       markdown(table)
     end
 
-    # Build a map of translation key -> [{ file:, line: }, ...] for inline comment placement.
+    # Build a map of translation key -> [{ file:, line:, content: }, ...] for inline comment placement.
     # Returns an array of locations per key to handle the same key appearing in multiple files.
     def build_key_line_map(translation_files)
       map = Hash.new { |h, k| h[k] = [] }
 
       translation_files.each do |path|
-        next unless File.exist?(path)
+        lines = cached_file_lines(path)
+        next unless lines
 
-        File.readlines(path).each_with_index do |line, idx|
-          location = { file: path, line: idx + 1, content: line.chomp }
+        lines.each_with_index do |line, idx|
+          location = { file: path, line: idx + 1, content: line }
 
           case File.extname(path).downcase
           when '.strings'
@@ -318,37 +322,54 @@ module Danger
       map = Hash.new { |h, k| h[k] = Set.new }
 
       translation_files.each do |path|
-        diff = danger.git.diff_for_file(path)
-        next unless diff
-
-        new_line_number = nil
-
-        diff.patch.each_line do |line|
-          if (match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/))
-            new_line_number = match[1].to_i
-            next
-          end
-
-          next if new_line_number.nil?
-          next if line.start_with?('diff --git', 'index ', '--- ', '+++ ')
-
-          if line.start_with?('+')
-            map[path] << new_line_number
-            new_line_number += 1
-          elsif line.start_with?('-')
-            next
-          elsif line.start_with?(' ')
-            new_line_number += 1
-          end
+        each_added_diff_line(path) do |_line, line_number|
+          map[path] << line_number
         end
       end
 
       map
     end
 
+    # Iterate over added lines in a unified diff, yielding the raw line content
+    # (including the leading '+') and the corresponding line number in the new file.
+    def each_added_diff_line(path)
+      diff = danger.git.diff_for_file(path)
+      return unless diff
+
+      new_line_number = nil
+
+      diff.patch.each_line do |line|
+        if (match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/))
+          new_line_number = match[1].to_i
+          next
+        end
+
+        next if new_line_number.nil?
+        next if line.start_with?('diff --git', 'index ', '--- ', '+++ ', '\\')
+
+        if line.start_with?('+')
+          yield(line, new_line_number)
+          new_line_number += 1
+        elsif line.start_with?('-')
+          next
+        elsif line.start_with?(' ')
+          new_line_number += 1
+        end
+      end
+    end
+
     def format_inline_message(result, location: nil, inline_suggestions: false)
-      suggestion = format_inline_suggestion(result, location)
-      return suggestion if inline_suggestions
+      if inline_suggestions
+        suggestion = format_inline_suggestion(result, location)
+        return suggestion if suggestion
+
+        # When a suggestion can't be generated for an unsupported file type,
+        # return nil to skip the comment entirely. But when the location has an
+        # existing translator comment that can't be expressed as a one-click
+        # suggestion (non-added lines), fall through to plain text so the
+        # reviewer still sees the recommendation.
+        return nil unless location&.dig(:existing_comment)
+      end
 
       parts = ['**Translation Context Suggestion**', result.description.to_s]
       parts << "*Max length: #{result.max_length}*" if result.max_length
@@ -393,6 +414,7 @@ module Danger
 
     def translation_suggestion_supported?(location)
       return false if location[:content].to_s.strip.empty?
+      return false if location[:existing_comment] && !location[:start_line]
 
       %w[.strings .xml].include?(File.extname(location[:file]).downcase)
     end
@@ -403,46 +425,42 @@ module Danger
     end
 
     def existing_translator_comment_block(location)
-      return false unless File.exist?(location[:file])
+      lines = cached_file_lines(location[:file])
+      return nil unless lines
 
-      lines = File.readlines(location[:file]).map(&:chomp)
       comment_end_index = location[:line] - 2
-      return false if comment_end_index.negative?
+      return nil if comment_end_index.negative?
 
       case File.extname(location[:file]).downcase
       when '.strings'
         extract_strings_comment_block(lines, comment_end_index)
       when '.xml'
         extract_xml_comment_block(lines, comment_end_index)
-      else
-        false
       end
     end
 
     def extract_strings_comment_block(lines, comment_end_index)
-      return false unless lines[comment_end_index].strip.end_with?('*/')
+      return nil unless lines[comment_end_index]&.strip&.end_with?('*/')
 
       comment_start_index = comment_end_index
       comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('/*')
-      return false if comment_start_index.negative?
+      return nil if comment_start_index.negative?
 
       {
         start_line: comment_start_index + 1,
-        end_line: comment_end_index + 1,
         lines: lines[comment_start_index..comment_end_index]
       }
     end
 
     def extract_xml_comment_block(lines, comment_end_index)
-      return false unless lines[comment_end_index].include?('-->')
+      return nil unless lines[comment_end_index]&.include?('-->')
 
       comment_start_index = comment_end_index
       comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('<!--')
-      return false if comment_start_index.negative?
+      return nil if comment_start_index.negative?
 
       {
         start_line: comment_start_index + 1,
-        end_line: comment_end_index + 1,
         lines: lines[comment_start_index..comment_end_index]
       }
     end
@@ -492,20 +510,7 @@ module Danger
     def normalize_report_location(report_location, inline:, summary:)
       return normalize_legacy_report_location(inline: inline, summary: summary) unless inline.nil? && summary.nil?
 
-      normalized = report_location.to_sym
-      return normalized if VALID_REPORT_LOCATIONS.include?(normalized)
-
-      reporter.report(
-        message: "Invalid report_location `#{report_location}`. Expected one of: #{VALID_REPORT_LOCATIONS.join(', ')}.",
-        type: :warning
-      )
-      nil
-    rescue NoMethodError
-      reporter.report(
-        message: "Invalid report_location `#{report_location}`. Expected one of: #{VALID_REPORT_LOCATIONS.join(', ')}.",
-        type: :warning
-      )
-      nil
+      normalize_enum_param(report_location, VALID_REPORT_LOCATIONS, 'report_location')
     end
 
     def normalize_legacy_report_location(inline:, summary:)
@@ -523,20 +528,12 @@ module Danger
       %i[inline both].include?(report_location)
     end
 
-    def normalize_inline_suggestion_target(inline_suggestion_target)
-      normalized = inline_suggestion_target.to_sym
-      return normalized if VALID_INLINE_SUGGESTION_TARGETS.include?(normalized)
+    def normalize_enum_param(value, valid_values, param_name)
+      normalized = value.to_sym if value.respond_to?(:to_sym)
+      return normalized if normalized && valid_values.include?(normalized)
 
       reporter.report(
-        message: "Invalid inline_suggestion_target `#{inline_suggestion_target}`. " \
-                 "Expected one of: #{VALID_INLINE_SUGGESTION_TARGETS.join(', ')}.",
-        type: :warning
-      )
-      nil
-    rescue NoMethodError
-      reporter.report(
-        message: "Invalid inline_suggestion_target `#{inline_suggestion_target}`. " \
-                 "Expected one of: #{VALID_INLINE_SUGGESTION_TARGETS.join(', ')}.",
+        message: "Invalid #{param_name} `#{value}`. Expected one of: #{valid_values.join(', ')}.",
         type: :warning
       )
       nil
@@ -559,9 +556,11 @@ module Danger
       return location unless comment_block
 
       added_lines = added_lines_by_file[location[:file]]
-      return location unless (comment_block[:start_line]..location[:line]).all? { |line| added_lines.include?(line) }
-
-      location.merge(start_line: comment_block[:start_line])
+      if (comment_block[:start_line]..location[:line]).all? { |line| added_lines.include?(line) }
+        location.merge(start_line: comment_block[:start_line])
+      else
+        location.merge(existing_comment: true)
+      end
     end
 
     def build_source_line_locations(result)
@@ -576,9 +575,8 @@ module Danger
 
       file = match[1]
       line = match[2].to_i
-      return unless File.exist?(file)
-
-      lines = File.readlines(file).map(&:chomp)
+      lines = cached_file_lines(file)
+      return unless lines
       return if line < 1 || line > lines.length
 
       comment_line_index = find_swift_comment_line(lines, line - 1)
@@ -606,6 +604,13 @@ module Danger
 
     def summary_reporting?(report_location)
       %i[summary both].include?(report_location)
+    end
+
+    def cached_file_lines(path)
+      @file_lines_cache ||= {}
+      return @file_lines_cache[path] if @file_lines_cache.key?(path)
+
+      @file_lines_cache[path] = File.exist?(path) ? File.readlines(path).map(&:chomp) : nil
     end
 
     def skip_result?(result)

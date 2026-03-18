@@ -300,6 +300,91 @@ module Danger
             end
           end
 
+          context 'when a modified string has an existing translator comment on non-added lines' do
+            let(:strings_diff) do
+              <<~DIFF
+                diff --git a/#{strings_path} b/#{strings_path}
+                --- a/#{strings_path}
+                +++ b/#{strings_path}
+                @@ -1,3 +1,3 @@
+                 "Existing" = "Existing";
+                 /* Old context */
+                -"Add a tracking" = "Old value";
+                +"Add a tracking" = "Add a tracking";
+              DIFF
+            end
+
+            let(:strings_content) do
+              <<~STRINGS
+                "Existing" = "Existing";
+                /* Old context */
+                "Add a tracking" = "Add a tracking";
+              STRINGS
+            end
+
+            it 'posts a plain text suggestion instead of a code suggestion' do
+              @plugin.check_context_suggestions(
+                translations: strings_path,
+                source_paths: ['WooCommerce/'],
+                inline_suggestions: true
+              )
+
+              expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
+                satisfy('plain text suggestion') do |message|
+                  message.include?('**Translation Context Suggestion**') &&
+                    !message.include?('```suggestion')
+                end
+              )
+            end
+
+            it 'still detects long existing comments outside the previous scan cap' do
+              long_comment_lines = (1..25).map { |index| "Line #{index} of translator context." }
+              comment_block = [
+                '/*',
+                *long_comment_lines,
+                '*/'
+              ].join("\n")
+
+              allow(File).to receive(:readlines).with(strings_path).and_return(
+                [
+                  "\"Existing\" = \"Existing\";\n",
+                  *comment_block.lines,
+                  "\"Add a tracking\" = \"Add a tracking\";\n"
+                ]
+              )
+
+              @plugin.check_context_suggestions(
+                translations: strings_path,
+                source_paths: ['WooCommerce/'],
+                inline_suggestions: true
+              )
+
+              expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
+                satisfy('plain text suggestion') do |message|
+                  message.include?('**Translation Context Suggestion**') &&
+                    !message.include?('```suggestion')
+                end
+              )
+            end
+          end
+
+          it 'falls back to plain text when inline_markdown_poster fails' do
+            allow(@plugin.inline_markdown_poster).to receive(:post).and_return(false)
+
+            @plugin.check_context_suggestions(
+              translations: strings_path,
+              source_paths: ['WooCommerce/'],
+              inline_suggestions: true
+            )
+
+            expect(@dangerfile.status_report[:markdowns].map(&:message)).to contain_exactly(
+              satisfy('plain text suggestion') do |message|
+                message.include?('**Translation Context Suggestion**') &&
+                  !message.include?('```suggestion')
+              end
+            )
+          end
+
           it 'can include a GitHub suggestion block on the Swift source comment line' do
             source_path = 'OrderDetailViewController.swift'
             source_result = ExtractionResultStruct.new(
@@ -716,6 +801,62 @@ module Danger
 
           expect(@plugin.send(:build_added_line_map, [path])[path]).to eq(Set.new([2, 3]))
         end
+
+        it 'handles multiple hunks' do
+          path = 'Localizable.strings'
+          diff = <<~DIFF
+            diff --git a/#{path} b/#{path}
+            --- a/#{path}
+            +++ b/#{path}
+            @@ -1,2 +1,3 @@
+             "first" = "First";
+            +"second" = "Second";
+             "third" = "Third";
+            @@ -10,2 +11,3 @@
+             "tenth" = "Tenth";
+            +"eleventh" = "Eleventh";
+             "twelfth" = "Twelfth";
+          DIFF
+
+          allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(GitDiffStruct.new('modified', path, diff))
+
+          expect(@plugin.send(:build_added_line_map, [path])[path]).to eq(Set.new([2, 12]))
+        end
+
+        it 'skips no-newline-at-end-of-file markers' do
+          path = 'Localizable.strings'
+          diff = <<~DIFF
+            diff --git a/#{path} b/#{path}
+            --- a/#{path}
+            +++ b/#{path}
+            @@ -1,2 +1,3 @@
+             "first" = "First";
+            +"second" = "Second";
+            \\ No newline at end of file
+          DIFF
+
+          allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(GitDiffStruct.new('modified', path, diff))
+
+          expect(@plugin.send(:build_added_line_map, [path])[path]).to eq(Set.new([2]))
+        end
+
+        it 'does not count removed lines toward line numbers' do
+          path = 'Localizable.strings'
+          diff = <<~DIFF
+            diff --git a/#{path} b/#{path}
+            --- a/#{path}
+            +++ b/#{path}
+            @@ -1,3 +1,3 @@
+             "first" = "First";
+            -"old" = "Old";
+            +"new" = "New";
+             "third" = "Third";
+          DIFF
+
+          allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(GitDiffStruct.new('modified', path, diff))
+
+          expect(@plugin.send(:build_added_line_map, [path])[path]).to eq(Set.new([2]))
+        end
       end
 
       describe '#format_inline_message' do
@@ -825,6 +966,18 @@ module Danger
               <string name="processing">Processing</string>
             ```
           SUGGESTION
+        end
+
+        it 'returns nil when an existing comment is present but not in added lines' do
+          result = ExtractionResultStruct.new(description: 'Status label shown while processing.')
+          location = {
+            file: 'strings.xml',
+            line: 3,
+            content: '  <string name="processing">Processing</string>',
+            existing_comment: true
+          }
+
+          expect(@plugin.send(:format_inline_suggestion, result, location)).to be_nil
         end
       end
 

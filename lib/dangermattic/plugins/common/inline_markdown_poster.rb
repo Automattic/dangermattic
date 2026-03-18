@@ -40,21 +40,25 @@ module Danger
           start_side: start_side
         )
       else
-        danger.markdown(
-          markdown,
-          file: file,
-          line: line,
-          start_line: start_line,
-          side: side,
-          start_side: start_side
-        )
+        post_via_danger(markdown, file: file, line: line, start_line: start_line)
       end
       true
-    rescue StandardError
+    rescue Octokit::Error, Faraday::Error
       false
     end
 
     private
+
+    # Only pass kwargs that Danger's markdown method is known to support.
+    # Released Danger accepts `file` and `line`; `start_line` support is
+    # checked dynamically via danger_supports_ranged_inline_markdown?.
+    def post_via_danger(markdown, file:, line:, start_line:)
+      if start_line && danger_supports_ranged_inline_markdown?
+        danger.markdown(markdown, file: file, line: line, start_line: start_line)
+      else
+        danger.markdown(markdown, file: file, line: line)
+      end
+    end
 
     def danger_supports_ranged_inline_markdown?
       Danger::Markdown.instance_method(:initialize).parameters.any? do |type, name|
@@ -67,8 +71,9 @@ module Danger
     # helper-internal change once upstream support lands.
     def upsert_raw_github_review_comment!(markdown, file:, line:, start_line:, side:, start_side:)
       marked_body = raw_github_review_comment_body(markdown)
-      matching_comments = fetch_pull_request_review_comments.select do |comment|
-        raw_github_review_comment?(comment) &&
+      comments = fetch_review_comments
+      matching_comments = comments.select do |comment|
+        managed_review_comment?(comment) &&
           same_raw_github_review_comment_location?(comment, file: file, line: line, start_line: start_line)
       end
 
@@ -77,12 +82,14 @@ module Danger
       if matching_comments.any?
         comment = matching_comments.shift
         github.api.update_pull_request_comment(github_repo_name, comment['id'], marked_body)
+        comment['body'] = marked_body
 
         matching_comments.each do |stale_comment|
           github.api.delete_pull_request_comment(github_repo_name, stale_comment['id'])
+          comments.delete(stale_comment)
         end
       else
-        github.api.create_pull_request_comment(
+        new_comment = github.api.create_pull_request_comment(
           github_repo_name,
           github_pull_request_number,
           marked_body,
@@ -93,15 +100,16 @@ module Danger
           side: side,
           start_side: start_side
         )
+        comments << new_comment
       end
     end
 
-    def fetch_pull_request_review_comments
-      github.api.pull_request_comments(github_repo_name, github_pull_request_number)
+    def fetch_review_comments
+      @fetch_review_comments ||= github.api.pull_request_comments(github_repo_name, github_pull_request_number)
     end
 
-    def raw_github_review_comment?(comment)
-      comment['body'].to_s.include?(RAW_GITHUB_REVIEW_COMMENT_MARKER)
+    def managed_review_comment?(comment)
+      comment['body'].to_s.start_with?(RAW_GITHUB_REVIEW_COMMENT_MARKER)
     end
 
     def same_raw_github_review_comment_location?(comment, file:, line:, start_line:)

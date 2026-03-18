@@ -75,6 +75,130 @@ module Danger
           start_side: 'RIGHT'
         )
       end
+
+      context 'with raw GitHub review comment upsert logic' do
+        let(:github_api) { instance_double(Octokit::Client) }
+        let(:github_plugin) do
+          instance_double(
+            Danger::DangerfileGitHubPlugin,
+            pr_json: {
+              'base' => { 'repo' => { 'full_name' => 'Automattic/dangermattic' } },
+              'number' => 42,
+              'head' => { 'sha' => 'abc123' }
+            },
+            api: github_api
+          )
+        end
+
+        before do
+          allow(@plugin).to receive_messages(
+            github: github_plugin,
+            danger_supports_ranged_inline_markdown?: false
+          )
+        end
+
+        it 'skips when an identical comment already exists' do
+          existing_comment = {
+            'id' => 100,
+            'body' => "<!-- dangermattic-inline-markdown-poster -->\ncontent",
+            'path' => 'Localizable.strings',
+            'line' => 3,
+            'start_line' => 2
+          }
+          allow(github_api).to receive(:pull_request_comments).and_return([existing_comment])
+
+          result = @plugin.post(
+            markdown: 'content',
+            file: 'Localizable.strings',
+            line: 3,
+            start_line: 2
+          )
+
+          expect(result).to be true
+          expect(github_api).not_to have_received(:create_pull_request_comment) if github_api.respond_to?(:create_pull_request_comment)
+        end
+
+        it 'updates an existing comment with different body' do
+          existing_comment = {
+            'id' => 100,
+            'body' => "<!-- dangermattic-inline-markdown-poster -->\nold content",
+            'path' => 'Localizable.strings',
+            'line' => 3,
+            'start_line' => 2
+          }
+          allow(github_api).to receive_messages(
+            pull_request_comments: [existing_comment],
+            update_pull_request_comment: {}
+          )
+
+          @plugin.post(
+            markdown: 'new content',
+            file: 'Localizable.strings',
+            line: 3,
+            start_line: 2
+          )
+
+          expect(github_api).to have_received(:update_pull_request_comment).with(
+            'Automattic/dangermattic',
+            100,
+            "<!-- dangermattic-inline-markdown-poster -->\nnew content"
+          )
+        end
+
+        it 'cleans up stale duplicate comments' do
+          stale_comments = [
+            {
+              'id' => 100,
+              'body' => "<!-- dangermattic-inline-markdown-poster -->\nold 1",
+              'path' => 'Localizable.strings',
+              'line' => 3,
+              'start_line' => 2
+            },
+            {
+              'id' => 101,
+              'body' => "<!-- dangermattic-inline-markdown-poster -->\nold 2",
+              'path' => 'Localizable.strings',
+              'line' => 3,
+              'start_line' => 2
+            }
+          ]
+          allow(github_api).to receive_messages(
+            pull_request_comments: stale_comments,
+            update_pull_request_comment: {},
+            delete_pull_request_comment: {}
+          )
+
+          @plugin.post(
+            markdown: 'new content',
+            file: 'Localizable.strings',
+            line: 3,
+            start_line: 2
+          )
+
+          expect(github_api).to have_received(:update_pull_request_comment).with(
+            'Automattic/dangermattic',
+            100,
+            "<!-- dangermattic-inline-markdown-poster -->\nnew content"
+          )
+          expect(github_api).to have_received(:delete_pull_request_comment).with(
+            'Automattic/dangermattic',
+            101
+          )
+        end
+
+        it 'returns false when the API call fails' do
+          allow(github_api).to receive(:pull_request_comments).and_raise(Octokit::NotFound)
+
+          result = @plugin.post(
+            markdown: 'content',
+            file: 'Localizable.strings',
+            line: 3,
+            start_line: 2
+          )
+
+          expect(result).to be false
+        end
+      end
     end
   end
 end
