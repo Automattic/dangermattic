@@ -67,6 +67,7 @@ module Danger
   class TranslationContextChecker < Plugin
     VALID_REPORT_LOCATIONS = %i[inline summary both none].freeze
     VALID_INLINE_SUGGESTION_TARGETS = %i[translation source].freeze
+    RAW_GITHUB_REVIEW_COMMENT_MARKER = '<!-- dangermattic-translation-context -->'
     STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
     XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
     XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
@@ -225,6 +226,8 @@ module Danger
     def post_inline_comments(results, translation_files, report_type, inline_suggestions: false,
                              inline_suggestion_target: :translation)
       key_lines = build_key_line_map(translation_files)
+      added_lines_by_file = build_added_line_map(translation_files)
+      existing_review_comments = nil
 
       results.each do |result|
         locations = resolve_inline_locations(
@@ -236,8 +239,25 @@ module Danger
 
         if locations&.any?
           locations.each do |location|
+            location = enrich_inline_location(
+              location,
+              added_lines_by_file,
+              inline_suggestions: inline_suggestions
+            )
             comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
             next if comment.to_s.empty?
+
+            if raw_github_review_comment_location?(location, inline_suggestions: inline_suggestions)
+              existing_review_comments ||= fetch_pull_request_review_comments
+
+              next if upsert_raw_github_review_comment(comment, location, existing_review_comments)
+
+              fallback_comment = format_inline_message(result, location: location, inline_suggestions: false)
+              next if fallback_comment.to_s.empty?
+
+              markdown(fallback_comment, file: location[:file], line: location[:line])
+              next
+            end
 
             markdown(comment, file: location[:file], line: location[:line])
           end
@@ -289,6 +309,38 @@ module Danger
       map
     end
 
+    def build_added_line_map(translation_files)
+      map = Hash.new { |h, k| h[k] = Set.new }
+
+      translation_files.each do |path|
+        diff = danger.git.diff_for_file(path)
+        next unless diff
+
+        new_line_number = nil
+
+        diff.patch.each_line do |line|
+          if (match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/))
+            new_line_number = match[1].to_i
+            next
+          end
+
+          next if new_line_number.nil?
+          next if line.start_with?('diff --git', 'index ', '--- ', '+++ ')
+
+          if line.start_with?('+')
+            map[path] << new_line_number
+            new_line_number += 1
+          elsif line.start_with?('-')
+            next
+          elsif line.start_with?(' ')
+            new_line_number += 1
+          end
+        end
+      end
+
+      map
+    end
+
     def format_inline_message(result, location: nil, inline_suggestions: false)
       suggestion = format_inline_suggestion(result, location)
       return suggestion if inline_suggestions
@@ -309,9 +361,6 @@ module Danger
       return unless location
       return format_source_inline_suggestion(result, location) if location[:suggestion_target] == :source
       return unless translation_suggestion_supported?(location)
-
-      existing_comment_block = existing_translator_comment_block(location)
-      return format_existing_translation_comment_suggestion(result, location, existing_comment_block) if existing_comment_block
 
       comment_line = translator_comment_for(result, location)
       return unless comment_line
@@ -372,7 +421,11 @@ module Danger
       comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('/*')
       return false if comment_start_index.negative?
 
-      { lines: lines[comment_start_index..comment_end_index] }
+      {
+        start_line: comment_start_index + 1,
+        end_line: comment_end_index + 1,
+        lines: lines[comment_start_index..comment_end_index]
+      }
     end
 
     def extract_xml_comment_block(lines, comment_end_index)
@@ -382,37 +435,11 @@ module Danger
       comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('<!--')
       return false if comment_start_index.negative?
 
-      { lines: lines[comment_start_index..comment_end_index] }
-    end
-
-    def format_existing_translation_comment_suggestion(result, location, existing_comment_block)
-      suggested_comment = translator_comment_for(result, location)
-      return unless suggested_comment
-
-      code_fence = translation_preview_code_fence(location)
-      current_block = (existing_comment_block[:lines] + [location[:content]]).join("\n")
-      suggested_block = [suggested_comment, location[:content]].join("\n")
-
-      [
-        'Existing block:',
-        code_fence,
-        current_block,
-        '```',
-        '',
-        'Suggested block:',
-        code_fence,
-        suggested_block,
-        '```'
-      ].join("\n")
-    end
-
-    def translation_preview_code_fence(location)
-      case File.extname(location[:file]).downcase
-      when '.xml'
-        '```xml'
-      else
-        '```text'
-      end
+      {
+        start_line: comment_start_index + 1,
+        end_line: comment_end_index + 1,
+        lines: lines[comment_start_index..comment_end_index]
+      }
     end
 
     def translator_comment_for(result, location)
@@ -517,6 +544,95 @@ module Danger
       end
 
       Array(key_lines[result.key]).map { |location| location.merge(suggestion_target: :translation) }
+    end
+
+    def enrich_inline_location(location, added_lines_by_file, inline_suggestions:)
+      return location unless inline_suggestions
+      return location unless location[:suggestion_target] == :translation
+
+      comment_block = existing_translator_comment_block(location)
+      return location unless comment_block
+
+      added_lines = added_lines_by_file[location[:file]]
+      return location unless (comment_block[:start_line]..location[:line]).all? { |line| added_lines.include?(line) }
+
+      location.merge(start_line: comment_block[:start_line])
+    end
+
+    def raw_github_review_comment_location?(location, inline_suggestions:)
+      inline_suggestions &&
+        location[:suggestion_target] == :translation &&
+        location[:start_line].to_i.positive? &&
+        location[:start_line] < location[:line]
+    end
+
+    def fetch_pull_request_review_comments
+      github.api.pull_request_comments(github_repo_name, github_pull_request_number)
+    rescue StandardError
+      []
+    end
+
+    def upsert_raw_github_review_comment(body, location, existing_review_comments)
+      marked_body = raw_github_review_comment_body(body)
+      matching_comments = existing_review_comments.select do |comment|
+        raw_github_review_comment?(comment) && same_raw_github_review_comment_location?(comment, location)
+      end
+
+      return true if matching_comments.any? { |comment| comment['body'] == marked_body }
+
+      if matching_comments.any?
+        comment = matching_comments.shift
+        github.api.update_pull_request_comment(github_repo_name, comment['id'], marked_body)
+        comment['body'] = marked_body
+
+        matching_comments.each do |stale_comment|
+          github.api.delete_pull_request_comment(github_repo_name, stale_comment['id'])
+          existing_review_comments.delete(stale_comment)
+        end
+      else
+        comment = github.api.create_pull_request_comment(
+          github_repo_name,
+          github_pull_request_number,
+          marked_body,
+          github_head_sha,
+          location[:file],
+          location[:line],
+          start_line: location[:start_line],
+          side: 'RIGHT',
+          start_side: 'RIGHT'
+        )
+        existing_review_comments << comment
+      end
+
+      true
+    rescue StandardError
+      false
+    end
+
+    def raw_github_review_comment?(comment)
+      comment['body'].to_s.include?(RAW_GITHUB_REVIEW_COMMENT_MARKER)
+    end
+
+    def same_raw_github_review_comment_location?(comment, location)
+      comment['path'] == location[:file] &&
+        comment['line'].to_i == location[:line] &&
+        comment['start_line'].to_i == location[:start_line]
+    end
+
+    def raw_github_review_comment_body(body)
+      "#{RAW_GITHUB_REVIEW_COMMENT_MARKER}\n#{body}"
+    end
+
+    def github_repo_name
+      github.pr_json['base']['repo']['full_name']
+    end
+
+    def github_pull_request_number
+      github.pr_json['number']
+    end
+
+    def github_head_sha
+      github.pr_json['head']['sha']
     end
 
     def build_source_line_locations(result)

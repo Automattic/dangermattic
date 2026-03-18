@@ -253,6 +253,18 @@ module Danger
           end
 
           context 'when the added string already has a translator comment' do
+            let(:github_api) { instance_double(Octokit::Client) }
+            let(:github_plugin) do
+              instance_double(
+                Danger::DangerfileGitHubPlugin,
+                pr_json: {
+                  'base' => { 'repo' => { 'full_name' => 'Automattic/dangermattic' } },
+                  'number' => 42,
+                  'head' => { 'sha' => 'abc123' }
+                },
+                api: github_api
+              )
+            end
             let(:strings_diff) do
               <<~DIFF
                 diff --git a/#{strings_path} b/#{strings_path}
@@ -273,6 +285,20 @@ module Danger
               STRINGS
             end
 
+            before do
+              allow(@plugin).to receive(:github).and_return(github_plugin)
+              allow(github_api).to receive_messages(
+                pull_request_comments: [],
+                create_pull_request_comment: {
+                  'id' => 123,
+                  'body' => '',
+                  'path' => strings_path,
+                  'line' => 3,
+                  'start_line' => 2
+                }
+              )
+            end
+
             it 'posts a replacement preview instead of skipping the string' do
               @plugin.check_context_suggestions(
                 translations: strings_path,
@@ -280,19 +306,23 @@ module Danger
                 inline_suggestions: true
               )
 
-              expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([<<~MESSAGE.chomp])
-                Existing block:
-                ```text
-                /* Existing context */
-                "Add a tracking" = "Add a tracking";
-                ```
-
-                Suggested block:
-                ```text
-                /* Button label in the order detail screen that initiates shipment tracking setup. */
-                "Add a tracking" = "Add a tracking";
-                ```
-              MESSAGE
+              expect(github_api).to have_received(:create_pull_request_comment).with(
+                'Automattic/dangermattic',
+                42,
+                <<~MESSAGE.chomp,
+                  <!-- dangermattic-translation-context -->
+                  ```suggestion
+                  /* Button label in the order detail screen that initiates shipment tracking setup. */
+                  "Add a tracking" = "Add a tracking";
+                  ```
+                MESSAGE
+                'abc123',
+                strings_path,
+                3,
+                start_line: 2,
+                side: 'RIGHT',
+                start_side: 'RIGHT'
+              )
             end
           end
 
@@ -695,6 +725,25 @@ module Danger
         end
       end
 
+      describe '#build_added_line_map' do
+        it 'tracks added line numbers in a diff hunk' do
+          path = 'Localizable.strings'
+          diff = <<~DIFF
+            diff --git a/#{path} b/#{path}
+            --- a/#{path}
+            +++ b/#{path}
+            @@ -1,2 +1,4 @@
+             "Existing" = "Existing";
+            +/* Existing context */
+            +"new_key" = "New Value";
+          DIFF
+
+          allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(GitDiffStruct.new('modified', path, diff))
+
+          expect(@plugin.send(:build_added_line_map, [path])[path]).to eq(Set.new([2, 3]))
+        end
+      end
+
       describe '#format_inline_message' do
         it 'formats a result with max length metadata only' do
           result = ExtractionResultStruct.new(
@@ -787,32 +836,17 @@ module Danger
           SUGGESTION
         end
 
-        it 'formats a replacement preview when a translator comment already exists' do
+        it 'formats the same suggestion body when a translator comment already exists' do
           result = ExtractionResultStruct.new(description: 'Status label shown while the order is processing.')
           location = {
             file: 'strings.xml',
             line: 3,
+            start_line: 2,
             content: '  <string name="processing">Processing</string>'
           }
 
-          allow(File).to receive(:exist?).with(location[:file]).and_return(true)
-          allow(File).to receive(:readlines).with(location[:file]).and_return(
-            [
-              "<resources>\n",
-              "  <!-- Existing context -->\n",
-              "  <string name=\"processing\">Processing</string>\n"
-            ]
-          )
-
           expect(@plugin.send(:format_inline_suggestion, result, location)).to eq(<<~SUGGESTION.chomp)
-            Existing block:
-            ```xml
-              <!-- Existing context -->
-              <string name="processing">Processing</string>
-            ```
-
-            Suggested block:
-            ```xml
+            ```suggestion
               <!-- Status label shown while the order is processing. -->
               <string name="processing">Processing</string>
             ```
