@@ -73,14 +73,31 @@ module Danger
     subject(:provider) { described_class.new(model: 'gpt-4o', api_key: 'test-key') }
 
     describe '#chat' do
-      it 'sends the correct request and extracts the response content' do
+      it 'sends the correct request and extracts the response content' do # rubocop:disable RSpec/MultipleExpectations
         response_body = {
           'choices' => [{ 'message' => { 'content' => '{"findings": []}' } }]
         }
-        stub_successful_http_response(response_body)
+        captured_request = nil
+        stub_successful_http_response(response_body) { |request| captured_request = request }
 
         result = provider.chat(system_prompt: 'You are a reviewer.', user_message: 'Review this code.')
         expect(result).to eq('{"findings": []}')
+
+        request_body = JSON.parse(captured_request.body)
+        expected_messages = [
+          { 'role' => 'system', 'content' => 'You are a reviewer.' },
+          { 'role' => 'user', 'content' => 'Review this code.' }
+        ]
+
+        expect(captured_request.path).to eq('/v1/chat/completions')
+        expect(captured_request['Authorization']).to eq('Bearer test-key')
+        expect(captured_request['Content-Type']).to eq('application/json')
+        expect(request_body).to include(
+          'model' => 'gpt-4o',
+          'temperature' => 0.2,
+          'response_format' => { 'type' => 'json_object' }
+        )
+        expect(request_body['messages']).to eq(expected_messages)
       end
 
       it 'returns empty string when response has no content' do
@@ -112,14 +129,32 @@ module Danger
     subject(:provider) { described_class.new(model: 'claude-sonnet-4-20250514', api_key: 'test-key') }
 
     describe '#chat' do
-      it 'sends the correct request and extracts the response content' do
+      it 'sends the correct request and extracts the response content' do # rubocop:disable RSpec/MultipleExpectations
         response_body = {
           'content' => [{ 'type' => 'text', 'text' => '{"findings": []}' }]
         }
-        stub_successful_http_response(response_body)
+        captured_request = nil
+        stub_successful_http_response(response_body) { |request| captured_request = request }
 
         result = provider.chat(system_prompt: 'You are a reviewer.', user_message: 'Review this code.')
         expect(result).to eq('{"findings": []}')
+
+        request_body = JSON.parse(captured_request.body)
+        expected_messages = [
+          { 'role' => 'user', 'content' => 'Review this code.' }
+        ]
+
+        expect(captured_request.path).to eq('/v1/messages')
+        expect(captured_request['x-api-key']).to eq('test-key')
+        expect(captured_request['anthropic-version']).to eq('2023-06-01')
+        expect(captured_request['Content-Type']).to eq('application/json')
+        expect(request_body).to include(
+          'model' => 'claude-sonnet-4-20250514',
+          'max_tokens' => 4096,
+          'system' => 'You are a reviewer.',
+          'temperature' => 0.2
+        )
+        expect(request_body['messages']).to eq(expected_messages)
       end
 
       it 'returns empty string when response has no text block' do
@@ -163,7 +198,10 @@ def stub_successful_http_response(body)
   allow(http).to receive(:'use_ssl=')
   allow(http).to receive(:'open_timeout=')
   allow(http).to receive(:'read_timeout=')
-  allow(http).to receive(:request).and_return(response)
+  allow(http).to receive(:request) do |request|
+    yield request if block_given?
+    response
+  end
   allow(Net::HTTP).to receive(:new).and_return(http)
 end
 

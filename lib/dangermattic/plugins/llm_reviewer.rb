@@ -30,6 +30,7 @@ module Danger
     DEFAULT_MAX_DIFF_SIZE = 100_000
 
     SEVERITY_MAP = { 'info' => :message, 'warning' => :warning, 'error' => :error }.freeze
+    TAG_SEVERITY_MAP = { message: 'info', warning: 'warning', error: 'error' }.freeze
 
     # Pattern to identify and parse LLM review tags in comment bodies
     LLM_REVIEW_TAG_PATTERN = /<!-- llm-review:(error|warning|info) -->/
@@ -120,7 +121,7 @@ module Danger
 
       valid_files = diffs.to_set { |d| d[:file] }
       validated = validate_findings(findings: findings, valid_files: valid_files, valid_lines: valid_lines)
-      capped = cap_findings(findings: validated, max_comments: max_comments)
+      capped = cap_findings(findings: validated, max_comments: max_comments, default_severity: report_type)
       report_findings(findings: capped, default_severity: report_type)
     rescue LlmProvider::AuthError => e
       warn("LLM Reviewer: Authentication failed. Check your API key configuration. (#{e.message})")
@@ -163,8 +164,8 @@ module Danger
 
     # Extracts the original tagged message from Danger's inline comment HTML wrapper.
     def extract_tagged_message(body:)
-      td_match = body.match(%r{<td>\s*\n*(.*?<!-- llm-review:(?:error|warning|info) -->)\s*\n*</td>}m)
-      td_match ? td_match[1].strip : nil
+      content_cell_match = body.match(%r{<td\b[^>]*data-sticky="(?:true|false)"[^>]*>\s*(.*?)\s*</td>}m)
+      content_cell_match ? content_cell_match[1].strip : nil
     end
 
     def build_provider(model:, provider:)
@@ -292,16 +293,19 @@ module Danger
 
       raw_findings.filter_map do |f|
         next unless f.is_a?(Hash)
-        next unless f['message'].is_a?(String) && !f['message'].empty?
+        next unless f['message'].is_a?(String)
 
-        severity = %w[info warning error].include?(f['severity']) ? f['severity'] : 'warning'
+        message = f['message'].strip
+        next if message.empty?
+
+        severity = %w[info warning error].include?(f['severity']) ? f['severity'] : nil
         line = f['line'].is_a?(Integer) ? f['line'] : nil
 
         Finding.new(
           file: f['file'].is_a?(String) ? f['file'] : nil,
           line: line,
           severity: severity,
-          message: f['message']
+          message: message
         )
       end
     rescue JSON::ParserError
@@ -332,14 +336,17 @@ module Danger
       end
     end
 
-    def cap_findings(findings:, max_comments:)
+    def cap_findings(findings:, max_comments:, default_severity:)
       severity_order = { 'error' => 0, 'warning' => 1, 'info' => 2 }
-      sorted = findings.sort_by { |f| severity_order.fetch(f.severity, 3) }
+      default_tag_severity = TAG_SEVERITY_MAP.fetch(default_severity, 'warning')
+      sorted = findings.sort_by { |f| severity_order.fetch(f.severity || default_tag_severity, 3) }
 
       return sorted if sorted.length <= max_comments
+      return sorted.first(max_comments) if max_comments == 1
 
-      omitted = sorted.length - max_comments
-      capped = sorted.first(max_comments)
+      capped_findings_count = max_comments - 1
+      omitted = sorted.length - capped_findings_count
+      capped = sorted.first(capped_findings_count)
       capped << Finding.new(
         file: nil,
         line: nil,
@@ -352,15 +359,16 @@ module Danger
     def report_findings(findings:, default_severity:)
       findings.each do |finding|
         severity = SEVERITY_MAP.fetch(finding.severity, default_severity)
-        report_single_finding(finding: finding, severity: severity)
+        tag_severity = finding.severity || TAG_SEVERITY_MAP.fetch(severity, 'warning')
+        report_single_finding(finding: finding, severity: severity, tag_severity: tag_severity)
       end
     end
 
-    def report_single_finding(finding:, severity:)
+    def report_single_finding(finding:, severity:, tag_severity:)
       msg = if finding.message.match?(LLM_REVIEW_TAG_PATTERN)
               finding.message
             else
-              "#{finding.message} <!-- llm-review:#{finding.severity} -->"
+              "#{finding.message} <!-- llm-review:#{tag_severity} -->"
             end
       has_location = finding.file && finding.line
 

@@ -322,7 +322,7 @@ module Danger
           allow(LlmProvider).to receive(:build).and_return(mock_provider)
         end
 
-        it 'limits the number of warnings to max_comments' do
+        it 'keeps the total number of posted comments within max_comments' do
           findings = (1..5).map do |i|
             { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'warning', 'message' => "Finding #{i}." }
           end
@@ -331,7 +331,9 @@ module Danger
 
           @plugin.review(model: 'gpt-4o', max_comments: 2)
 
-          expect(@dangerfile.status_report[:warnings].length).to eq(2)
+          total_comments = %i[errors warnings messages].sum { |kind| @dangerfile.status_report[kind].length }
+          expect(total_comments).to eq(2)
+          expect(@dangerfile.status_report[:warnings]).to eq(['Finding 1. <!-- llm-review:warning -->'])
         end
 
         it 'adds a summary message when findings are omitted' do
@@ -343,7 +345,7 @@ module Danger
 
           @plugin.review(model: 'gpt-4o', max_comments: 2)
 
-          expect(@dangerfile.status_report[:messages].first).to include('3 additional finding(s) were omitted')
+          expect(@dangerfile.status_report[:messages].first).to include('4 additional finding(s) were omitted')
         end
 
         it 'keeps errors over warnings when capping' do
@@ -362,16 +364,30 @@ module Danger
 
         it 'keeps warnings over info when capping' do
           findings = [
-            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'info', 'message' => 'Info finding.' },
             { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'error', 'message' => 'Error finding.' },
-            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'warning', 'message' => 'Warning finding.' }
+            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'warning', 'message' => 'Warning finding.' },
+            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'info', 'message' => 'Info finding.' },
+            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'info', 'message' => 'Another info finding.' }
           ]
           llm_response = { 'findings' => findings }.to_json
           allow(mock_provider).to receive(:chat).and_return(llm_response)
 
-          @plugin.review(model: 'gpt-4o', max_comments: 2)
+          @plugin.review(model: 'gpt-4o', max_comments: 3)
 
           expect(@dangerfile.status_report[:warnings]).to eq(['Warning finding. <!-- llm-review:warning -->'])
+        end
+
+        it 'does not add an omission summary when max_comments is one' do
+          findings = (1..3).map do |i|
+            { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'warning', 'message' => "Finding #{i}." }
+          end
+          llm_response = { 'findings' => findings }.to_json
+          allow(mock_provider).to receive(:chat).and_return(llm_response)
+
+          @plugin.review(model: 'gpt-4o', max_comments: 1)
+
+          expect(@dangerfile.status_report[:warnings]).to eq(['Finding 1. <!-- llm-review:warning -->'])
+          expect(@dangerfile.status_report[:messages]).to be_empty
         end
       end
 
@@ -498,7 +514,7 @@ module Danger
         end
       end
 
-      context 'when handling unknown severity values' do
+      context 'when using report_type as the severity fallback' do
         let(:mock_provider) { instance_double(OpenAiProvider) }
 
         before do
@@ -513,18 +529,34 @@ module Danger
           allow(LlmProvider).to receive(:build).and_return(mock_provider)
         end
 
-        it 'defaults unknown severity to warning during parsing' do
+        it 'uses report_type for findings with missing severities' do
           llm_response = {
             'findings' => [
-              { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'critical', 'message' => 'Unknown severity finding.' }
+              { 'file' => 'app/main.rb', 'line' => 1, 'message' => 'Missing severity finding.' }
             ]
           }.to_json
 
           allow(mock_provider).to receive(:chat).and_return(llm_response)
 
-          @plugin.review(model: 'gpt-4o')
+          @plugin.review(model: 'gpt-4o', report_type: :error)
 
-          expect(@dangerfile.status_report[:warnings]).to eq(['Unknown severity finding. <!-- llm-review:warning -->'])
+          expect(@dangerfile.status_report[:errors]).to eq(['Missing severity finding. <!-- llm-review:error -->'])
+        end
+
+        it 'uses report_type for invalid severities when ranking capped findings' do
+          llm_response = {
+            'findings' => [
+              { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'critical', 'message' => 'Fallback severity finding.' },
+              { 'file' => 'app/main.rb', 'line' => 1, 'severity' => 'info', 'message' => 'Info finding.' }
+            ]
+          }.to_json
+
+          allow(mock_provider).to receive(:chat).and_return(llm_response)
+
+          @plugin.review(model: 'gpt-4o', report_type: :error, max_comments: 1)
+
+          expect(@dangerfile.status_report[:errors]).to eq(['Fallback severity finding. <!-- llm-review:error -->'])
+          expect(@dangerfile.status_report[:messages]).to be_empty
         end
       end
 
@@ -549,7 +581,7 @@ module Danger
             commit_id: 'abc123',
             path: 'app/main.rb',
             line: 1,
-            body: "<td>\n\nSome issue. <!-- llm-review:warning -->\n\n</td>"
+            body: danger_inline_comment_body(message: 'Some issue. <!-- llm-review:warning -->', severity: 'warning')
           )
           allow(@mock_api).to receive(:pull_request_comments).and_return([cached_comment])
 
@@ -616,4 +648,18 @@ def stub_env_keys
   allow(ENV).to receive(:fetch).and_call_original
   allow(ENV).to receive(:fetch).with('OPENAI_API_KEY').and_return('test-openai-key')
   allow(ENV).to receive(:fetch).with('ANTHROPIC_API_KEY').and_return('test-anthropic-key')
+end
+
+def danger_inline_comment_body(message:, severity:, file: 'app/main.rb', line: 1, sticky: false)
+  helper = Object.new.extend(Danger::Helpers::CommentsHelper)
+  violation_type = { 'info' => :message, 'warning' => :warning, 'error' => :error }.fetch(severity)
+  emoji = { 'info' => 'book', 'warning' => 'warning', 'error' => 'no_entry_sign' }.fetch(severity)
+  violation = Danger::Violation.new(message, sticky, file, line, type: violation_type)
+
+  helper.generate_inline_comment_body(
+    emoji,
+    helper.process_markdown(violation, true),
+    danger_id: 'danger',
+    template: 'github'
+  )
 end
