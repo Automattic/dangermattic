@@ -252,6 +252,50 @@ module Danger
             MESSAGE
           end
 
+          context 'when the added string already has a translator comment' do
+            let(:strings_diff) do
+              <<~DIFF
+                diff --git a/#{strings_path} b/#{strings_path}
+                --- a/#{strings_path}
+                +++ b/#{strings_path}
+                @@ -1,2 +1,4 @@
+                 "Existing" = "Existing";
+                +/* Existing context */
+                +"Add a tracking" = "Add a tracking";
+              DIFF
+            end
+
+            let(:strings_content) do
+              <<~STRINGS
+                "Existing" = "Existing";
+                /* Existing context */
+                "Add a tracking" = "Add a tracking";
+              STRINGS
+            end
+
+            it 'posts a replacement preview instead of skipping the string' do
+              @plugin.check_context_suggestions(
+                translations: strings_path,
+                source_paths: ['WooCommerce/'],
+                inline_suggestions: true
+              )
+
+              expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([<<~MESSAGE.chomp])
+                Existing block:
+                ```text
+                /* Existing context */
+                "Add a tracking" = "Add a tracking";
+                ```
+
+                Suggested block:
+                ```text
+                /* Button label in the order detail screen that initiates shipment tracking setup. */
+                "Add a tracking" = "Add a tracking";
+                ```
+              MESSAGE
+            end
+          end
+
           it 'can include a GitHub suggestion block on the Swift source comment line' do
             source_path = 'OrderDetailViewController.swift'
             source_result = ExtractionResultStruct.new(
@@ -743,7 +787,7 @@ module Danger
           SUGGESTION
         end
 
-        it 'does not emit a suggestion when a translator comment already exists' do
+        it 'formats a replacement preview when a translator comment already exists' do
           result = ExtractionResultStruct.new(description: 'Status label shown while the order is processing.')
           location = {
             file: 'strings.xml',
@@ -760,7 +804,19 @@ module Danger
             ]
           )
 
-          expect(@plugin.send(:format_inline_suggestion, result, location)).to be_nil
+          expect(@plugin.send(:format_inline_suggestion, result, location)).to eq(<<~SUGGESTION.chomp)
+            Existing block:
+            ```xml
+              <!-- Existing context -->
+              <string name="processing">Processing</string>
+            ```
+
+            Suggested block:
+            ```xml
+              <!-- Status label shown while the order is processing. -->
+              <string name="processing">Processing</string>
+            ```
+          SUGGESTION
         end
       end
 
@@ -768,19 +824,10 @@ module Danger
         it 'returns nil when inline suggestions are enabled but a suggestion cannot be generated' do
           result = ExtractionResultStruct.new(description: 'Screen title shown at the top of the settings screen.')
           location = {
-            file: 'strings.xml',
-            line: 3,
-            content: '  <string name="settings_title">Settings</string>'
+            file: 'settings.txt',
+            line: 1,
+            content: 'Settings'
           }
-
-          allow(File).to receive(:exist?).with(location[:file]).and_return(true)
-          allow(File).to receive(:readlines).with(location[:file]).and_return(
-            [
-              "<resources>\n",
-              "  <!-- Existing context -->\n",
-              "  <string name=\"settings_title\">Settings</string>\n"
-            ]
-          )
 
           message = @plugin.send(:format_inline_message, result, location: location, inline_suggestions: true)
 

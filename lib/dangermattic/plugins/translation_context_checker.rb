@@ -310,6 +310,9 @@ module Danger
       return format_source_inline_suggestion(result, location) if location[:suggestion_target] == :source
       return unless translation_suggestion_supported?(location)
 
+      existing_comment_block = existing_translator_comment_block(location)
+      return format_existing_translation_comment_suggestion(result, location, existing_comment_block) if existing_comment_block
+
       comment_line = translator_comment_for(result, location)
       return unless comment_line
 
@@ -336,7 +339,6 @@ module Danger
 
     def translation_suggestion_supported?(location)
       return false if location[:content].to_s.strip.empty?
-      return false if existing_translator_comment?(location)
 
       %w[.strings .xml].include?(File.extname(location[:file]).downcase)
     end
@@ -346,21 +348,70 @@ module Danger
         location[:content].to_s.match?(SWIFT_COMMENT_ARGUMENT_PATTERN)
     end
 
-    def existing_translator_comment?(location)
+    def existing_translator_comment_block(location)
       return false unless File.exist?(location[:file])
 
-      previous_line = File.readlines(location[:file])[location[:line] - 2]
-      return false unless previous_line
-
-      stripped = previous_line.strip
+      lines = File.readlines(location[:file]).map(&:chomp)
+      comment_end_index = location[:line] - 2
+      return false if comment_end_index.negative?
 
       case File.extname(location[:file]).downcase
       when '.strings'
-        stripped.start_with?('/*') && stripped.end_with?('*/')
+        extract_strings_comment_block(lines, comment_end_index)
       when '.xml'
-        stripped.start_with?('<!--') && stripped.end_with?('-->')
+        extract_xml_comment_block(lines, comment_end_index)
       else
         false
+      end
+    end
+
+    def extract_strings_comment_block(lines, comment_end_index)
+      return false unless lines[comment_end_index].strip.end_with?('*/')
+
+      comment_start_index = comment_end_index
+      comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('/*')
+      return false if comment_start_index.negative?
+
+      { lines: lines[comment_start_index..comment_end_index] }
+    end
+
+    def extract_xml_comment_block(lines, comment_end_index)
+      return false unless lines[comment_end_index].include?('-->')
+
+      comment_start_index = comment_end_index
+      comment_start_index -= 1 until comment_start_index.negative? || lines[comment_start_index].include?('<!--')
+      return false if comment_start_index.negative?
+
+      { lines: lines[comment_start_index..comment_end_index] }
+    end
+
+    def format_existing_translation_comment_suggestion(result, location, existing_comment_block)
+      suggested_comment = translator_comment_for(result, location)
+      return unless suggested_comment
+
+      code_fence = translation_preview_code_fence(location)
+      current_block = (existing_comment_block[:lines] + [location[:content]]).join("\n")
+      suggested_block = [suggested_comment, location[:content]].join("\n")
+
+      [
+        'Existing block:',
+        code_fence,
+        current_block,
+        '```',
+        '',
+        'Suggested block:',
+        code_fence,
+        suggested_block,
+        '```'
+      ].join("\n")
+    end
+
+    def translation_preview_code_fence(location)
+      case File.extname(location[:file]).downcase
+      when '.xml'
+        '```xml'
+      else
+        '```text'
       end
     end
 
