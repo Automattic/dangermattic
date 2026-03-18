@@ -67,7 +67,6 @@ module Danger
   class TranslationContextChecker < Plugin
     VALID_REPORT_LOCATIONS = %i[inline summary both none].freeze
     VALID_INLINE_SUGGESTION_TARGETS = %i[translation source].freeze
-    RAW_GITHUB_REVIEW_COMMENT_MARKER = '<!-- dangermattic-translation-context -->'
     STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
     XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
     XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
@@ -227,7 +226,6 @@ module Danger
                              inline_suggestion_target: :translation)
       key_lines = build_key_line_map(translation_files)
       added_lines_by_file = build_added_line_map(translation_files)
-      existing_review_comments = nil
 
       results.each do |result|
         locations = resolve_inline_locations(
@@ -247,10 +245,17 @@ module Danger
             comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
             next if comment.to_s.empty?
 
-            if raw_github_review_comment_location?(location, inline_suggestions: inline_suggestions)
-              existing_review_comments ||= fetch_pull_request_review_comments
-
-              next if upsert_raw_github_review_comment(comment, location, existing_review_comments)
+            if inline_suggestions
+              # Keep callers on a Danger-shaped API while the helper bridges the
+              # missing ranged-inline-markdown support in released Danger.
+              next if inline_markdown_poster.post(
+                markdown: comment,
+                file: location[:file],
+                line: location[:line],
+                start_line: location[:start_line],
+                side: 'RIGHT',
+                start_side: 'RIGHT'
+              )
 
               fallback_comment = format_inline_message(result, location: location, inline_suggestions: false)
               next if fallback_comment.to_s.empty?
@@ -557,82 +562,6 @@ module Danger
       return location unless (comment_block[:start_line]..location[:line]).all? { |line| added_lines.include?(line) }
 
       location.merge(start_line: comment_block[:start_line])
-    end
-
-    def raw_github_review_comment_location?(location, inline_suggestions:)
-      inline_suggestions &&
-        location[:suggestion_target] == :translation &&
-        location[:start_line].to_i.positive? &&
-        location[:start_line] < location[:line]
-    end
-
-    def fetch_pull_request_review_comments
-      github.api.pull_request_comments(github_repo_name, github_pull_request_number)
-    rescue StandardError
-      []
-    end
-
-    def upsert_raw_github_review_comment(body, location, existing_review_comments)
-      marked_body = raw_github_review_comment_body(body)
-      matching_comments = existing_review_comments.select do |comment|
-        raw_github_review_comment?(comment) && same_raw_github_review_comment_location?(comment, location)
-      end
-
-      return true if matching_comments.any? { |comment| comment['body'] == marked_body }
-
-      if matching_comments.any?
-        comment = matching_comments.shift
-        github.api.update_pull_request_comment(github_repo_name, comment['id'], marked_body)
-        comment['body'] = marked_body
-
-        matching_comments.each do |stale_comment|
-          github.api.delete_pull_request_comment(github_repo_name, stale_comment['id'])
-          existing_review_comments.delete(stale_comment)
-        end
-      else
-        comment = github.api.create_pull_request_comment(
-          github_repo_name,
-          github_pull_request_number,
-          marked_body,
-          github_head_sha,
-          location[:file],
-          location[:line],
-          start_line: location[:start_line],
-          side: 'RIGHT',
-          start_side: 'RIGHT'
-        )
-        existing_review_comments << comment
-      end
-
-      true
-    rescue StandardError
-      false
-    end
-
-    def raw_github_review_comment?(comment)
-      comment['body'].to_s.include?(RAW_GITHUB_REVIEW_COMMENT_MARKER)
-    end
-
-    def same_raw_github_review_comment_location?(comment, location)
-      comment['path'] == location[:file] &&
-        comment['line'].to_i == location[:line] &&
-        comment['start_line'].to_i == location[:start_line]
-    end
-
-    def raw_github_review_comment_body(body)
-      "#{RAW_GITHUB_REVIEW_COMMENT_MARKER}\n#{body}"
-    end
-
-    def github_repo_name
-      github.pr_json['base']['repo']['full_name']
-    end
-
-    def github_pull_request_number
-      github.pr_json['number']
-    end
-
-    def github_head_sha
-      github.pr_json['head']['sha']
     end
 
     def build_source_line_locations(result)

@@ -253,18 +253,6 @@ module Danger
           end
 
           context 'when the added string already has a translator comment' do
-            let(:github_api) { instance_double(Octokit::Client) }
-            let(:github_plugin) do
-              instance_double(
-                Danger::DangerfileGitHubPlugin,
-                pr_json: {
-                  'base' => { 'repo' => { 'full_name' => 'Automattic/dangermattic' } },
-                  'number' => 42,
-                  'head' => { 'sha' => 'abc123' }
-                },
-                api: github_api
-              )
-            end
             let(:strings_diff) do
               <<~DIFF
                 diff --git a/#{strings_path} b/#{strings_path}
@@ -286,17 +274,7 @@ module Danger
             end
 
             before do
-              allow(@plugin).to receive(:github).and_return(github_plugin)
-              allow(github_api).to receive_messages(
-                pull_request_comments: [],
-                create_pull_request_comment: {
-                  'id' => 123,
-                  'body' => '',
-                  'path' => strings_path,
-                  'line' => 3,
-                  'start_line' => 2
-                }
-              )
+              allow(@plugin.inline_markdown_poster).to receive(:post).and_return(true)
             end
 
             it 'posts a replacement preview instead of skipping the string' do
@@ -306,19 +284,15 @@ module Danger
                 inline_suggestions: true
               )
 
-              expect(github_api).to have_received(:create_pull_request_comment).with(
-                'Automattic/dangermattic',
-                42,
-                <<~MESSAGE.chomp,
-                  <!-- dangermattic-translation-context -->
+              expect(@plugin.inline_markdown_poster).to have_received(:post).with(
+                markdown: <<~MESSAGE.chomp,
                   ```suggestion
                   /* Button label in the order detail screen that initiates shipment tracking setup. */
                   "Add a tracking" = "Add a tracking";
                   ```
                 MESSAGE
-                'abc123',
-                strings_path,
-                3,
+                file: strings_path,
+                line: 3,
                 start_line: 2,
                 side: 'RIGHT',
                 start_side: 'RIGHT'
@@ -348,7 +322,6 @@ module Danger
             allow(@plugin).to receive(:run_extraction).and_return([source_result])
             allow(File).to receive(:exist?).with(source_path).and_return(true)
             allow(File).to receive(:readlines).with(source_path).and_return(source_content)
-            allow(@plugin).to receive(:markdown)
 
             expected_message = <<~MESSAGE.chomp
               ```suggestion
@@ -363,8 +336,9 @@ module Danger
               inline_suggestion_target: :source
             )
 
-            expect(@plugin).to have_received(:markdown).with(
-              expected_message,
+            markdown = @dangerfile.status_report[:markdowns].first
+            expect(markdown).to have_attributes(
+              message: expected_message,
               file: source_path,
               line: 3
             )
