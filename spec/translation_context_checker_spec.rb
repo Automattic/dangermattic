@@ -131,13 +131,13 @@ module Danger
         end
 
         context 'when reporting is disabled' do
-          it 'returns without loading txcontext when both legacy flags are false' do
+          it 'returns without loading txcontext when inline output and summary are both disabled' do
             allow(@plugin).to receive(:load_txcontext)
 
             @plugin.check_context_suggestions(
               translations: 'Localizable.strings',
               source_paths: ['Sources/'],
-              inline: false,
+              inline_mode: :none,
               summary: false
             )
 
@@ -148,12 +148,8 @@ module Danger
 
         context 'when an option value is invalid' do
           it_behaves_like 'an invalid option warning',
-                          method_args: { report_location: :sideways },
-                          warning: 'Invalid report_location `sideways`. Expected one of: inline, summary, both, none.'
-
-          it_behaves_like 'an invalid option warning',
-                          method_args: { inline_suggestions: true, inline_suggestion_target: :everywhere },
-                          warning: 'Invalid inline_suggestion_target `everywhere`. Expected one of: translation, source.'
+                          method_args: { inline_mode: :sideways },
+                          warning: 'Invalid inline_mode `sideways`. Expected one of: translation_comment, translation_suggestion, source_comment, source_suggestion, none.'
         end
 
         context 'when .strings file is changed' do
@@ -337,7 +333,7 @@ module Danger
           end
 
           it 'posts a summary markdown table' do
-            check_strings_context(report_location: :summary)
+            check_strings_context(inline_mode: :none, summary: true)
 
             expect(@dangerfile.status_report[:markdowns].first.message).to eq(<<~MARKDOWN)
               ### Translation Context Suggestions
@@ -349,7 +345,7 @@ module Danger
           end
 
           it 'can include a GitHub suggestion block in inline comments' do
-            check_strings_context(inline_suggestions: true)
+            check_strings_context(inline_mode: :translation_suggestion)
 
             expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
           end
@@ -378,7 +374,7 @@ module Danger
             allow(File).to receive(:exist?).with(source_path).and_return(true)
             allow(File).to receive(:readlines).with(source_path).and_return(source_content)
 
-            check_strings_context(inline_suggestions: true, inline_suggestion_target: :source)
+            check_strings_context(inline_mode: :source_suggestion)
 
             expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
           end
@@ -409,7 +405,7 @@ module Danger
             end
 
             it 'posts a replacement preview instead of skipping the string' do
-              check_strings_context(inline_suggestions: true)
+              check_strings_context(inline_mode: :translation_suggestion)
 
               expect(@plugin.inline_markdown_poster).to have_received(:post).with(
                 markdown: translation_suggestion_markdown,
@@ -445,7 +441,7 @@ module Danger
             end
 
             it 'posts a plain text suggestion instead of a code suggestion' do
-              check_strings_context(inline_suggestions: true)
+              check_strings_context(inline_mode: :translation_suggestion)
 
               expect_plain_text_translation_suggestion
             end
@@ -466,7 +462,7 @@ module Danger
                 ]
               )
 
-              check_strings_context(inline_suggestions: true)
+              check_strings_context(inline_mode: :translation_suggestion)
 
               expect_plain_text_translation_suggestion
             end
@@ -475,7 +471,7 @@ module Danger
           it 'falls back to plain text when inline_markdown_poster fails' do
             allow(@plugin.inline_markdown_poster).to receive(:post).and_return(false)
 
-            check_strings_context(inline_suggestions: true)
+            check_strings_context(inline_mode: :translation_suggestion)
 
             expect_plain_text_translation_suggestion
           end
@@ -507,7 +503,7 @@ module Danger
               ```
             MESSAGE
 
-            check_strings_context(inline_suggestions: true, inline_suggestion_target: :source)
+            check_strings_context(inline_mode: :source_suggestion)
 
             markdown = @dangerfile.status_report[:markdowns].first
             expect(markdown).to have_attributes(
@@ -525,17 +521,41 @@ module Danger
           end
 
           it 'posts both inline comments and summary when requested' do
-            check_strings_context(report_location: :both)
+            check_strings_context(summary: true)
 
             expect(@dangerfile.status_report[:messages]).to be_empty
             expect(@dangerfile.status_report[:markdowns].length).to eq(2)
           end
 
-          it 'supports the legacy inline and summary flags' do
-            check_strings_context(inline: false, summary: true)
+          it 'can post a plain text inline comment on the Swift source comment line' do
+            source_path = 'OrderDetailViewController.swift'
+            source_result = build_extraction_result(
+              key: 'Add a tracking',
+              text: 'Add a tracking',
+              description: suggested_context,
+              ui_element: 'button',
+              tone: 'neutral',
+              locations: ["#{source_path}:2"]
+            )
+            source_content = [
+              "static let addTracking = NSLocalizedString(\n",
+              "    \"Add a tracking\",\n",
+              "    comment: \"\"\n",
+              ")\n"
+            ]
 
-            expect(@dangerfile.status_report[:messages]).to be_empty
-            expect(@dangerfile.status_report[:markdowns].length).to eq(1)
+            allow(@plugin).to receive(:run_extraction).and_return([source_result])
+            allow(File).to receive(:exist?).with(source_path).and_return(true)
+            allow(File).to receive(:readlines).with(source_path).and_return(source_content)
+
+            check_strings_context(inline_mode: :source_comment)
+
+            markdown = @dangerfile.status_report[:markdowns].first
+            expect(markdown).to have_attributes(
+              message: "**Translation Context Suggestion**\n#{suggested_context}",
+              file: source_path,
+              line: 3
+            )
           end
 
           it 'uses warning report type for PR-level fallback comments' do
@@ -610,7 +630,7 @@ module Danger
             @plugin.check_context_suggestions(
               translations: xml_path,
               source_paths: ['app/src/main/java/'],
-              inline_suggestions: true
+              inline_mode: :translation_suggestion
             )
 
             expect(@plugin.inline_markdown_poster).to have_received(:post).with(
@@ -1065,7 +1085,7 @@ module Danger
             file: 'OrderDetailViewController.swift',
             line: 3,
             content: '    comment: ""',
-            suggestion_target: :source
+            inline_target: :source
           }
 
           suggestion = @plugin.send(:format_inline_suggestion, result, location)
@@ -1194,7 +1214,7 @@ module Danger
                 file: 'OrderDetailViewController.swift',
                 line: 3,
                 content: '    comment: ""',
-                suggestion_target: :source
+                inline_target: :source
               }
             ]
           )

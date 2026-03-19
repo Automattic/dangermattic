@@ -32,7 +32,8 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
   #            source_paths: ['WooCommerce/'],
-  #            report_location: :summary
+  #            inline_mode: :none,
+  #            summary: true
   #          )
   #
   # @example Inline comments and summary table
@@ -40,7 +41,7 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'app/src/main/res/values/strings.xml',
   #            source_paths: ['app/src/main/java/'],
-  #            report_location: :both
+  #            summary: true
   #          )
   #
   # @example Inline GitHub suggestions that can be applied directly
@@ -48,7 +49,7 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'app/src/main/res/values/strings.xml',
   #            source_paths: ['app/src/main/java/'],
-  #            inline_suggestions: true
+  #            inline_mode: :translation_suggestion
   #          )
   #
   # @example Inline source-code suggestions for Swift localization comments
@@ -56,8 +57,7 @@ module Danger
   #          translation_context_checker.check_context_suggestions(
   #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
   #            source_paths: ['WooCommerce/Classes/'],
-  #            inline_suggestions: true,
-  #            inline_suggestion_target: :source
+  #            inline_mode: :source_suggestion
   #          )
   #
   # @see Automattic/dangermattic
@@ -65,8 +65,13 @@ module Danger
   #
   # rubocop:disable Metrics/ClassLength
   class TranslationContextChecker < Plugin
-    VALID_REPORT_LOCATIONS = %i[inline summary both none].freeze
-    VALID_INLINE_SUGGESTION_TARGETS = %i[translation source].freeze
+    VALID_INLINE_MODES = %i[
+      translation_comment
+      translation_suggestion
+      source_comment
+      source_suggestion
+      none
+    ].freeze
     STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
     XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
     XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
@@ -81,28 +86,23 @@ module Danger
     #
     # @param translations [String, Array<String>] Path(s) to translation file(s) (e.g., Localizable.strings, strings.xml).
     # @param source_paths [String, Array<String>] Path(s) to source code directories to search for string usage.
-    # @param report_location [Symbol, String] (optional) Where to post suggestions. Values: :inline (default), :summary, :both.
-    # @param inline [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with summary.
-    # @param summary [Boolean, nil] (optional) Deprecated compatibility flag. When provided, overrides report_location together with inline.
+    # @param inline_mode [Symbol, String] (optional) How to post inline feedback. Values: :translation_comment (default),
+    #   :translation_suggestion, :source_comment, :source_suggestion, :none.
+    # @param summary [Boolean] (optional) When true, also post a summary table. Default is false.
     # @param report_type [Symbol] (optional) Severity for PR-level fallback comments (:message, :warning, :error). Default is :message.
     #   Only applies when inline placement fails and the comment falls back to a PR-level report.
     # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
     # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
-    # @param inline_suggestions [Boolean] (optional) Include GitHub suggestion blocks in inline comments when possible. Default is false.
-    # @param inline_suggestion_target [Symbol, String] (optional) Target for inline suggestions. Values: :translation (default), :source.
     #
     # @return [void]
-    def check_context_suggestions(translations:, source_paths:, report_location: :inline, inline: nil, summary: nil,
-                                  report_type: :message, provider: :anthropic, model: nil, inline_suggestions: false,
-                                  inline_suggestion_target: :translation)
+    def check_context_suggestions(translations:, source_paths:, inline_mode: :translation_comment, summary: false,
+                                  report_type: :message, provider: :anthropic, model: nil)
       @file_lines_cache = {}
 
-      report_location = normalize_report_location(report_location, inline: inline, summary: summary)
-      return if report_location.nil? || report_location == :none
+      inline_mode = normalize_enum_param(inline_mode, VALID_INLINE_MODES, 'inline_mode')
+      return if inline_mode.nil?
 
-      inline_suggestion_target = normalize_enum_param(inline_suggestion_target, VALID_INLINE_SUGGESTION_TARGETS,
-                                                      'inline_suggestion_target')
-      return if inline_suggestions && inline_suggestion_target.nil?
+      return if inline_mode == :none && !summary
 
       unless load_txcontext
         reporter.report(
@@ -148,16 +148,15 @@ module Danger
       valid_results = results.reject { |r| skip_result?(r) }
       return if valid_results.empty?
 
-      if inline_reporting?(report_location)
+      if inline_reporting?(inline_mode)
         post_inline_comments(
           valid_results,
           changed_translation_files,
           report_type,
-          inline_suggestions: inline_suggestions,
-          inline_suggestion_target: inline_suggestion_target
+          inline_mode: inline_mode
         )
       end
-      post_summary_table(valid_results) if summary_reporting?(report_location)
+      post_summary_table(valid_results) if summary
     end
 
     private
@@ -222,22 +221,22 @@ module Danger
 
     # Post inline comments on the translation file lines where keys were changed.
     #
-    # When inline_suggestions is enabled, suggestions are posted via
+    # When inline_mode requests suggestion blocks, suggestions are posted via
     # inline_markdown_poster which handles both single-line (via Danger) and
     # multi-line (via raw GitHub API) cases. If posting fails, a plain-text
     # fallback is attempted. If no inline location is found at all, a PR-level
     # comment is posted using report_type severity.
-    def post_inline_comments(results, translation_files, report_type, inline_suggestions: false,
-                             inline_suggestion_target: :translation)
+    def post_inline_comments(results, translation_files, report_type, inline_mode:)
       key_lines = build_key_line_map(translation_files)
       added_lines_by_file = build_added_line_map(translation_files)
+      inline_suggestions = inline_suggestion_mode?(inline_mode)
+      inline_target = inline_target_for(inline_mode)
 
       results.each do |result|
         locations = resolve_inline_locations(
           result,
           key_lines,
-          inline_suggestions: inline_suggestions,
-          inline_suggestion_target: inline_suggestion_target
+          inline_target: inline_target
         )
 
         if locations&.any?
@@ -385,7 +384,7 @@ module Danger
 
     def format_inline_suggestion(result, location)
       return unless location
-      return format_source_inline_suggestion(result, location) if location[:suggestion_target] == :source
+      return format_source_inline_suggestion(result, location) if location[:inline_target] == :source
       return unless translation_suggestion_supported?(location)
 
       comment_line = translator_comment_for(result, location)
@@ -507,25 +506,18 @@ module Danger
       text.to_s.gsub('--', '- -')
     end
 
-    def normalize_report_location(report_location, inline:, summary:)
-      return normalize_legacy_report_location(inline: inline, summary: summary) unless inline.nil? && summary.nil?
-
-      normalize_enum_param(report_location, VALID_REPORT_LOCATIONS, 'report_location')
+    def inline_reporting?(inline_mode)
+      inline_mode != :none
     end
 
-    def normalize_legacy_report_location(inline:, summary:)
-      legacy_inline = inline.nil? || inline
-      legacy_summary = summary.nil? || summary
-
-      return :both if legacy_inline && legacy_summary
-      return :inline if legacy_inline
-      return :summary if legacy_summary
-
-      :none
+    def inline_suggestion_mode?(inline_mode)
+      %i[translation_suggestion source_suggestion].include?(inline_mode)
     end
 
-    def inline_reporting?(report_location)
-      %i[inline both].include?(report_location)
+    def inline_target_for(inline_mode)
+      return :source if %i[source_comment source_suggestion].include?(inline_mode)
+
+      :translation
     end
 
     def normalize_enum_param(value, valid_values, param_name)
@@ -539,18 +531,18 @@ module Danger
       nil
     end
 
-    def resolve_inline_locations(result, key_lines, inline_suggestions:, inline_suggestion_target:)
-      if inline_suggestions && inline_suggestion_target == :source
+    def resolve_inline_locations(result, key_lines, inline_target:)
+      if inline_target == :source
         source_locations = build_source_line_locations(result)
         return source_locations if source_locations.any?
       end
 
-      Array(key_lines[result.key]).map { |location| location.merge(suggestion_target: :translation) }
+      Array(key_lines[result.key]).map { |location| location.merge(inline_target: :translation) }
     end
 
     def enrich_inline_location(location, added_lines_by_file, inline_suggestions:)
       return location unless inline_suggestions
-      return location unless location[:suggestion_target] == :translation
+      return location unless location[:inline_target] == :translation
 
       comment_block = existing_translator_comment_block(location)
       return location unless comment_block
@@ -586,7 +578,7 @@ module Danger
         file: file,
         line: comment_line_index + 1,
         content: lines[comment_line_index],
-        suggestion_target: :source
+        inline_target: :source
       }
     end
 
@@ -600,10 +592,6 @@ module Danger
       end
 
       nil
-    end
-
-    def summary_reporting?(report_location)
-      %i[summary both].include?(report_location)
     end
 
     def cached_file_lines(path)

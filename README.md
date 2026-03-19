@@ -47,8 +47,7 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     # Suggests inline context for changed iOS strings
     translation_context_checker.check_context_suggestions(
       translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
-      source_paths: ['WooCommerce/', 'Modules/Sources/'],
-      report_location: :inline
+      source_paths: ['WooCommerce/', 'Modules/Sources/']
     )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
