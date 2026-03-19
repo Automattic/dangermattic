@@ -3,11 +3,11 @@
 module Danger
   # Plugin for suggesting translation context on new or modified localized strings.
   #
-  # Uses the txcontext gem to analyze how strings are used in source code and
+  # Uses the i18n-context-generator gem to analyze how strings are used in source code and
   # generate context descriptions via LLM. Results are posted inline on the
   # changed translation file lines and/or as a summary table.
   #
-  # Requires the `txcontext` gem to be in the project's Gemfile and the
+  # Requires the `i18n-context-generator` gem to be in the project's Gemfile and the
   # `ANTHROPIC_API_KEY` environment variable to be set in CI.
   #
   # @example Suggest context for new iOS strings
@@ -92,7 +92,7 @@ module Danger
     # @param report_type [Symbol] (optional) Severity for PR-level fallback comments (:message, :warning, :error). Default is :message.
     #   Only applies when inline placement fails and the comment falls back to a PR-level report.
     # @param provider [Symbol, String] (optional) LLM provider to use. Default is :anthropic.
-    # @param model [String, nil] (optional) Model name to use. Uses txcontext defaults when omitted.
+    # @param model [String, nil] (optional) Model name to use. Uses i18n-context-generator defaults when omitted.
     #
     # @return [void]
     def check_context_suggestions(translations:, source_paths:, inline_mode: :translation_comment, summary: false,
@@ -104,9 +104,9 @@ module Danger
 
       return if inline_mode == :none && !summary
 
-      unless load_txcontext
+      unless load_i18n_context_generator
         reporter.report(
-          message: '`txcontext` gem is required for translation context suggestions. Add it to your Gemfile.',
+          message: '`i18n-context-generator` gem is required for translation context suggestions. Add it to your Gemfile.',
           type: :warning
         )
         return
@@ -126,7 +126,7 @@ module Danger
       changed_keys = extract_changed_keys(changed_translation_files)
       return if changed_keys.empty?
 
-      # Run txcontext to generate context for the changed keys
+      # Run i18n-context-generator to generate context for the changed keys
       begin
         results = run_extraction(
           translations: translations,
@@ -161,10 +161,10 @@ module Danger
 
     private
 
-    # Attempt to load the txcontext gem at runtime.
+    # Attempt to load the i18n-context-generator gem at runtime.
     # Returns true if available, false otherwise.
-    def load_txcontext
-      require 'txcontext'
+    def load_i18n_context_generator
+      require 'i18n_context_generator'
       true
     rescue LoadError
       false
@@ -195,17 +195,17 @@ module Danger
       keys
     end
 
-    # Run txcontext extraction for the given keys.
+    # Run i18n-context-generator extraction for the given keys.
     #
     # @param translations [Array<String>] All translation file paths.
     # @param source_paths [Array<String>] Source code directories.
     # @param changed_keys [Set<String>] Keys to generate context for.
-    # @return [Array<Txcontext::ContextExtractor::ExtractionResult>] Extraction results.
+    # @return [Array<I18nContextGenerator::ContextExtractor::ExtractionResult>] Extraction results.
     # @raise [StandardError] if extraction fails (caller is responsible for handling).
     def run_extraction(translations:, source_paths:, changed_keys:, provider:, model:)
       key_filter = changed_keys.map { |k| Regexp.escape(k) }.join(',')
 
-      config = Txcontext::Config.new(
+      config = I18nContextGenerator::Config.new(
         translations: translations,
         source_paths: source_paths,
         key_filter: key_filter,
@@ -214,7 +214,7 @@ module Danger
         no_cache: true
       )
 
-      extractor = Txcontext::ContextExtractor.new(config)
+      extractor = I18nContextGenerator::ContextExtractor.new(config)
       extractor.run
       extractor.results
     end

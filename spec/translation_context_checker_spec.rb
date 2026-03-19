@@ -50,8 +50,8 @@ module Danger
       end
 
       shared_examples 'an invalid option warning' do |method_args:, warning:|
-        it "warns for #{method_args.keys.last} without loading txcontext" do
-          allow(@plugin).to receive(:load_txcontext)
+        it "warns for #{method_args.keys.last} without loading i18n-context-generator" do
+          allow(@plugin).to receive(:load_i18n_context_generator)
 
           @plugin.check_context_suggestions(
             translations: 'Localizable.strings',
@@ -59,7 +59,7 @@ module Danger
             **method_args
           )
 
-          expect(@plugin).not_to have_received(:load_txcontext)
+          expect(@plugin).not_to have_received(:load_i18n_context_generator)
           expect(@dangerfile.status_report.slice(:warnings, :errors, :messages, :markdowns)).to eq(
             warnings: [warning],
             errors: [],
@@ -96,9 +96,9 @@ module Danger
       end
 
       describe '#check_context_suggestions' do
-        context 'when txcontext gem is not available' do
+        context 'when i18n-context-generator gem is not available' do
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(false)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(false)
           end
 
           it 'reports a warning about missing gem' do
@@ -108,14 +108,14 @@ module Danger
             )
 
             expect(@dangerfile).to report_warnings(
-              ['`txcontext` gem is required for translation context suggestions. Add it to your Gemfile.']
+              ['`i18n-context-generator` gem is required for translation context suggestions. Add it to your Gemfile.']
             )
           end
         end
 
         context 'when no translation files are changed' do
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
           end
 
           it 'does nothing when translation file is not in the PR diff' do
@@ -131,8 +131,8 @@ module Danger
         end
 
         context 'when reporting is disabled' do
-          it 'returns without loading txcontext when inline output and summary are both disabled' do
-            allow(@plugin).to receive(:load_txcontext)
+          it 'returns without loading i18n-context-generator when inline output and summary are both disabled' do
+            allow(@plugin).to receive(:load_i18n_context_generator)
 
             @plugin.check_context_suggestions(
               translations: 'Localizable.strings',
@@ -141,7 +141,7 @@ module Danger
               summary: false
             )
 
-            expect(@plugin).not_to have_received(:load_txcontext)
+            expect(@plugin).not_to have_received(:load_i18n_context_generator)
             expect_no_danger_output
           end
         end
@@ -168,7 +168,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(strings_path)
@@ -219,7 +219,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([xml_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(xml_path)
@@ -250,7 +250,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([xml_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(xml_path)
@@ -307,7 +307,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive_messages(load_txcontext: true, run_extraction: [mock_result])
+            allow(@plugin).to receive_messages(load_i18n_context_generator: true, run_extraction: [mock_result])
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(strings_path)
@@ -602,7 +602,7 @@ module Danger
             expect(@dangerfile.status_report[:warnings].first).to include('Translation Context Suggestion')
           end
 
-          it 'passes provider and model through to txcontext' do
+          it 'passes provider and model through to i18n-context-generator' do
             check_strings_context(provider: :anthropic, model: 'claude-sonnet-4-6')
 
             expect(@plugin).to have_received(:run_extraction).with(
@@ -651,7 +651,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive_messages(load_txcontext: true, run_extraction: [mock_result])
+            allow(@plugin).to receive_messages(load_i18n_context_generator: true, run_extraction: [mock_result])
             allow(@plugin.git).to receive(:modified_files).and_return([xml_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(xml_path)
@@ -721,7 +721,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive_messages(load_txcontext: true, run_extraction: [mock_result])
+            allow(@plugin).to receive_messages(load_i18n_context_generator: true, run_extraction: [mock_result])
             allow(@plugin.git).to receive(:modified_files).and_return([path_a, path_b])
             allow(@plugin.git).to receive(:diff_for_file).with(path_a).and_return(GitDiffStruct.new('modified', path_a, diff_a))
             allow(@plugin.git).to receive(:diff_for_file).with(path_b).and_return(GitDiffStruct.new('modified', path_b, diff_b))
@@ -757,7 +757,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(strings_path)
@@ -805,7 +805,7 @@ module Danger
           end
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(strings_path)
@@ -828,7 +828,7 @@ module Danger
           let(:strings_path) { 'Localizable.strings' }
 
           before do
-            allow(@plugin).to receive(:load_txcontext).and_return(true)
+            allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
             allow(@plugin.git).to receive(:diff_for_file)
               .with(strings_path)
@@ -850,17 +850,17 @@ module Danger
       end
 
       describe '#run_extraction' do
-        it 'builds the txcontext config with escaped changed keys and returns extractor results' do
-          stub_const('Txcontext', Module.new)
-          stub_const('Txcontext::Config', Class.new)
-          stub_const('Txcontext::ContextExtractor', Class.new)
+        it 'builds the config with escaped changed keys and returns extractor results' do
+          stub_const('I18nContextGenerator', Module.new)
+          stub_const('I18nContextGenerator::Config', Class.new)
+          stub_const('I18nContextGenerator::ContextExtractor', Class.new)
 
           changed_keys = Set.new(['save.button', 'cart+cta'])
-          config = instance_double(Txcontext::Config)
-          extractor = instance_double(Txcontext::ContextExtractor)
+          config = instance_double(I18nContextGenerator::Config)
+          extractor = instance_double(I18nContextGenerator::ContextExtractor)
 
-          allow(Txcontext::Config).to receive(:new).and_return(config)
-          allow(Txcontext::ContextExtractor).to receive(:new).and_return(extractor)
+          allow(I18nContextGenerator::Config).to receive(:new).and_return(config)
+          allow(I18nContextGenerator::ContextExtractor).to receive(:new).and_return(extractor)
           allow(extractor).to receive(:run)
           allow(extractor).to receive(:results).and_return([:result])
 
@@ -873,7 +873,7 @@ module Danger
             model: 'claude-sonnet-4-6'
           )
 
-          expect(Txcontext::Config).to have_received(:new).with(
+          expect(I18nContextGenerator::Config).to have_received(:new).with(
             translations: ['Localizable.strings'],
             source_paths: ['Sources/'],
             key_filter: 'save\.button,cart\+cta',
@@ -885,17 +885,17 @@ module Danger
         end
       end
 
-      describe '#load_txcontext' do
-        it 'returns true when txcontext can be required' do
-          allow(@plugin).to receive(:require).with('txcontext').and_return(true)
+      describe '#load_i18n_context_generator' do
+        it 'returns true when i18n_context_generator can be required' do
+          allow(@plugin).to receive(:require).with('i18n_context_generator').and_return(true)
 
-          expect(@plugin.send(:load_txcontext)).to be true
+          expect(@plugin.send(:load_i18n_context_generator)).to be true
         end
 
-        it 'returns false when requiring txcontext raises LoadError' do
-          allow(@plugin).to receive(:require).with('txcontext').and_raise(LoadError)
+        it 'returns false when requiring i18n_context_generator raises LoadError' do
+          allow(@plugin).to receive(:require).with('i18n_context_generator').and_raise(LoadError)
 
-          expect(@plugin.send(:load_txcontext)).to be false
+          expect(@plugin.send(:load_i18n_context_generator)).to be false
         end
       end
 
