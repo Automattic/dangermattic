@@ -350,7 +350,7 @@ module Danger
             expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
           end
 
-          it 'falls back to the translation file when source suggestions cannot resolve a Swift comment line' do
+          it 'falls back to a PR-level message when source suggestions cannot resolve a Swift comment line' do
             source_path = 'OrderDetailViewController.swift'
             source_result = build_extraction_result(
               key: 'Add a tracking',
@@ -376,7 +376,10 @@ module Danger
 
             check_strings_context(inline_mode: :source_suggestion)
 
-            expect(@dangerfile.status_report[:markdowns].map(&:message)).to eq([translation_suggestion_markdown])
+            expect(@dangerfile.status_report[:markdowns]).to be_empty
+            expect(@dangerfile.status_report[:messages]).to eq(
+              ["**Translation Context Suggestion**\n#{suggested_context}"]
+            )
           end
 
           context 'when the added string already has a translator comment' do
@@ -555,6 +558,38 @@ module Danger
               message: "**Translation Context Suggestion**\n#{suggested_context}",
               file: source_path,
               line: 3
+            )
+          end
+
+          it 'falls back to a PR-level message when source comments cannot resolve a Swift comment line' do
+            source_path = 'OrderDetailViewController.swift'
+            source_result = build_extraction_result(
+              key: 'Add a tracking',
+              text: 'Add a tracking',
+              description: suggested_context,
+              ui_element: 'button',
+              tone: 'neutral',
+              locations: ["#{source_path}:1"]
+            )
+            source_content = [
+              "static let first = NSLocalizedString(\n",
+              "    \"first\",\n",
+              ")\n",
+              "static let second = NSLocalizedString(\n",
+              "    \"second\",\n",
+              "    comment: \"\"\n",
+              ")\n"
+            ]
+
+            allow(@plugin).to receive(:run_extraction).and_return([source_result])
+            allow(File).to receive(:exist?).with(source_path).and_return(true)
+            allow(File).to receive(:readlines).with(source_path).and_return(source_content)
+
+            check_strings_context(inline_mode: :source_comment)
+
+            expect(@dangerfile.status_report[:markdowns]).to be_empty
+            expect(@dangerfile.status_report[:messages]).to eq(
+              ["**Translation Context Suggestion**\n#{suggested_context}"]
             )
           end
 

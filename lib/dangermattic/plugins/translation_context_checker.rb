@@ -534,7 +534,7 @@ module Danger
     def resolve_inline_locations(result, key_lines, inline_target:)
       if inline_target == :source
         source_locations = build_source_line_locations(result)
-        return source_locations if source_locations.any?
+        return source_locations
       end
 
       Array(key_lines[result.key]).map { |location| location.merge(inline_target: :translation) }
