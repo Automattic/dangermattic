@@ -54,7 +54,7 @@ module Danger
           allow(@plugin).to receive(:load_i18n_context_generator)
 
           @plugin.check_context_suggestions(
-            translations: 'Localizable.strings',
+            translation_paths: 'Localizable.strings',
             source_paths: ['Sources/'],
             **method_args
           )
@@ -74,7 +74,7 @@ module Danger
           allow(@plugin).to receive(:run_extraction).and_return([ExtractionResultStruct.new(**result_attributes)])
 
           @plugin.check_context_suggestions(
-            translations: strings_path,
+            translation_paths: strings_path,
             source_paths: ['Sources/']
           )
 
@@ -103,7 +103,7 @@ module Danger
 
           it 'reports a warning about missing gem' do
             @plugin.check_context_suggestions(
-              translations: 'Localizable.strings',
+              translation_paths: 'Localizable.strings',
               source_paths: ['Sources/']
             )
 
@@ -113,20 +113,78 @@ module Danger
           end
         end
 
-        context 'when no translation files are changed' do
+        context 'when no relevant files are changed' do
           before do
             allow(@plugin).to receive(:load_i18n_context_generator).and_return(true)
           end
 
-          it 'does nothing when translation file is not in the PR diff' do
-            allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
+          it 'does nothing when neither the translation file nor the configured source paths are in the PR diff' do
+            allow(@plugin.git).to receive(:modified_files).and_return(['Docs/README.md'])
 
             @plugin.check_context_suggestions(
-              translations: 'Localizable.strings',
+              translation_paths: 'Localizable.strings',
               source_paths: ['Sources/']
             )
 
             expect_no_danger_output
+          end
+        end
+
+        context 'when only a configured source file is changed' do
+          let(:source_path) { 'WooCommerce/OrderDetailViewController.swift' }
+          let(:source_diff) do
+            <<~DIFF
+              diff --git a/#{source_path} b/#{source_path}
+              --- a/#{source_path}
+              +++ b/#{source_path}
+              @@ -1,4 +1,4 @@
+               static let addTracking = NSLocalizedString(
+              -    "old_tracking_key",
+              +    "Add a tracking",
+                   comment: ""
+               )
+            DIFF
+          end
+          let(:suggested_context) do
+            'Button label in the order detail screen that initiates shipment tracking setup.'
+          end
+          let(:mock_result) do
+            build_extraction_result(
+              key: 'Add a tracking',
+              text: 'Add a tracking',
+              description: suggested_context,
+              ui_element: 'button',
+              tone: 'neutral',
+              locations: ["#{source_path}:2"]
+            )
+          end
+
+          before do
+            allow(@plugin).to receive_messages(load_i18n_context_generator: true, run_extraction: [mock_result])
+            allow(@plugin.git).to receive(:modified_files).and_return([source_path])
+            allow(@plugin.git).to receive(:diff_for_file)
+              .with(source_path)
+              .and_return(GitDiffStruct.new('modified', source_path, source_diff))
+          end
+
+          it 'runs extraction for the changed source file and falls back to a PR-level comment' do
+            @plugin.check_context_suggestions(
+              discovery_mode: :source,
+              source_paths: ['WooCommerce/']
+            )
+
+            expect(@plugin).to have_received(:run_extraction).with(
+              translation_paths: [],
+              source_paths: ['WooCommerce/'],
+              discovery_mode: :source,
+              changed_keys: nil,
+              source_line_filter: { source_path => Set[2] },
+              provider: :anthropic,
+              model: nil
+            )
+            expect(@dangerfile.status_report[:messages]).to eq(
+              ["**Translation Context Suggestion**\n#{suggested_context}"]
+            )
           end
         end
 
@@ -135,7 +193,7 @@ module Danger
             allow(@plugin).to receive(:load_i18n_context_generator)
 
             @plugin.check_context_suggestions(
-              translations: 'Localizable.strings',
+              translation_paths: 'Localizable.strings',
               source_paths: ['Sources/'],
               inline_mode: :none,
               summary: false
@@ -150,6 +208,51 @@ module Danger
           it_behaves_like 'an invalid option warning',
                           method_args: { inline_mode: :sideways },
                           warning: 'Invalid inline_mode `sideways`. Expected one of: translation_comment, translation_suggestion, source_comment, source_suggestion, none.'
+        end
+
+        context 'when required inputs are missing' do
+          it 'warns when source_paths is empty' do
+            allow(@plugin).to receive(:load_i18n_context_generator)
+
+            @plugin.check_context_suggestions(
+              discovery_mode: :source,
+              source_paths: []
+            )
+
+            expect(@plugin).not_to have_received(:load_i18n_context_generator)
+            expect(@dangerfile).to report_warnings(
+              ['source_paths is required for translation context suggestions.']
+            )
+          end
+
+          it 'warns when source mode receives translation_paths' do
+            allow(@plugin).to receive(:load_i18n_context_generator)
+
+            @plugin.check_context_suggestions(
+              discovery_mode: :source,
+              source_paths: ['Sources/'],
+              translation_paths: 'Localizable.strings'
+            )
+
+            expect(@plugin).not_to have_received(:load_i18n_context_generator)
+            expect(@dangerfile).to report_warnings(
+              ['translation_paths is not supported when discovery_mode is `source`.']
+            )
+          end
+
+          it 'warns when translation mode does not receive translation_paths' do
+            allow(@plugin).to receive(:load_i18n_context_generator)
+
+            @plugin.check_context_suggestions(
+              discovery_mode: :translations,
+              source_paths: ['Sources/']
+            )
+
+            expect(@plugin).not_to have_received(:load_i18n_context_generator)
+            expect(@dangerfile).to report_warnings(
+              ['translation_paths is required when discovery_mode is `translations`.']
+            )
+          end
         end
 
         context 'when .strings file is changed' do
@@ -318,7 +421,8 @@ module Danger
 
           def check_strings_context(**kwargs)
             @plugin.check_context_suggestions(
-              translations: strings_path,
+              discovery_mode: :translations,
+              translation_paths: strings_path,
               source_paths: source_paths,
               **kwargs
             )
@@ -663,8 +767,9 @@ module Danger
 
           it 'suggests replacing the existing XML comment block in place' do
             @plugin.check_context_suggestions(
-              translations: xml_path,
+              discovery_mode: :translations,
               source_paths: ['app/src/main/java/'],
+              translation_paths: xml_path,
               inline_mode: :translation_suggestion
             )
 
@@ -733,7 +838,8 @@ module Danger
 
           it 'posts inline comments on both files' do
             @plugin.check_context_suggestions(
-              translations: [path_a, path_b],
+              discovery_mode: :translations,
+              translation_paths: [path_a, path_b],
               source_paths: ['app/src/main/java/']
             )
 
@@ -816,7 +922,8 @@ module Danger
             allow(@plugin).to receive(:run_extraction).and_raise(StandardError.new('API connection failed'))
 
             @plugin.check_context_suggestions(
-              translations: strings_path,
+              discovery_mode: :translations,
+              translation_paths: strings_path,
               source_paths: ['Sources/']
             )
 
@@ -824,7 +931,7 @@ module Danger
           end
         end
 
-        context 'with translations parameter as string' do
+        context 'with translation_paths parameter as string' do
           let(:strings_path) { 'Localizable.strings' }
 
           before do
@@ -840,7 +947,8 @@ module Danger
 
             # Should not raise
             @plugin.check_context_suggestions(
-              translations: strings_path,
+              discovery_mode: :translations,
+              translation_paths: strings_path,
               source_paths: 'Sources/'
             )
 
@@ -866,7 +974,7 @@ module Danger
 
           results = @plugin.send(
             :run_extraction,
-            translations: ['Localizable.strings'],
+            translation_paths: ['Localizable.strings'],
             source_paths: ['Sources/'],
             changed_keys: changed_keys,
             provider: :anthropic,
@@ -879,6 +987,77 @@ module Danger
             key_filter: 'save\.button,cart\+cta',
             provider: :anthropic,
             model: 'claude-sonnet-4-6',
+            no_cache: true
+          )
+          expect(results).to eq([:result])
+        end
+
+        it 'allows extraction without a changed key filter' do
+          stub_const('I18nContextGenerator', Module.new)
+          stub_const('I18nContextGenerator::Config', Class.new)
+          stub_const('I18nContextGenerator::ContextExtractor', Class.new)
+
+          config = instance_double(I18nContextGenerator::Config)
+          extractor = instance_double(I18nContextGenerator::ContextExtractor)
+
+          allow(I18nContextGenerator::Config).to receive(:new).and_return(config)
+          allow(I18nContextGenerator::ContextExtractor).to receive(:new).and_return(extractor)
+          allow(extractor).to receive(:run)
+          allow(extractor).to receive(:results).and_return([:result])
+
+          results = @plugin.send(
+            :run_extraction,
+            translation_paths: ['Localizable.strings'],
+            source_paths: ['Sources/MyView.swift'],
+            changed_keys: nil,
+            provider: :anthropic,
+            model: nil
+          )
+
+          expect(I18nContextGenerator::Config).to have_received(:new).with(
+            translations: ['Localizable.strings'],
+            source_paths: ['Sources/MyView.swift'],
+            key_filter: nil,
+            provider: :anthropic,
+            model: nil,
+            no_cache: true
+          )
+          expect(results).to eq([:result])
+        end
+
+        it 'passes a source line filter through to i18n-context-generator when provided' do
+          stub_const('I18nContextGenerator', Module.new)
+          stub_const('I18nContextGenerator::Config', Class.new)
+          stub_const('I18nContextGenerator::ContextExtractor', Class.new)
+
+          config = instance_double(I18nContextGenerator::Config)
+          extractor = instance_double(I18nContextGenerator::ContextExtractor)
+          source_line_filter = { 'Sources/MyView.swift' => Set[14] }
+
+          allow(I18nContextGenerator::Config).to receive(:new).and_return(config)
+          allow(I18nContextGenerator::ContextExtractor).to receive(:new).and_return(extractor)
+          allow(extractor).to receive(:run)
+          allow(extractor).to receive(:results).and_return([:result])
+
+          results = @plugin.send(
+            :run_extraction,
+            translation_paths: [],
+            source_paths: ['Sources/'],
+            discovery_mode: :source,
+            changed_keys: nil,
+            source_line_filter: source_line_filter,
+            provider: :anthropic,
+            model: nil
+          )
+
+          expect(I18nContextGenerator::Config).to have_received(:new).with(
+            translations: [],
+            source_paths: ['Sources/'],
+            key_filter: nil,
+            discovery_mode: :source,
+            source_line_filter: source_line_filter,
+            provider: :anthropic,
+            model: nil,
             no_cache: true
           )
           expect(results).to eq([:result])

@@ -13,15 +13,17 @@ module Danger
   # @example Suggest context for new iOS strings
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
-  #            source_paths: ['WooCommerce/', 'Modules/Sources/']
+  #            discovery_mode: :source,
+  #            source_paths: ['WooCommerce/', 'Modules/Sources/'],
+  #            inline_mode: :source_suggestion
   #          )
   #
   # @example Suggest context for Android strings with warnings
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'app/src/main/res/values/strings.xml',
+  #            discovery_mode: :translations,
   #            source_paths: ['app/src/main/java/'],
+  #            translation_paths: 'app/src/main/res/values/strings.xml',
   #            provider: :anthropic,
   #            model: 'claude-sonnet-4-6',
   #            report_type: :warning
@@ -30,8 +32,9 @@ module Danger
   # @example Summary table only
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
+  #            discovery_mode: :translations,
   #            source_paths: ['WooCommerce/'],
+  #            translation_paths: 'WooCommerce/Resources/en.lproj/Localizable.strings',
   #            inline_mode: :none,
   #            summary: true
   #          )
@@ -39,23 +42,25 @@ module Danger
   # @example Inline comments and summary table
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'app/src/main/res/values/strings.xml',
+  #            discovery_mode: :translations,
   #            source_paths: ['app/src/main/java/'],
+  #            translation_paths: 'app/src/main/res/values/strings.xml',
   #            summary: true
   #          )
   #
   # @example Inline GitHub suggestions that can be applied directly
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'app/src/main/res/values/strings.xml',
+  #            discovery_mode: :translations,
   #            source_paths: ['app/src/main/java/'],
+  #            translation_paths: 'app/src/main/res/values/strings.xml',
   #            inline_mode: :translation_suggestion
   #          )
   #
   # @example Inline source-code suggestions for Swift localization comments
   #
   #          translation_context_checker.check_context_suggestions(
-  #            translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
+  #            discovery_mode: :source,
   #            source_paths: ['WooCommerce/Classes/'],
   #            inline_mode: :source_suggestion
   #          )
@@ -65,6 +70,7 @@ module Danger
   #
   # rubocop:disable Metrics/ClassLength
   class TranslationContextChecker < Plugin
+    VALID_DISCOVERY_MODES = %i[auto translations source].freeze
     VALID_INLINE_MODES = %i[
       translation_comment
       translation_suggestion
@@ -81,13 +87,20 @@ module Danger
     XML_FILE_PLURALS_PATTERN = /<plurals\s+[^>]*?name=["']([^"']+)["']/
     SWIFT_COMMENT_ARGUMENT_PATTERN = /comment:\s*"((?:\\.|[^"\\])*)"/
 
-    # Analyze new or modified translation keys in the PR and suggest context descriptions
-    # to help translators understand how each string is used in the app.
+    # Analyze translation entries or source localization usages changed in the PR
+    # and suggest context descriptions to help translators understand how each
+    # string is used in the app.
     #
-    # @param translations [String, Array<String>] Path(s) to translation file(s) (e.g., Localizable.strings, strings.xml).
-    # @param source_paths [String, Array<String>] Path(s) to source code directories to search for string usage.
-    # @param inline_mode [Symbol, String] (optional) How to post inline feedback. Values: :translation_comment (default),
-    #   :translation_suggestion, :source_comment, :source_suggestion, :none.
+    # @param discovery_mode [Symbol, String] (optional) How to discover entries. Values: :auto, :translations, :source.
+    #   Defaults to :auto.
+    # @param source_paths [String, Array<String>] Path(s) to source code directories or files to search for string usage.
+    #   This is required in all modes so code search scope is always explicit.
+    # @param translation_paths [String, Array<String>, nil] (optional) Translation file(s) used for translation-backed
+    #   discovery and inline placement on translation files (e.g., Localizable.strings, strings.xml).
+    #   These are only supported for translation-backed runs.
+    # @param inline_mode [Symbol, String, nil] (optional) How to post inline feedback. Values:
+    #   :translation_comment, :translation_suggestion, :source_comment, :source_suggestion, :none.
+    #   When omitted, the plugin chooses a sensible default based on discovery mode and changed files.
     # @param summary [Boolean] (optional) When true, also post a summary table. Default is false.
     # @param report_type [Symbol] (optional) Severity for PR-level fallback comments (:message, :warning, :error). Default is :message.
     #   Only applies when inline placement fails and the comment falls back to a PR-level report.
@@ -95,12 +108,32 @@ module Danger
     # @param model [String, nil] (optional) Model name to use. Uses i18n-context-generator defaults when omitted.
     #
     # @return [void]
-    def check_context_suggestions(translations:, source_paths:, inline_mode: :translation_comment, summary: false,
-                                  report_type: :message, provider: :anthropic, model: nil)
+    def check_context_suggestions(source_paths:, discovery_mode: :auto, translation_paths: nil, inline_mode: nil,
+                                  summary: false, report_type: :message,
+                                  provider: :anthropic, model: nil)
       @file_lines_cache = {}
 
-      inline_mode = normalize_enum_param(inline_mode, VALID_INLINE_MODES, 'inline_mode')
-      return if inline_mode.nil?
+      discovery_mode = normalize_enum_param(discovery_mode, VALID_DISCOVERY_MODES, 'discovery_mode')
+      return if discovery_mode.nil?
+
+      if inline_mode
+        inline_mode = normalize_enum_param(inline_mode, VALID_INLINE_MODES, 'inline_mode')
+        return if inline_mode.nil?
+      end
+
+      translation_paths = Array(translation_paths).compact
+      configured_source_paths = Array(source_paths).compact
+
+      validation_message = validate_context_inputs(
+        discovery_mode: discovery_mode,
+        source_paths: configured_source_paths,
+        translation_paths: translation_paths,
+        inline_mode: inline_mode
+      )
+      if validation_message
+        reporter.report(message: validation_message, type: :warning)
+        return
+      end
 
       return if inline_mode == :none && !summary
 
@@ -112,26 +145,24 @@ module Danger
         return
       end
 
-      translations = Array(translations)
-      source_paths = Array(source_paths)
+      changed_translation_files = select_changed_translation_files(translation_paths)
+      changed_source_files = select_changed_source_files(configured_source_paths, translation_paths: translation_paths)
 
-      # Only process translation files that were changed in this PR
-      changed_translation_files = translations.select do |path|
-        git_utils.added_and_modified_files.include?(path)
-      end
+      return if changed_translation_files.empty? && changed_source_files.empty?
 
-      return if changed_translation_files.empty?
+      inline_mode ||= default_inline_mode_for(
+        discovery_mode: discovery_mode,
+        changed_translation_files: changed_translation_files,
+        changed_source_files: changed_source_files
+      )
 
-      # Extract keys from added lines in the diff
-      changed_keys = extract_changed_keys(changed_translation_files)
-      return if changed_keys.empty?
-
-      # Run i18n-context-generator to generate context for the changed keys
       begin
-        results = run_extraction(
-          translations: translations,
-          source_paths: source_paths,
-          changed_keys: changed_keys,
+        results = collect_extraction_results(
+          discovery_mode: discovery_mode,
+          translation_paths: translation_paths,
+          source_paths: configured_source_paths,
+          changed_translation_files: changed_translation_files,
+          changed_source_files: changed_source_files,
           provider: provider,
           model: model
         )
@@ -145,7 +176,7 @@ module Danger
       return if results.empty?
 
       # Filter out failed results
-      valid_results = results.reject { |r| skip_result?(r) }
+      valid_results = deduplicate_results(results.reject { |r| skip_result?(r) })
       return if valid_results.empty?
 
       if inline_reporting?(inline_mode)
@@ -195,28 +226,150 @@ module Danger
       keys
     end
 
+    def select_changed_translation_files(translation_paths)
+      changed_files = git_utils.added_and_modified_files
+
+      translation_paths.select { |path| changed_files.include?(path) }
+    end
+
+    def select_changed_source_files(source_paths, translation_paths:)
+      changed_files = git_utils.added_and_modified_files
+      translation_files = Set.new(translation_paths)
+
+      changed_files.reject { |path| translation_files.include?(path) }.select do |path|
+        source_paths.any? { |source_path| path_matches_source_path?(path, source_path) }
+      end
+    end
+
+    def path_matches_source_path?(path, source_path)
+      normalized_source_path = source_path.to_s.sub(%r{/\z}, '')
+      return false if normalized_source_path.empty?
+
+      path == normalized_source_path || path.start_with?("#{normalized_source_path}/")
+    end
+
+    def collect_extraction_results(discovery_mode:, translation_paths:, source_paths:, changed_translation_files:, changed_source_files:,
+                                   provider:, model:)
+      case discovery_mode
+      when :translations
+        extract_results_for_changed_translations(
+          translation_paths: translation_paths,
+          source_paths: source_paths,
+          changed_translation_files: changed_translation_files,
+          provider: provider,
+          model: model
+        )
+      when :source
+        extract_results_for_changed_source_files(
+          changed_source_files: changed_source_files,
+          source_paths: source_paths,
+          provider: provider,
+          model: model
+        )
+      else
+        results = []
+
+        translation_results = extract_results_for_changed_translations(
+          translation_paths: translation_paths,
+          source_paths: source_paths,
+          changed_translation_files: changed_translation_files,
+          provider: provider,
+          model: model
+        )
+        results.concat(translation_results)
+
+        source_results = extract_results_for_changed_source_files(
+          changed_source_files: changed_source_files,
+          source_paths: source_paths,
+          provider: provider,
+          model: model
+        )
+        results.concat(source_results)
+
+        results
+      end
+    end
+
+    def extract_results_for_changed_translations(translation_paths:, source_paths:, changed_translation_files:, provider:, model:)
+      changed_keys = extract_changed_keys(changed_translation_files)
+      return [] if changed_keys.empty?
+
+      run_extraction(
+        translation_paths: translation_paths,
+        source_paths: source_paths,
+        discovery_mode: :translations,
+        changed_keys: changed_keys,
+        provider: provider,
+        model: model
+      )
+    end
+
+    def extract_results_for_changed_source_files(changed_source_files:, source_paths:, provider:, model:)
+      return [] if changed_source_files.empty?
+
+      source_line_filter = build_added_line_map(changed_source_files)
+      return [] if source_line_filter.empty?
+
+      run_extraction(
+        translation_paths: [],
+        source_paths: source_paths,
+        discovery_mode: :source,
+        changed_keys: nil,
+        source_line_filter: source_line_filter,
+        provider: provider,
+        model: model
+      )
+    end
+
     # Run i18n-context-generator extraction for the given keys.
     #
-    # @param translations [Array<String>] All translation file paths.
-    # @param source_paths [Array<String>] Source code directories.
-    # @param changed_keys [Set<String>] Keys to generate context for.
+    # @param translation_paths [Array<String>] Translation file paths used for discovery, inline placement, and hydration.
+    # @param source_paths [Array<String>] Source code directories or files.
+    # @param changed_keys [Set<String>, nil] Keys to generate context for. When nil,
+    #   extraction is not filtered by key.
     # @return [Array<I18nContextGenerator::ContextExtractor::ExtractionResult>] Extraction results.
     # @raise [StandardError] if extraction fails (caller is responsible for handling).
-    def run_extraction(translations:, source_paths:, changed_keys:, provider:, model:)
-      key_filter = changed_keys.map { |k| Regexp.escape(k) }.join(',')
+    def run_extraction(translation_paths:, source_paths:, provider:, model:, changed_keys: nil, discovery_mode: nil,
+                       source_line_filter: nil)
+      key_filter = changed_keys&.map { |k| Regexp.escape(k) }&.join(',')
 
-      config = I18nContextGenerator::Config.new(
-        translations: translations,
+      config_args = {
+        translations: translation_paths,
         source_paths: source_paths,
         key_filter: key_filter,
         provider: provider,
         model: model,
         no_cache: true
-      )
+      }
+      config_args[:discovery_mode] = discovery_mode if discovery_mode
+      config_args[:source_line_filter] = source_line_filter if source_line_filter
+
+      config = I18nContextGenerator::Config.new(**config_args)
 
       extractor = I18nContextGenerator::ContextExtractor.new(config)
       extractor.run
       extractor.results
+    end
+
+    def validate_context_inputs(discovery_mode:, source_paths:, translation_paths:, inline_mode:)
+      return 'source_paths is required for translation context suggestions.' if source_paths.empty?
+      return 'translation_paths is not supported when discovery_mode is `source`.' if discovery_mode == :source && translation_paths.any?
+      return 'translation_paths is required when discovery_mode is `translations`.' if discovery_mode == :translations && translation_paths.empty?
+      return 'inline_mode `translation_comment` is not supported when discovery_mode is `source`.' if discovery_mode == :source && inline_mode == :translation_comment
+      return 'inline_mode `translation_suggestion` is not supported when discovery_mode is `source`.' if discovery_mode == :source && inline_mode == :translation_suggestion
+      return 'inline_mode `translation_comment` requires translation_paths.' if inline_mode == :translation_comment && translation_paths.empty?
+      return 'inline_mode `translation_suggestion` requires translation_paths.' if inline_mode == :translation_suggestion && translation_paths.empty?
+
+      nil
+    end
+
+    def default_inline_mode_for(discovery_mode:, changed_translation_files:, changed_source_files:)
+      return :source_comment if discovery_mode == :source
+      return :translation_comment if discovery_mode == :translations
+      return :translation_comment unless changed_translation_files.empty?
+      return :source_comment unless changed_source_files.empty?
+
+      :translation_comment
     end
 
     # Post inline comments on the translation file lines where keys were changed.
@@ -561,12 +714,22 @@ module Danger
       end
     end
 
-    def parse_source_location(entry)
+    def parse_result_location(entry)
       match = entry.to_s.match(/\A(.+):(\d+)\z/)
       return unless match
 
-      file = match[1]
-      line = match[2].to_i
+      {
+        file: match[1],
+        line: match[2].to_i
+      }
+    end
+
+    def parse_source_location(entry)
+      location = parse_result_location(entry)
+      return unless location
+
+      file = location[:file]
+      line = location[:line]
       lines = cached_file_lines(file)
       return unless lines
       return if line < 1 || line > lines.length
@@ -592,6 +755,16 @@ module Danger
       end
 
       nil
+    end
+
+    def deduplicate_results(results)
+      seen_keys = Set.new
+
+      results.each_with_object([]) do |result, deduplicated_results|
+        next unless seen_keys.add?(result.key)
+
+        deduplicated_results << result
+      end
     end
 
     def cached_file_lines(path)

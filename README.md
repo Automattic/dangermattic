@@ -23,6 +23,11 @@ env:
   ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
 ```
 
+For `translation_context_checker`, use `discovery_mode: :source` for code-first flows like iOS and
+`discovery_mode: :translations` for resource-first flows like Android. `source_paths` should always be set
+explicitly because the generator still searches source code for usage context, including when
+`discovery_mode` is `:translations` or `:auto`. `translation_paths` is only for translation-backed runs.
+
 ## Example of available plugins and their usage
 
 Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
@@ -44,10 +49,11 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```
 - `translation_context_checker` - Suggests translator-facing context for changed localization keys
     ```ruby
-    # Suggests inline context for changed iOS strings
+    # Suggests inline source suggestions for changed iOS localization calls
     translation_context_checker.check_context_suggestions(
-      translations: 'WooCommerce/Resources/en.lproj/Localizable.strings',
-      source_paths: ['WooCommerce/', 'Modules/Sources/']
+      discovery_mode: :source,
+      source_paths: ['WooCommerce/', 'Modules/Sources/'],
+      inline_mode: :source_suggestion
     )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
