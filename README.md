@@ -13,7 +13,7 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 `translation_context_checker` also requires the `i18n-context-generator` gem:
 
 ```ruby
-gem 'i18n-context-generator', git: 'https://github.com/Automattic/i18n-context-generator'
+gem 'i18n-context-generator', '~> 0.4'
 ```
 
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
