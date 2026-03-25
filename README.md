@@ -10,11 +10,7 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 ### Translation context plugin setup
 
-`translation_context_checker` also requires the `i18n-context-generator` gem:
-
-```ruby
-gem 'i18n-context-generator', '~> 0.4'
-```
+The `i18n-context-generator` gem is included as a dependency and installed automatically.
 
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
 
