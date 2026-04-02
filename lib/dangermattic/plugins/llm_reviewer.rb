@@ -83,7 +83,7 @@ module Danger
       The "message" field should be a concise explanation of the issue.
     PROMPT
 
-    Finding = Struct.new(:file, :line, :severity, :message, keyword_init: true)
+    Finding = Struct.new(:file, :line, :severity, :message)
 
     # Perform an LLM-based code review on the PR diff.
     #
