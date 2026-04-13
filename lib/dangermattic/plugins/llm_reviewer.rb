@@ -37,7 +37,7 @@ module Danger
 
     DEFAULT_SYSTEM_PROMPT = <<~PROMPT
       You are an expert code reviewer. You will receive a pull request diff and metadata.
-      Your job is to identify issues in the CHANGED code (added lines only).
+      Your job is to identify issues in the CHANGED code.
 
       Focus on:
       - Bugs and logic errors
