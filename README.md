@@ -43,7 +43,7 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```
 - `llm_reviewer` - Performs an automated LLM-based code review on the changed lines in a pull request
     ```ruby
-    # Reviews the PR diff with OpenAI and posts inline findings
+    # Reviews the PR diff with GPT-4o and posts inline findings
     llm_reviewer.review(
       model: 'gpt-4o',
       max_comments: 10,
