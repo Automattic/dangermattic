@@ -17,8 +17,8 @@ on:
         type: string
         required: false
       label-success-message:
-        description: Message to be posted when the labels set fulfill the entire list of expected formats.
-        default: ✅ Yay, issue looks great!
+        description: Deprecated and ignored. Kept only for backward compatibility with existing callers.
+        default: ''
         type: string
         required: false
       cancel-running-jobs:
@@ -42,19 +42,88 @@ jobs:
     steps:
       - name: 🏷️ Check Issue Labels
         env:
-          GITHUB_TOKEN: ${{ secrets.github-token }}
+          GH_TOKEN: ${{ secrets.github-token }}
           GH_REPO: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_LABELS: ${{ toJSON(github.event.issue.labels.*.name) }}
           LABEL_REGEX_LIST: ${{ inputs.label-format-list }}
-          ISSUE_SUCCESS_COMMENT: >
-            ${{ inputs.label-success-message }}
-            <!-- generated_by_dangermattic -->
-          ISSUE_ERROR_COMMENT: >
-            ${{ inputs.label-error-message }}
-            <!-- generated_by_dangermattic -->
+          DEPRECATED_SUCCESS_MESSAGE: ${{ inputs.label-success-message }}
+          ISSUE_ERROR_MESSAGE: ${{ inputs.label-error-message }}
         run: |
           #!/bin/bash
+          set -euo pipefail
+
+          comment_marker='<!-- generated_by_dangermattic -->'
+          managed_comment_id=''
+          declare -a managed_comment_ids=()
+
+          if ! echo "$LABEL_REGEX_LIST" | jq -e 'type == "array"' > /dev/null; then
+            echo "❌ LABEL_REGEX_LIST must be a JSON array."
+            exit 1
+          fi
+
+          if [ -n "$DEPRECATED_SUCCESS_MESSAGE" ]; then
+            echo "⚠️ label-success-message is deprecated and ignored. Success now removes the managed workflow comment."
+          fi
+
+          build_comment_body() {
+            local message="$1"
+
+            printf '%s\n%s' "$message" "$comment_marker"
+          }
+
+          load_managed_comment_ids() {
+            readarray -t managed_comment_ids < <(
+              gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/comments" --paginate |
+                jq -r --arg marker "$comment_marker" '.[] | select(.body | contains($marker)) | .id'
+            )
+
+            if [ "${#managed_comment_ids[@]}" -gt 0 ]; then
+              managed_comment_id="${managed_comment_ids[$((${#managed_comment_ids[@]} - 1))]}"
+            else
+              managed_comment_id=''
+            fi
+          }
+
+          delete_extra_managed_comments() {
+            local duplicate_count=0
+
+            duplicate_count=$((${#managed_comment_ids[@]} - 1))
+            if [ "$duplicate_count" -le 0 ]; then
+              return
+            fi
+
+            for comment_id in "${managed_comment_ids[@]:0:$duplicate_count}"; do
+              echo "🧹 Deleting duplicate managed comment $comment_id"
+              gh api --method DELETE "repos/$GH_REPO/issues/comments/$comment_id" > /dev/null
+            done
+
+            managed_comment_ids=("$managed_comment_id")
+          }
+
+          upsert_managed_comment() {
+            local comment_body="$1"
+
+            if [ -n "$managed_comment_id" ]; then
+              echo "✍️ Updating managed comment $managed_comment_id on issue $ISSUE_NUMBER"
+              gh api --method PATCH "repos/$GH_REPO/issues/comments/$managed_comment_id" -f body="$comment_body" > /dev/null
+            else
+              echo "✍️ Creating managed comment on issue $ISSUE_NUMBER"
+              gh api --method POST "repos/$GH_REPO/issues/$ISSUE_NUMBER/comments" -f body="$comment_body" > /dev/null
+            fi
+          }
+
+          delete_managed_comments() {
+            if [ "${#managed_comment_ids[@]}" -eq 0 ]; then
+              echo "🧼 No managed comment found to delete."
+              return
+            fi
+
+            for comment_id in "${managed_comment_ids[@]}"; do
+              echo "🧼 Deleting managed comment $comment_id"
+              gh api --method DELETE "repos/$GH_REPO/issues/comments/$comment_id" > /dev/null
+            done
+          }
 
           readarray -t labels < <(echo "$ISSUE_LABELS" | jq -r '.[]')
           readarray -t label_regex_list < <(echo "$LABEL_REGEX_LIST" | jq -r '.[]')
@@ -78,22 +147,13 @@ jobs:
             fi
           done
 
-          ISSUE_COMMENT=''
+          load_managed_comment_ids
+          delete_extra_managed_comments
+
           if [ "$all_patterns_matched" = true ]; then
             echo "✅ All regex patterns have at least one match."
-            ISSUE_COMMENT="$ISSUE_SUCCESS_COMMENT"
+            delete_managed_comments
           else
             echo "❌ Not all regex patterns have at least one match."
-            ISSUE_COMMENT="$ISSUE_ERROR_COMMENT"
-          fi
-
-          set +e
-          echo "✍️ Attempting to edit existing comment on issue $ISSUE_NUMBER, if it exists:"
-          gh issue comment $ISSUE_NUMBER --body "$ISSUE_COMMENT" --edit-last
-          comment_update_status=$?
-          set -e
-
-          if [ $comment_update_status -ne 0 ]; then
-            echo "✍️ Adding new comment on issue $ISSUE_NUMBER:"
-            gh issue comment $ISSUE_NUMBER --body "$ISSUE_COMMENT"
+            upsert_managed_comment "$(build_comment_body "$ISSUE_ERROR_MESSAGE")"
           fi
