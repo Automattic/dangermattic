@@ -13,17 +13,19 @@ This workflow is an independent check (not using Danger) to verify if the labels
 ### Inputs:
 - `label-format-list`: JSON list of regex formats expected for the labels (default: `[".*"]`)
 - `label-error-message`: Error message when labels don't match
-- `label-success-message`: Success message when labels match
+- `label-success-message`: Deprecated and ignored. Kept only for backward compatibility with existing callers, and scheduled for removal in the next major release.
 - `cancel-running-jobs`: Cancel in-progress jobs when new ones are created (default: `true`)
 
 ### Secrets:
 - `github-token`: Required GitHub token
+  - The token must resolve through `gh api user` to the same login that appears on issue comments, because the workflow only manages comments authored by that login.
 
 ### Job: `check-issue-labels`
 - Permissions: `issues: write`
 - Main step: "🏷️ Check Issue Labels"
   - Checks if issue labels match the specified regex patterns
-  - Posts a comment on the issue with success or error message
+  - Updates a managed comment authored by the configured token when labels are missing
+  - Removes that managed comment when labels become valid
 
 ## Retry Buildkite Step on Pull Request Events
 
