@@ -50,7 +50,8 @@ jobs:
           DEPRECATED_SUCCESS_MESSAGE: ${{ inputs.label-success-message }}
           ISSUE_ERROR_MESSAGE: ${{ inputs.label-error-message }}
         run: |
-          #!/bin/bash
+          #!/usr/bin/env bash
+          
           set -euo pipefail
 
           comment_marker='<!-- generated_by_dangermattic -->'
