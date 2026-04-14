@@ -17,7 +17,7 @@ on:
         type: string
         required: false
       label-success-message:
-        description: Deprecated and ignored. Kept only for backward compatibility with existing callers.
+        description: Deprecated and ignored. Kept only for backward compatibility with existing callers, and scheduled for removal in the next major release.
         default: ''
         type: string
         required: false
@@ -107,8 +107,6 @@ jobs:
               echo "🧹 Deleting duplicate managed comment $comment_id"
               gh api --method DELETE "repos/$GH_REPO/issues/comments/$comment_id" > /dev/null
             done
-
-            managed_comment_ids=("$managed_comment_id")
           }
 
           upsert_managed_comment() {
