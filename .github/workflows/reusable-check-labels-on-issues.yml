@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       label-format-list:
-        description: The Regex formats expected for the labels; must be a JSON list
+        description: The regex formats expected for the labels; must be a JSON array of strings
         default: |
           [
             ".*"
@@ -58,11 +58,6 @@ jobs:
           authenticated_login=''
           managed_comment_id=''
           declare -a managed_comment_ids=()
-
-          if ! echo "$LABEL_REGEX_LIST" | jq -e 'type == "array"' > /dev/null; then
-            echo "❌ LABEL_REGEX_LIST must be a JSON array."
-            exit 1
-          fi
 
           if [ -n "$DEPRECATED_SUCCESS_MESSAGE" ]; then
             echo "⚠️ label-success-message is deprecated and ignored. Success now removes the managed workflow comment."
@@ -134,8 +129,16 @@ jobs:
             done
           }
 
-          readarray -t labels < <(echo "$ISSUE_LABELS" | jq -r '.[]')
-          readarray -t label_regex_list < <(echo "$LABEL_REGEX_LIST" | jq -r '.[]')
+          readarray -t labels < <(printf '%s\n' "$ISSUE_LABELS" | jq -r '.[]')
+
+          if ! printf '%s\n' "$LABEL_REGEX_LIST" | jq -e 'type == "array" and all(.[]; type == "string")' > /dev/null; then
+            echo "❌ LABEL_REGEX_LIST must be a JSON array of strings."
+            echo '   Example: ["^\\[.+\\]", "^[[:alnum:]]"]'
+            echo '   Regex backslashes must be doubled because the input is parsed as JSON.'
+            exit 1
+          fi
+
+          readarray -t label_regex_list < <(printf '%s\n' "$LABEL_REGEX_LIST" | jq -r '.[]')
 
           all_patterns_matched=true
 

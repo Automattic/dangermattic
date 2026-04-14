@@ -11,10 +11,23 @@ All jobs are run on `ubuntu-latest`.
 This workflow is an independent check (not using Danger) to verify if the labels on an issue match specified regex patterns.
 
 ### Inputs:
-- `label-format-list`: JSON list of regex formats expected for the labels (default: `[".*"]`)
+- `label-format-list`: JSON array of regex strings expected for the labels (default: `[".*"]`)
 - `label-error-message`: Error message when labels don't match
 - `label-success-message`: Deprecated and ignored. Kept only for backward compatibility with existing callers, and scheduled for removal in the next major release.
 - `cancel-running-jobs`: Cancel in-progress jobs when new ones are created (default: `true`)
+
+Example:
+
+```yaml
+with:
+  label-format-list: |
+    [
+      "^\\[.+\\]",
+      "^[[:alnum:]]"
+    ]
+```
+
+Backslashes in regex patterns must be doubled because the workflow parses the input as JSON.
 
 ### Secrets:
 - `github-token`: Required GitHub token
