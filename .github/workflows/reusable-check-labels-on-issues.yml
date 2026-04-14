@@ -54,6 +54,7 @@ jobs:
           set -euo pipefail
 
           comment_marker='<!-- generated_by_dangermattic -->'
+          authenticated_login=''
           managed_comment_id=''
           declare -a managed_comment_ids=()
 
@@ -72,10 +73,19 @@ jobs:
             printf '%s\n%s' "$message" "$comment_marker"
           }
 
+          load_authenticated_login() {
+            authenticated_login="$(gh api user --jq '.login')"
+
+            if [ -z "$authenticated_login" ] || [ "$authenticated_login" = 'null' ]; then
+              echo '❌ Unable to determine the authenticated GitHub login for managed comment filtering.'
+              exit 1
+            fi
+          }
+
           load_managed_comment_ids() {
             readarray -t managed_comment_ids < <(
               gh api "repos/$GH_REPO/issues/$ISSUE_NUMBER/comments" --paginate |
-                jq -r --arg marker "$comment_marker" '.[] | select(.body | contains($marker)) | .id'
+                jq -r --arg author "$authenticated_login" --arg marker "$comment_marker" '.[] | select(.user.login == $author) | select((.body // "") | contains($marker)) | .id'
             )
 
             if [ "${#managed_comment_ids[@]}" -gt 0 ]; then
@@ -106,10 +116,10 @@ jobs:
 
             if [ -n "$managed_comment_id" ]; then
               echo "✍️ Updating managed comment $managed_comment_id on issue $ISSUE_NUMBER"
-              gh api --method PATCH "repos/$GH_REPO/issues/comments/$managed_comment_id" -f body="$comment_body" > /dev/null
+              gh api --method PATCH "repos/$GH_REPO/issues/comments/$managed_comment_id" --raw-field "body=$comment_body" > /dev/null
             else
               echo "✍️ Creating managed comment on issue $ISSUE_NUMBER"
-              gh api --method POST "repos/$GH_REPO/issues/$ISSUE_NUMBER/comments" -f body="$comment_body" > /dev/null
+              gh api --method POST "repos/$GH_REPO/issues/$ISSUE_NUMBER/comments" --raw-field "body=$comment_body" > /dev/null
             fi
           }
 
@@ -147,6 +157,7 @@ jobs:
             fi
           done
 
+          load_authenticated_login
           load_managed_comment_ids
           delete_extra_managed_comments
 

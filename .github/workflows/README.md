@@ -23,7 +23,7 @@ This workflow is an independent check (not using Danger) to verify if the labels
 - Permissions: `issues: write`
 - Main step: "🏷️ Check Issue Labels"
   - Checks if issue labels match the specified regex patterns
-  - Upserts a managed comment on the issue when labels are missing
+  - Upserts a managed comment authored by the configured token when labels are missing
   - Removes that managed comment when labels become valid
 
 ## Retry Buildkite Step on Pull Request Events
