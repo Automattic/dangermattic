@@ -71,6 +71,40 @@ my_new_plugin_checker.check_method(param: my_param_value)
 
 Please follow the existing naming convention for validation and check plugins: classes end with a `*Checker` suffix and the main validation methods are named with a `check_*` prefix.
 
+### Trying a change against a real pull request
+
+Unit tests are the main development loop, but before releasing a new or changed check it's often useful to see it run end to end against a real pull request. You can do this locally with `danger pr`, which evaluates a `Dangerfile` against an existing PR's diff and prints the result to your terminal — it posts nothing.
+
+Point a `Gemfile` at your branch and add the check you want to exercise to a `Dangerfile`:
+
+```ruby
+# Gemfile
+source 'https://rubygems.org'
+gem 'danger'
+gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic', branch: 'my-branch'
+```
+
+```ruby
+# Dangerfile
+my_new_plugin_checker.check_method
+```
+
+After a `bundle install`, run it against a PR from inside a checkout of that PR's repository:
+
+```sh
+DANGER_GITHUB_API_TOKEN="$(gh auth token)" \
+  BUNDLE_GEMFILE=/path/to/Gemfile \
+  bundle exec danger pr https://github.com/<org>/<repo>/pull/<number> \
+  --dangerfile=/path/to/Dangerfile
+```
+
+A failure prints as an `Errors:` block. `danger pr` only fetches and creates temporary refs that it cleans up afterwards, so it won't change your current branch or working tree.
+
+Two things to keep in mind:
+
+- `danger pr` reconstructs the diff by fetching the PR's head branch, so the pull request must still be open (or its branch otherwise present on the remote).
+- Some CI setups install `danger-dangermattic` from a fixed source and won't honour a `git:` override in a project's `Gemfile`, so this end-to-end check is best run locally.
+
 ## Releasing a new version
 
 To create a new release of the Dangermattic gem, use the `new_release` Rake task:
