@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-- Added `android_strings_checker.check_existing_strings_not_modified`, which fails when the value of an existing translatable `<string>` is changed in place (rather than added under a new key). This enforces string-key immutability, which keeps in-progress translations valid in a continuous-localization setup. [#126]
+_None_
 
 ### Bug Fixes
 
@@ -19,6 +19,12 @@ _None_
 ### Internal Changes
 
 _None_
+
+## 1.3.0
+
+### New Features
+
+- Added `android_strings_checker.check_existing_strings_not_modified`, which fails when the value of an existing translatable `<string>` is changed in place (rather than added under a new key). This enforces string-key immutability, which keeps in-progress translations valid in a continuous-localization setup. [#126]
 
 ## 1.2.4
 
