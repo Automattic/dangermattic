@@ -48,9 +48,9 @@ module Danger
     # @param max_size [Integer] The maximum allowed size for the diff.
     # @param file_selector [Proc] Optional closure to filter the files in the diff to be used for size calculation.
     # @param line_selector [Proc] Optional closure to filter the individual changed lines counted towards the size.
-    #   It receives the content of an added/removed line (without the leading `+`/`-` diff marker) and should return
-    #   `true` for lines that should be counted. When provided, the size is computed by iterating the diff patches
-    #   instead of the cached numstats, which is slower but allows excluding lines such as comments or blank lines.
+    #   It receives the content of an added/removed line (without the leading `+`/`-` diff marker or trailing newline)
+    #   and should return `true` for lines that should be counted. When provided, the size is computed by iterating the
+    #   diff patches instead of the cached numstats, which is slower but allows excluding lines such as comments or blanks.
     # @param type [:insertions, :deletions, :all] The type of diff size to check. (default: :all)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
@@ -64,6 +64,8 @@ module Danger
                deletions_size(file_selector: file_selector, line_selector: line_selector)
              when :all
                diff_size(file_selector: file_selector, line_selector: line_selector)
+             else
+               raise ArgumentError, "Unknown diff size type: #{type.inspect}. Use :insertions, :deletions, or :all."
              end
 
       reporter.report(message: message, type: report_type) if size > max_size
@@ -162,11 +164,12 @@ module Danger
       files = files.select(&file_selector) if file_selector
 
       files.sum do |file|
-        diff = danger.git.diff_for_file(file)
-        next 0 unless diff
+        # `patch` can be nil (e.g. binary files), in which case there are no textual lines to count.
+        patch = danger.git.diff_for_file(file)&.patch
+        next 0 unless patch
 
-        diff.patch.each_line.count do |line|
-          change_types.include?(git_utils.change_type(diff_line: line)) && line_selector.call(line[1..] || '')
+        patch.each_line.count do |line|
+          change_types.include?(git_utils.change_type(diff_line: line)) && line_selector.call((line[1..] || '').chomp)
         end
       end
     end

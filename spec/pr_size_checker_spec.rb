@@ -264,15 +264,13 @@ module Danger
               allow(@plugin.git).to receive(:diff_for_file).with(excluded_test_file).and_return(GitDiffStruct.new('added', excluded_test_file, kotlin_patch))
             end
 
-            it 'ignores lines in files rejected by the file_selector (still counts 5)' do
-              @plugin.check_diff_size(
-                max_size: 4,
-                type: :all,
-                file_selector: ->(path) { !path.include?('/src/test') },
-                line_selector: code_line_selector
-              )
+            it 'only counts lines in files accepted by the file_selector' do
+              # Both files carry the same patch (5 code lines each); excluding the test file must keep the count at 5, not 10.
+              file_selector = ->(path) { !path.include?('src/test') }
 
-              expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 4)])
+              expect(
+                @plugin.diff_size(file_selector: file_selector, line_selector: code_line_selector)
+              ).to eq(5)
             end
           end
 
@@ -288,6 +286,10 @@ module Danger
               expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 10)])
             end
           end
+        end
+
+        it 'raises an ArgumentError when given an unknown diff size type' do
+          expect { @plugin.check_diff_size(max_size: 100, type: :unknown) }.to raise_error(ArgumentError)
         end
       end
 
