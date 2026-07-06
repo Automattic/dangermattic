@@ -18,6 +18,14 @@ module Danger
   #          # Check the size of insertions in the files selected by the file_selector
   #          pr_size_checker.check_diff_size(file_selector: ->(file) { file.include?('/java/test/') }, type: :insertions)
   #
+  # @example Running a PR diff size check that excludes comment and blank lines from the count
+  #
+  #          # Only count changed lines that are neither blank nor comments (e.g. Kotlin/Java/Swift)
+  #          pr_size_checker.check_diff_size(
+  #            max_size: 300,
+  #            line_selector: ->(line) { stripped = line.strip; !(stripped.empty? || stripped.start_with?('//', '/*', '*', '*/')) }
+  #          )
+  #
   # @example Running a PR description length check
   #
   #          # Check the PR Body using the default parameters, reporting a warning if the PR is smaller than 10 characters
@@ -39,20 +47,26 @@ module Danger
     #
     # @param max_size [Integer] The maximum allowed size for the diff.
     # @param file_selector [Proc] Optional closure to filter the files in the diff to be used for size calculation.
+    # @param line_selector [Proc] Optional closure to filter the individual changed lines counted towards the size.
+    #   It receives the content of an added/removed line (without the leading `+`/`-` diff marker) and should return
+    #   `true` for lines that should be counted. When provided, the size is computed by iterating the diff patches
+    #   instead of the cached numstats, which is slower but allows excluding lines such as comments or blank lines.
     # @param type [:insertions, :deletions, :all] The type of diff size to check. (default: :all)
     # @param message [String] The message to display if the diff size exceeds the maximum. (default: DEFAULT_DIFF_SIZE_MESSAGE)
     # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
     #
     # @return [void]
-    def check_diff_size(max_size:, file_selector: nil, type: :all, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)
-      case type
-      when :insertions
-        reporter.report(message: message, type: report_type) if insertions_size(file_selector: file_selector) > max_size
-      when :deletions
-        reporter.report(message: message, type: report_type) if deletions_size(file_selector: file_selector) > max_size
-      when :all
-        reporter.report(message: message, type: report_type) if diff_size(file_selector: file_selector) > max_size
-      end
+    def check_diff_size(max_size:, file_selector: nil, line_selector: nil, type: :all, message: format(DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, max_size), report_type: :warning)
+      size = case type
+             when :insertions
+               insertions_size(file_selector: file_selector, line_selector: line_selector)
+             when :deletions
+               deletions_size(file_selector: file_selector, line_selector: line_selector)
+             when :all
+               diff_size(file_selector: file_selector, line_selector: line_selector)
+             end
+
+      reporter.report(message: message, type: report_type) if size > max_size
     end
 
     # Check the size of the Pull Request description (PR body) against a specified minimum size.
@@ -71,9 +85,12 @@ module Danger
     # Calculate the total size of insertions in modified files that match the file selector.
     #
     # @param file_selector [Proc] Select the files to be used for the insertions calculation.
+    # @param line_selector [Proc] Optional closure to select which added lines are counted (see #check_diff_size).
     #
     # @return [Integer] The total size of insertions in the selected modified files.
-    def insertions_size(file_selector: nil)
+    def insertions_size(file_selector: nil, line_selector: nil)
+      return filtered_diff_size(file_selector: file_selector, line_selector: line_selector, change_types: [:added]) if line_selector
+
       return danger.git.insertions unless file_selector
 
       # Only check added and modified files - deleted files have 0 insertions
@@ -88,9 +105,12 @@ module Danger
     # Calculate the total size of deletions in modified files that match the file selector.
     #
     # @param file_selector [Proc] Select the files to be used for the deletions calculation.
+    # @param line_selector [Proc] Optional closure to select which removed lines are counted (see #check_diff_size).
     #
     # @return [Integer] The total size of deletions in the selected modified files.
-    def deletions_size(file_selector: nil)
+    def deletions_size(file_selector: nil, line_selector: nil)
+      return filtered_diff_size(file_selector: file_selector, line_selector: line_selector, change_types: [:removed]) if line_selector
+
       return danger.git.deletions unless file_selector
 
       filtered_files = git_utils.all_changed_files.select(&file_selector)
@@ -104,9 +124,12 @@ module Danger
     # Calculate the total size of changes (insertions and deletions) in modified files that match the file selector.
     #
     # @param file_selector [Proc] Select the files to be used for the total insertions and deletions calculation.
+    # @param line_selector [Proc] Optional closure to select which added/removed lines are counted (see #check_diff_size).
     #
     # @return [Integer] The total size of changes in the selected modified files.
-    def diff_size(file_selector: nil)
+    def diff_size(file_selector: nil, line_selector: nil)
+      return filtered_diff_size(file_selector: file_selector, line_selector: line_selector, change_types: %i[added removed]) if line_selector
+
       return danger.git.lines_of_code unless file_selector
 
       filtered_files = git_utils.all_changed_files.select(&file_selector)
@@ -117,6 +140,34 @@ module Danger
         next 0 unless stats
 
         stats[:deletions].to_i + stats[:insertions].to_i
+      end
+    end
+
+    private
+
+    # Count the changed lines across the selected files by iterating the diff patches, keeping only the lines
+    # whose change type is included in `change_types` and for which `line_selector` returns true.
+    #
+    # This is slower than the cached-numstats path used when no `line_selector` is given, since it needs the
+    # actual patch content to evaluate each line, but it is the only way to exclude specific lines (e.g. comments).
+    #
+    # @param file_selector [Proc, nil] Optional closure to select the files to inspect.
+    # @param line_selector [Proc] Closure receiving a changed line's content (without the `+`/`-` marker),
+    #   returning true when the line should be counted.
+    # @param change_types [Array<Symbol>] The diff change types to count (any of :added, :removed).
+    #
+    # @return [Integer] The total number of counted changed lines.
+    def filtered_diff_size(file_selector:, line_selector:, change_types:)
+      files = git_utils.all_changed_files
+      files = files.select(&file_selector) if file_selector
+
+      files.sum do |file|
+        diff = danger.git.diff_for_file(file)
+        next 0 unless diff
+
+        diff.patch.each_line.count do |line|
+          change_types.include?(git_utils.change_type(diff_line: line)) && line_selector.call(line[1..] || '')
+        end
       end
     end
   end
