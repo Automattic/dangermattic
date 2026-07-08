@@ -168,10 +168,23 @@ module Danger
         patch = danger.git.diff_for_file(file)&.patch
         next 0 unless patch
 
-        patch.each_line.count do |line|
-          change_types.include?(git_utils.change_type(diff_line: line)) && line_selector.call((line[1..] || '').chomp)
+        patch.each_line.count do |diff_line|
+          next false unless change_types.include?(git_utils.change_type(diff_line: diff_line))
+
+          line_selector.call(strip_diff_marker(diff_line))
         end
       end
+    end
+
+    # Strip the leading `+`/`-` diff marker and the trailing newline from a diff patch line,
+    # so that `line_selector` only sees the actual line content.
+    #
+    # @param diff_line [String] A line from a diff patch, e.g. `"+    // a comment\n"`.
+    #
+    # @return [String] The line content, e.g. `"    // a comment"`.
+    def strip_diff_marker(diff_line)
+      without_marker = diff_line[1..].to_s
+      without_marker.chomp
     end
   end
 end
