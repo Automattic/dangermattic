@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-_None_
+- `pr_size_checker`: add optional `line_selector` to `check_diff_size` (and `insertions_size` / `deletions_size` / `diff_size`) to exclude specific changed lines (e.g. comments and blank lines) from the diff-size metric. [#133]
 
 ### Bug Fixes
 

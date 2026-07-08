@@ -177,6 +177,120 @@ module Danger
           it_behaves_like 'using the default diff size counter, without a file selector', :deletions
           it_behaves_like 'using a file selector to filter and count the changes in a diff', :deletions, [221, 380, 1157]
         end
+
+        context 'when using a line_selector to exclude comment and blank lines' do
+          # Counts a changed line only if, once trimmed, it is neither empty nor the start of a comment.
+          let(:code_line_selector) do
+            lambda do |line|
+              stripped = line.strip
+              !(stripped.empty? || stripped.start_with?('//', '/*', '*', '*/'))
+            end
+          end
+
+          # 4 added code lines (fun/val/return/}) + 1 removed code line, plus comment and blank lines that must be ignored.
+          let(:kotlin_patch) do
+            <<~PATCH
+              diff --git a/Foo.kt b/Foo.kt
+              index 1234567..89abcde 100644
+              --- a/Foo.kt
+              +++ b/Foo.kt
+              @@ -1,2 +1,10 @@
+               package com.example
+              +
+              +// a single line comment
+              +/* a block comment */
+              +/** kdoc opening */
+              + * kdoc continuation line
+              +fun foo(): Int {
+              +    val x = 1
+              +    return x
+              +}
+              -val removedCode = 0
+              -// removed comment
+            PATCH
+          end
+
+          before do
+            stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
+            allow(@plugin.git).to receive_messages(added_files: ['Foo.kt'], modified_files: [], deleted_files: [])
+            allow(@plugin.git).to receive(:diff_for_file).with('Foo.kt').and_return(GitDiffStruct.new('added', 'Foo.kt', kotlin_patch))
+          end
+
+          it 'reports a warning when the non-comment, non-blank changes exceed the max (type :all counts 5)' do
+            @plugin.check_diff_size(max_size: 4, type: :all, line_selector: code_line_selector)
+
+            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 4)])
+          end
+
+          it 'does nothing when the non-comment, non-blank changes are within the max (type :all counts 5)' do
+            @plugin.check_diff_size(max_size: 5, type: :all, line_selector: code_line_selector)
+
+            expect(@dangerfile).to not_report
+          end
+
+          it 'counts only added code lines for :insertions (counts 4)' do
+            @plugin.check_diff_size(max_size: 3, type: :insertions, line_selector: code_line_selector)
+
+            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 3)])
+          end
+
+          it 'does nothing for :insertions when the added code lines are within the max (counts 4)' do
+            @plugin.check_diff_size(max_size: 4, type: :insertions, line_selector: code_line_selector)
+
+            expect(@dangerfile).to not_report
+          end
+
+          it 'counts only removed code lines for :deletions (counts 1)' do
+            @plugin.check_diff_size(max_size: 0, type: :deletions, line_selector: code_line_selector)
+
+            expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 0)])
+          end
+
+          it 'does nothing for :deletions when the removed code lines are within the max (counts 1)' do
+            @plugin.check_diff_size(max_size: 1, type: :deletions, line_selector: code_line_selector)
+
+            expect(@dangerfile).to not_report
+          end
+
+          it 'exposes the filtered counts through the size helpers' do
+            expect(@plugin.diff_size(line_selector: code_line_selector)).to eq(5)
+            expect(@plugin.insertions_size(line_selector: code_line_selector)).to eq(4)
+          end
+
+          context 'when combined with a file_selector' do
+            before do
+              excluded_test_file = 'src/test/java/FooTest.kt'
+              allow(@plugin.git).to receive_messages(added_files: ['Foo.kt', excluded_test_file], modified_files: [], deleted_files: [])
+              allow(@plugin.git).to receive(:diff_for_file).with(excluded_test_file).and_return(GitDiffStruct.new('added', excluded_test_file, kotlin_patch))
+            end
+
+            it 'only counts lines in files accepted by the file_selector' do
+              # Both files carry the same patch (5 code lines each); excluding the test file must keep the count at 5, not 10.
+              file_selector = ->(path) { !path.include?('src/test') }
+
+              expect(
+                @plugin.diff_size(file_selector: file_selector, line_selector: code_line_selector)
+              ).to eq(5)
+            end
+          end
+
+          context 'without a line_selector (default numstats path)' do
+            before do
+              allow(@plugin.git).to receive(:diff).and_return(instance_double(Git::Diff))
+              allow(@plugin.git.diff).to receive(:stats).and_return({ files: { 'Foo.kt' => { insertions: 9, deletions: 2 } } })
+            end
+
+            it 'counts every changed line including comments and blanks (counts 11)' do
+              @plugin.check_diff_size(max_size: 10, type: :all, file_selector: ->(_path) { true })
+
+              expect(@dangerfile).to report_warnings([format(described_class::DEFAULT_DIFF_SIZE_MESSAGE_FORMAT, 10)])
+            end
+          end
+        end
+
+        it 'raises an ArgumentError when given an unknown diff size type' do
+          expect { @plugin.check_diff_size(max_size: 100, type: :unknown) }.to raise_error(ArgumentError)
+        end
       end
 
       context 'when checking a PR body size' do
