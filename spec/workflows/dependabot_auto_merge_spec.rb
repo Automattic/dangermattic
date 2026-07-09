@@ -57,8 +57,14 @@ module WorkflowScript
         'GITHUB_OUTPUT' => github_output
       }
       output, status = Open3.capture2e(env, modern_bash, script)
+      step_output = File.read(github_output)
 
-      { success: status.success?, merge: File.read(github_output).include?('should-merge=true'), output: output }
+      {
+        success: status.success?,
+        merge: step_output.include?('should-merge=true'),
+        reason: step_output[/^reason=(.*)$/, 1],
+        output: output
+      }
     end
   end
 end
@@ -85,6 +91,34 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
       # Guards the wiring between the workflow and the script: a renamed input must be renamed in both.
       expect(WorkflowScript.step('decision').fetch('env').keys)
         .to include('UPDATE_TYPE', 'DEPENDENCY_NAMES', 'MINOR_ALLOWLIST', 'DENYLIST', 'MERGE_METHOD')
+    end
+  end
+
+  describe 'the approval step' do
+    it 'quotes the reason the decision step emits' do
+      # The approval comment is only as good as this wiring: `reason` must survive the step boundary.
+      approve = WorkflowScript.workflow.fetch('jobs').fetch('dependabot-auto-merge').fetch('steps')
+                              .find { |step| step['name'].include?('Approve') }
+
+      expect(approve.fetch('env')).to include('REASON' => a_string_including('steps.decision.outputs.reason'))
+      expect(approve.fetch('run')).to include('--body', '$REASON')
+    end
+  end
+
+  describe 'the reason for auto-merging', :runs_script do
+    it 'explains a patch update' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp')
+      expect(result).to include(merge: true, reason: 'all updates are patch level.')
+    end
+
+    it 'explains an allowlisted minor update' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(merge: true, reason: 'every dependency in this minor update is on the allowlist.')
+    end
+
+    it 'emits no reason when it declines to auto-merge' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-major', dependency_names: 'okhttp')
+      expect(result).to include(merge: false, reason: nil)
     end
   end
 
