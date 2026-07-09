@@ -83,4 +83,72 @@ This workflow runs Danger directly on GitHub Actions.
      - Executes Danger in read-only mode for forks and Dependabot PRs
      - Runs Danger with full functionality for PRs where the configured token has access to the repo
 
-These reusable workflows can be incorporated into other workflows in your repository to perform specific tasks related to issue labeling, Buildkite job management, and pull request checks using Danger.
+## Auto-Merge Dependabot Pull Requests
+
+**File:** `workflows/reusable-dependabot-auto-merge.yml`
+
+This workflow approves and enables auto-merge on Dependabot pull requests.
+By default it only does so for patch updates; everything else is left for a human to review.
+
+Auto-merge is enabled rather than merging directly, so the pull request still has to pass the repository's required checks before it lands.
+
+### Inputs:
+- `merge-method`: The merge method to use, one of `merge`, `squash` or `rebase` (default: `merge`)
+- `minor-update-allowlist`: JSON array of dependency names that may also be auto-merged on minor updates (default: `[]`)
+- `denylist`: JSON array of dependency names that are never auto-merged, whatever the update type (default: `[]`)
+- `assign-closest-milestone`: Assign the closest open milestone with a future due date before merging (default: `false`)
+  - Useful where Danger requires a milestone, since the pull request would otherwise never satisfy its required checks.
+
+Example:
+
+```yaml
+with:
+  minor-update-allowlist: |
+    [
+      "release-toolkit"
+    ]
+  denylist: |
+    [
+      "some-fragile-dependency"
+    ]
+```
+
+For grouped updates, a denylisted dependency anywhere in the group blocks the pull request, and a minor update is only auto-merged when every dependency in the group is on the allowlist.
+Names are matched exactly, so `okhttp` on the denylist does not block `okhttp-urlconnection`.
+
+### Secrets:
+- `github-token`: Optional GitHub token, defaulting to `GITHUB_TOKEN`
+  - Dependabot-triggered runs cannot read Actions secrets, so a token passed here must be stored as a [Dependabot secret](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/configuring-access-to-private-registries-for-dependabot).
+
+### Job: `dependabot-auto-merge`
+- Permissions: `contents: write`, `pull-requests: write`
+  - A reusable workflow cannot hold more permissions than its caller, so the calling workflow must grant these too.
+- Runs only for Dependabot pull requests opened from a branch on the repository itself, never from a fork.
+- Steps:
+  1. Fetch Dependabot metadata
+  2. Decide whether to auto-merge, from the update type and the allow/deny lists
+  3. Assign the closest milestone, when enabled
+  4. Approve the pull request
+  5. Enable auto-merge
+
+The calling workflow must use the `pull_request` event and grant the permissions above:
+
+```yaml
+name: 🤖 Auto-merge Dependabot Updates
+
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    uses: Automattic/dangermattic/.github/workflows/reusable-dependabot-auto-merge.yml@v1.5.0
+```
+
+The repository must have "Allow auto-merge" enabled, and the organisation must allow GitHub Actions to approve pull requests, otherwise the workflow fails when approving or enabling auto-merge.
+
+These reusable workflows can be incorporated into other workflows in your repository to perform specific tasks related to issue labeling, Buildkite job management, Dependabot updates, and pull request checks using Danger.
