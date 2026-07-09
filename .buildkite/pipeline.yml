@@ -18,6 +18,10 @@ steps:
     steps:
       - label: "🧪 Build and Test"
         command: |
+          echo "--- :package: Installing jq"
+          # The workflow specs run the auto-merge decision script, which needs jq. The Ruby image doesn't ship it.
+          apt-get update && apt-get install -y --no-install-recommends jq
+
           echo "--- :rubygems: Setting up Gems"
           bundle install
 
