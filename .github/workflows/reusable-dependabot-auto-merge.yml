@@ -67,6 +67,7 @@ jobs:
           allow() {
             echo "✅ Auto-merging: $1"
             echo 'should-merge=true' >> "$GITHUB_OUTPUT"
+            echo "reason=$1" >> "$GITHUB_OUTPUT"
             exit 0
           }
 
@@ -130,7 +131,9 @@ jobs:
 
       - name: 👍 Approve the Pull Request
         if: steps.decision.outputs.should-merge == 'true'
-        run: gh pr review --approve "$PR_NUMBER"
+        env:
+          REASON: ${{ steps.decision.outputs.reason }}
+        run: gh pr review --approve --body "🤖 Auto-approved by Dangermattic's Dependabot auto-merge workflow, because $REASON" "$PR_NUMBER"
 
       - name: 🚀 Enable Auto-Merge
         if: steps.decision.outputs.should-merge == 'true'

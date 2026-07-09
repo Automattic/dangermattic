@@ -125,7 +125,7 @@ Names are matched exactly, so `okhttp` on the denylist does not block `okhttp-ur
 - Steps:
   1. Fetch Dependabot metadata
   2. Decide whether to auto-merge, from the update type and the allow/deny lists
-  3. Approve the pull request
+  3. Approve the pull request, leaving a review comment saying why it was auto-approved
   4. Enable auto-merge
 
 The calling workflow must use the `pull_request` event and grant the permissions above:
