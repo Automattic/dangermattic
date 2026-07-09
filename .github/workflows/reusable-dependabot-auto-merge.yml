@@ -20,11 +20,6 @@ on:
           []
         type: string
         required: false
-      assign-closest-milestone:
-        description: Assign the closest open milestone with a future due date to the pull request before merging.
-        default: false
-        type: boolean
-        required: false
     secrets:
       github-token:
         required: false
@@ -132,26 +127,6 @@ jobs:
           done
 
           allow 'every dependency in this minor update is on the allowlist.'
-
-      - name: 🗓️ Assign Closest Milestone
-        if: inputs.assign-closest-milestone && steps.decision.outputs.should-merge == 'true'
-        run: |
-          #!/usr/bin/env bash
-
-          set -euo pipefail
-
-          milestone="$(
-            gh api "repos/$GH_REPO/milestones" --paginate |
-              jq -r '[.[] | select(.state == "open" and .due_on != null and (.due_on | fromdateiso8601) >= now)] | sort_by(.due_on) | .[0].title // empty'
-          )"
-
-          if [ -z "$milestone" ]; then
-            echo '⚠️ No open milestone with a future due date. Leaving the pull request unmilestoned.'
-            exit 0
-          fi
-
-          echo "🗓️ Assigning milestone '$milestone'"
-          gh pr edit "$PR_NUMBER" --milestone "$milestone"
 
       - name: 👍 Approve the Pull Request
         if: steps.decision.outputs.should-merge == 'true'

@@ -96,8 +96,6 @@ Auto-merge is enabled rather than merging directly, so the pull request still ha
 - `merge-method`: The merge method to use, one of `merge`, `squash` or `rebase` (default: `merge`)
 - `minor-update-allowlist`: JSON array of dependency names that may also be auto-merged on minor updates (default: `[]`)
 - `denylist`: JSON array of dependency names that are never auto-merged, whatever the update type (default: `[]`)
-- `assign-closest-milestone`: Assign the closest open milestone with a future due date before merging (default: `false`)
-  - Useful where Danger requires a milestone, since the pull request would otherwise never satisfy its required checks.
 
 Example:
 
@@ -127,9 +125,8 @@ Names are matched exactly, so `okhttp` on the denylist does not block `okhttp-ur
 - Steps:
   1. Fetch Dependabot metadata
   2. Decide whether to auto-merge, from the update type and the allow/deny lists
-  3. Assign the closest milestone, when enabled
-  4. Approve the pull request
-  5. Enable auto-merge
+  3. Approve the pull request
+  4. Enable auto-merge
 
 The calling workflow must use the `pull_request` event and grant the permissions above:
 
