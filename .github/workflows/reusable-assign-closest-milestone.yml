@@ -1,0 +1,62 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# EXPLORATORY. See the pull request that introduced this file for the open questions.
+
+on:
+  workflow_call:
+    inputs:
+      only-for-actor:
+        description: Only assign a milestone to pull requests opened by this actor. Leave empty to assign to every pull request.
+        default: dependabot[bot]
+        type: string
+        required: false
+      skip-if-milestone-set:
+        description: Leave the pull request alone when it already carries a milestone.
+        default: true
+        type: boolean
+        required: false
+    secrets:
+      github-token:
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+
+jobs:
+  assign-closest-milestone:
+    runs-on: ubuntu-latest
+    if: inputs.only-for-actor == '' || github.event.pull_request.user.login == inputs.only-for-actor
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: 🗓️ Assign Closest Milestone
+        env:
+          CURRENT_MILESTONE: ${{ github.event.pull_request.milestone.title }}
+          SKIP_IF_MILESTONE_SET: ${{ inputs.skip-if-milestone-set }}
+        run: |
+          #!/usr/bin/env bash
+
+          set -euo pipefail
+
+          if [ "$SKIP_IF_MILESTONE_SET" = 'true' ] && [ -n "$CURRENT_MILESTONE" ]; then
+            echo "🗓️ Already assigned to '$CURRENT_MILESTONE'. Nothing to do."
+            exit 0
+          fi
+
+          # The closest milestone is the open one with the earliest due date that has not yet passed.
+          milestone="$(
+            gh api "repos/$GH_REPO/milestones" --paginate |
+              jq -r '[.[] | select(.state == "open" and .due_on != null and (.due_on | fromdateiso8601) >= now)] | sort_by(.due_on) | .[0].title // empty'
+          )"
+
+          if [ -z "$milestone" ]; then
+            echo '⚠️ No open milestone with a future due date. Leaving the pull request unmilestoned.'
+            exit 0
+          fi
+
+          echo "🗓️ Assigning milestone '$milestone'"
+          gh pr edit "$PR_NUMBER" --milestone "$milestone"
