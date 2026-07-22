@@ -101,6 +101,43 @@ module Danger
       end
     end
 
+    it 'selects an iOS entry when only its translator comment changed' do
+      with_fixture_repo do
+        translation_path = 'Resources/Localizable.strings'
+        source_path = 'Sources/Strings.swift'
+        write_fixture(
+          translation_path,
+          <<~STRINGS
+            /* Old context */
+            "save.button" = "Save";
+          STRINGS
+        )
+        write_fixture(source_path, 'let title = String(localized: "save.button", comment: "")')
+        base_ref = commit_fixture('Base fixture')
+        write_fixture(
+          translation_path,
+          <<~STRINGS
+            /* Better context */
+            "save.button" = "Save";
+          STRINGS
+        )
+        commit_fixture('Change translator comment')
+
+        results = run_extraction(
+          base_ref: base_ref,
+          translation_path: translation_path,
+          source_path: 'Sources'
+        )
+
+        expect([results.map(&:key), results.first.changed_translation_locations]).to eq(
+          [['save.button'], ["#{translation_path}:1"]]
+        )
+        expect(@llm).to have_received(:generate_context).with(
+          hash_including(key: 'save.button', comment: 'Better context')
+        )
+      end
+    end
+
     it 'selects only the changed Android collection member and retains its exact line' do
       with_fixture_repo do
         translation_path = 'app/src/main/res/values/strings.xml'

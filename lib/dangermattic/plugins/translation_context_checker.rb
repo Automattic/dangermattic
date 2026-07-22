@@ -131,19 +131,21 @@ module Danger
 
       translation_paths = normalize_paths(translation_paths)
       configured_source_paths = normalize_paths(source_paths)
+      reporting_enabled = inline_mode != :none || summary
 
-      validation_message = validate_context_inputs(
+      validation_message = validate_context_configuration(
         discovery_mode: discovery_mode,
         source_paths: configured_source_paths,
         translation_paths: translation_paths,
-        inline_mode: inline_mode
+        inline_mode: inline_mode,
+        validate_paths: reporting_enabled
       )
       if validation_message
         reporter.report(message: validation_message, type: :warning)
         return
       end
 
-      return if inline_mode == :none && !summary
+      return unless reporting_enabled
 
       changed_translation_files = select_changed_translation_files(translation_paths)
       changed_source_files = select_changed_source_files(configured_source_paths, translation_paths: translation_paths)
@@ -153,6 +155,16 @@ module Danger
         changed_source_files: changed_source_files
       )
       return unless resolved_discovery_mode
+
+      resolved_inline_validation = validate_resolved_inline_mode(
+        requested_discovery_mode: discovery_mode,
+        resolved_discovery_mode: resolved_discovery_mode,
+        inline_mode: inline_mode
+      )
+      if resolved_inline_validation
+        reporter.report(message: resolved_inline_validation, type: :warning)
+        return
+      end
 
       inline_mode ||= default_inline_mode_for(
         discovery_mode: resolved_discovery_mode
@@ -279,6 +291,33 @@ module Danger
       return 'inline_mode `translation_suggestion` requires translation_paths.' if inline_mode == :translation_suggestion && translation_paths.empty?
 
       nil
+    end
+
+    def validate_context_configuration(discovery_mode:, source_paths:, translation_paths:, inline_mode:, validate_paths:)
+      validate_context_inputs(
+        discovery_mode: discovery_mode,
+        source_paths: source_paths,
+        translation_paths: translation_paths,
+        inline_mode: inline_mode
+      ) || (validate_configured_paths(source_paths: source_paths, translation_paths: translation_paths) if validate_paths)
+    end
+
+    def validate_configured_paths(source_paths:, translation_paths:)
+      missing_paths = []
+      source_paths.each { |path| missing_paths << [:source, path] unless File.exist?(path) }
+      translation_paths.each { |path| missing_paths << [:translation, path] unless File.exist?(path) }
+      return if missing_paths.empty?
+
+      details = missing_paths.map { |type, path| "- #{type}: `#{path}`" }
+      "Translation context configuration paths were not found:\n#{details.join("\n")}"
+    end
+
+    def validate_resolved_inline_mode(requested_discovery_mode:, resolved_discovery_mode:, inline_mode:)
+      return unless requested_discovery_mode == :auto
+      return unless resolved_discovery_mode == :source
+      return unless %i[translation_comment translation_suggestion].include?(inline_mode)
+
+      "inline_mode `#{inline_mode}` is not supported when `auto` resolves to source discovery."
     end
 
     def default_inline_mode_for(discovery_mode:)
@@ -430,6 +469,14 @@ module Danger
       comment_line = translator_comment_for(result, location)
       return unless comment_line
 
+      if location[:replace_comment]
+        return [
+          '```suggestion',
+          comment_line,
+          '```'
+        ].join("\n")
+      end
+
       [
         '```suggestion',
         comment_line,
@@ -478,6 +525,38 @@ module Danger
       end
     end
 
+    def translator_comment_block_containing(location)
+      lines = cached_file_lines(location[:file])
+      return nil unless lines
+
+      location_index = location[:line] - 1
+      return nil if location_index.negative? || location_index >= lines.length
+
+      case File.extname(location[:file]).downcase
+      when '.strings'
+        comment_block_containing(lines, location_index, opening: '/*', closing: '*/')
+      when '.xml'
+        comment_block_containing(lines, location_index, opening: '<!--', closing: '-->')
+      end
+    end
+
+    def comment_block_containing(lines, location_index, opening:, closing:)
+      start_index = location_index.downto(0).find { |index| lines[index].include?(opening) }
+      return nil unless start_index
+
+      previous_end = location_index.downto(start_index).find { |index| lines[index].include?(closing) }
+      return nil if previous_end && previous_end < location_index
+
+      end_index = (location_index...lines.length).find { |index| lines[index].include?(closing) }
+      return nil unless end_index
+
+      {
+        start_line: start_index + 1,
+        end_line: end_index + 1,
+        lines: lines[start_index..end_index]
+      }
+    end
+
     def extract_strings_comment_block(lines, comment_end_index)
       return nil unless lines[comment_end_index]&.strip&.end_with?('*/')
 
@@ -506,7 +585,7 @@ module Danger
 
     def translator_comment_for(result, location)
       indentation = location[:content][/^\s*/] || ''
-      comment_text = suggestion_comment_text(result)
+      comment_text = single_line_suggestion_comment_text(result)
 
       case File.extname(location[:file]).downcase
       when '.strings'
@@ -517,9 +596,14 @@ module Danger
     end
 
     def suggestion_comment_text(result)
-      return result.description.to_s unless result.max_length
+      description = result.description.to_s.gsub(/`{3,}/) { |ticks| "'" * ticks.length }
+      return description unless result.max_length
 
-      "#{result.description} Max length: #{result.max_length}."
+      "#{description} Max length: #{result.max_length}."
+    end
+
+    def single_line_suggestion_comment_text(result)
+      suggestion_comment_text(result).gsub(/\s+/, ' ').strip
     end
 
     def update_swift_comment_argument(content, comment_text)
@@ -586,6 +670,15 @@ module Danger
     def enrich_inline_location(location, added_lines_by_file, inline_suggestions:)
       return location unless inline_suggestions
       return location unless location[:inline_target] == :translation
+
+      containing_comment = translator_comment_block_containing(location)
+      if containing_comment
+        single_added_line = containing_comment[:start_line] == containing_comment[:end_line] &&
+                            added_lines_by_file[location[:file]].include?(location[:line])
+        return location.merge(replace_comment: true) if single_added_line
+
+        return location.merge(existing_comment: true)
+      end
 
       comment_block = existing_translator_comment_block(location)
       return location unless comment_block

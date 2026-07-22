@@ -14,6 +14,7 @@ module Danger
         @plugin = @dangerfile.translation_context_checker
 
         allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
+        allow(@plugin).to receive(:validate_configured_paths).and_return(nil)
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         extraction_result_class = Struct.new(
           :key, :text, :description, :ui_element, :tone, :max_length, :locations,
@@ -179,6 +180,29 @@ module Danger
           expect_no_danger_output
         end
 
+        it 'warns about missing configured paths before checking changed files' do
+          allow(@plugin).to receive(:validate_configured_paths).and_call_original
+          allow(File).to receive(:exist?).with('MissingSources').and_return(false)
+          allow(File).to receive(:exist?).with('Missing.strings').and_return(false)
+          allow(@plugin).to receive(:run_extraction)
+
+          @plugin.check_context_suggestions(
+            source_paths: 'MissingSources',
+            translation_paths: 'Missing.strings'
+          )
+
+          expect(@plugin).not_to have_received(:run_extraction)
+          expect(@dangerfile).to report_warnings(
+            [
+              <<~WARNING.chomp
+                Translation context configuration paths were not found:
+                - source: `MissingSources`
+                - translation: `Missing.strings`
+              WARNING
+            ]
+          )
+        end
+
         it 'normalizes ./ source roots before matching changed files' do
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
@@ -237,6 +261,22 @@ module Danger
             discovery_mode: :source,
             provider: :anthropic,
             model: nil
+          )
+        end
+
+        it 'warns when an explicit translation inline mode conflicts with auto-resolved source discovery' do
+          allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
+          allow(@plugin).to receive(:run_extraction)
+
+          @plugin.check_context_suggestions(
+            source_paths: 'Sources',
+            translation_paths: 'Localizable.strings',
+            inline_mode: :translation_suggestion
+          )
+
+          expect(@plugin).not_to have_received(:run_extraction)
+          expect(@dangerfile).to report_warnings(
+            ['inline_mode `translation_suggestion` is not supported when `auto` resolves to source discovery.']
           )
         end
 
@@ -562,6 +602,78 @@ module Danger
           end
         end
 
+        context 'when only a one-line translator comment changed' do
+          let(:strings_path) { 'Localizable.strings' }
+          let(:content) do
+            [
+              "/* Better context */\n",
+              "\"save.button\" = \"Save\";\n"
+            ]
+          end
+          let(:result) do
+            build_extraction_result(
+              key: 'save.button',
+              description: 'Button that saves the edited settings.',
+              changed_translation_locations: ["#{strings_path}:1"]
+            )
+          end
+
+          before do
+            allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
+            allow(@plugin.git).to receive(:diff_for_file).with(strings_path).and_return(
+              GitDiffStruct.new(
+                'modified',
+                strings_path,
+                <<~DIFF
+                  diff --git a/#{strings_path} b/#{strings_path}
+                  --- a/#{strings_path}
+                  +++ b/#{strings_path}
+                  @@ -1,2 +1,2 @@
+                  -/* Old context */
+                  +/* Better context */
+                   "save.button" = "Save";
+                DIFF
+              )
+            )
+            allow(File).to receive(:exist?).with(strings_path).and_return(true)
+            allow(File).to receive(:readlines).with(strings_path).and_return(content)
+            allow(@plugin).to receive(:run_extraction).and_return([result])
+          end
+
+          it 'posts feedback on the exact changed comment line' do
+            @plugin.check_context_suggestions(
+              source_paths: 'Sources',
+              translation_paths: strings_path,
+              discovery_mode: :translations
+            )
+
+            markdown = status_markdowns.fetch(0)
+            expect([markdown.file, markdown.line]).to eq([strings_path, 1])
+          end
+
+          it 'replaces the changed comment instead of nesting another comment' do
+            @plugin.check_context_suggestions(
+              source_paths: 'Sources',
+              translation_paths: strings_path,
+              discovery_mode: :translations,
+              inline_mode: :translation_suggestion
+            )
+
+            markdown = status_markdowns.fetch(0)
+            expect([markdown.message, markdown.line, markdown.start_line]).to eq(
+              [
+                <<~MARKDOWN.chomp,
+                  ```suggestion
+                  /* Button that saves the edited settings. */
+                  ```
+                MARKDOWN
+                1,
+                nil
+              ]
+            )
+          end
+        end
+
         context 'with an Android collection child' do
           let(:xml_path) { 'app/src/main/res/values/strings.xml' }
 
@@ -830,6 +942,18 @@ module Danger
           )
 
           expect(comment).to eq('  <!-- Before - - after -->')
+        end
+
+        it 'normalizes multiline text and code fences before rendering a translator comment' do
+          result = build_extraction_result(description: "First line\n```suggestion\n@reviewer second line")
+          comment = @plugin.send(
+            :translator_comment_for,
+            result,
+            file: 'Localizable.strings',
+            content: '"key" = "Value";'
+          )
+
+          expect(comment).to eq("/* First line '''suggestion @reviewer second line */")
         end
       end
     end

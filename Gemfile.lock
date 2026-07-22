@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/Automattic/i18n-context-generator.git
-  revision: f3210368970f7d76150e57c1db067f19e2980300
-  branch: iangmaia/dangermattic-integration
+  revision: 3a14d9803b14cc47f1144935a9434b81c860726b
+  branch: iangmaia/integration-review-followups
   specs:
     i18n-context-generator (0.5.0)
       concurrent-ruby (~> 1.2)
