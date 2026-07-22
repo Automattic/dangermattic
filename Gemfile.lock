@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/Automattic/i18n-context-generator.git
-  revision: 3a14d9803b14cc47f1144935a9434b81c860726b
+  revision: 9450f73c51c2f7e069afdbd5697890e99a7a42cf
   branch: iangmaia/integration-review-followups
   specs:
     i18n-context-generator (0.5.0)
