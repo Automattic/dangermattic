@@ -26,7 +26,7 @@ Gem::Specification.new do |spec|
 
   # Danger plugins
   spec.add_dependency 'danger-rubocop', '~> 0.13'
-  spec.add_dependency 'i18n-context-generator', '~> 0.4'
+  spec.add_dependency 'i18n-context-generator', '~> 0.5'
 
   # General ruby development
   spec.add_development_dependency 'bundler', '~> 2.0'

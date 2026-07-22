@@ -1,9 +1,9 @@
 GIT
   remote: https://github.com/Automattic/i18n-context-generator.git
-  revision: 2641f4ab3cbc8ce42da6b2b8c4081a224e286c6e
+  revision: e722fff6920488fef56b26c8cc947cb2dbd9286e
   branch: iangmaia/dangermattic-integration
   specs:
-    i18n-context-generator (0.4.0)
+    i18n-context-generator (0.5.0)
       concurrent-ruby (~> 1.2)
       csv (~> 3.3)
       dotstrings (~> 0.6)
@@ -19,7 +19,7 @@ PATH
       danger (~> 9.6)
       danger-plugin-api (~> 1.0)
       danger-rubocop (~> 0.13)
-      i18n-context-generator (~> 0.4)
+      i18n-context-generator (~> 0.5)
       rubocop (~> 1.63)
 
 GEM

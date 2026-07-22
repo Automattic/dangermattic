@@ -47,7 +47,7 @@ module Danger
       end
     end
 
-    def run_extraction(base_ref:, translation_path:, source_path:)
+    def run_extraction(base_ref:, source_path:, translation_path: nil, discovery_mode: :translations)
       head_ref = run_git('rev-parse', 'HEAD')
       allow(Danger::EnvironmentManager).to receive_messages(
         danger_base_branch: base_ref,
@@ -56,9 +56,9 @@ module Danger
 
       @plugin.send(
         :run_extraction,
-        translation_paths: [translation_path],
+        translation_paths: Array(translation_path).compact,
         source_paths: [source_path],
-        discovery_mode: :translations,
+        discovery_mode: discovery_mode,
         provider: :anthropic,
         model: nil
       )
@@ -142,6 +142,43 @@ module Danger
 
         expect(results.map(&:key)).to eq(['item_count:other'])
         expect(results.first.changed_translation_locations).to eq(["#{translation_path}:4"])
+      end
+    end
+
+    it 'extracts a multiline Swift localization when only its comment line changed' do
+      with_fixture_repo do
+        source_file = 'Sources/SettingsView.swift'
+        write_fixture(
+          source_file,
+          <<~SWIFT
+            let title = String(localized: "settings.title",
+                               comment: "Old context")
+          SWIFT
+        )
+        base_ref = commit_fixture('Base fixture')
+        write_fixture(
+          source_file,
+          <<~SWIFT
+            let title = String(localized: "settings.title",
+                               comment: "Improved context")
+          SWIFT
+        )
+        commit_fixture('Change localization comment')
+
+        results = run_extraction(
+          base_ref: base_ref,
+          source_path: 'Sources',
+          discovery_mode: :source
+        )
+
+        expect(
+          [results.map(&:key), results.first.locations, results.first.changed_locations]
+        ).to eq(
+          [['settings.title'], ["#{source_file}:1", "#{source_file}:2"], ["#{source_file}:2"]]
+        )
+        expect(@llm).to have_received(:generate_context).with(
+          hash_including(key: 'settings.title', comment: 'Improved context')
+        )
       end
     end
   end

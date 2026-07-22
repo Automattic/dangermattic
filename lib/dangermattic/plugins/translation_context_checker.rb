@@ -91,6 +91,7 @@ module Danger
     #
     # @param discovery_mode [Symbol, String] (optional) How to discover entries. Values: :auto, :translations, :source.
     #   Defaults to :auto, which runs one workflow: changed translations take priority, then changed source files.
+    #   Invoke the plugin twice with explicit modes when both workflows are wanted for a mixed PR.
     # @param source_paths [String, Array<String>] Path(s) to source code directories or files to search for string usage.
     #   This is required in all modes so code search scope is always explicit.
     # @param translation_paths [String, Array<String>, nil] (optional) Translation file(s) used for translation-backed
@@ -117,6 +118,15 @@ module Danger
       if inline_mode
         inline_mode = normalize_enum_param(inline_mode, VALID_INLINE_MODES, 'inline_mode')
         return if inline_mode.nil?
+      end
+
+      if paths_contain_blank?(source_paths)
+        reporter.report(message: 'source_paths must not contain blank paths.', type: :warning)
+        return
+      end
+      if paths_contain_blank?(translation_paths)
+        reporter.report(message: 'translation_paths must not contain blank paths.', type: :warning)
+        return
       end
 
       translation_paths = normalize_paths(translation_paths)
@@ -168,18 +178,17 @@ module Danger
       failed_results, successful_results = results.partition(&:error)
       report_extraction_errors(failed_results)
 
-      valid_results = successful_results.reject { |result| skip_result?(result) }
-      return if valid_results.empty?
+      actionable_results = successful_results.select(&:actionable?)
+      return if actionable_results.empty?
 
       if inline_reporting?(inline_mode)
         post_inline_comments(
-          valid_results,
-          (changed_translation_files + changed_source_files).uniq,
+          actionable_results,
           report_type,
           inline_mode: inline_mode
         )
       end
-      post_summary_table(valid_results) if summary
+      post_summary_table(actionable_results) if summary
     end
 
     private
@@ -220,7 +229,11 @@ module Danger
     end
 
     def normalize_paths(paths)
-      Array(paths).compact.map { |path| normalize_path(path) }.reject(&:empty?).uniq
+      Array(paths).compact.map { |path| normalize_path(path) }.uniq
+    end
+
+    def paths_contain_blank?(paths)
+      Array(paths).compact.any? { |path| path.to_s.strip.empty? }
     end
 
     def normalize_path(path)
@@ -278,10 +291,14 @@ module Danger
     #
     # Suggestions use Danger's native ranged Markdown support. If no changed
     # inline location is available, a PR-level comment is posted instead.
-    def post_inline_comments(results, changed_files, report_type, inline_mode:)
-      added_lines_by_file = build_added_line_map(changed_files)
+    def post_inline_comments(results, report_type, inline_mode:)
       inline_suggestions = inline_suggestion_mode?(inline_mode)
       inline_target = inline_target_for(inline_mode)
+      added_lines_by_file = if inline_suggestions
+                              build_added_line_map(inline_target_files(results, inline_target))
+                            else
+                              Hash.new { |hash, key| hash[key] = Set.new }
+                            end
 
       results.each do |result|
         locations = resolve_inline_locations(
@@ -332,10 +349,18 @@ module Danger
       markdown(table)
     end
 
-    def build_added_line_map(translation_files)
+    def inline_target_files(results, inline_target)
+      location_method = inline_target == :source ? :changed_locations : :changed_translation_locations
+
+      results.flat_map { |result| Array(result.public_send(location_method)) }
+             .filter_map { |entry| parse_result_location(entry)&.fetch(:file) }
+             .uniq
+    end
+
+    def build_added_line_map(files)
       map = Hash.new { |h, k| h[k] = Set.new }
 
-      translation_files.each do |path|
+      files.each do |path|
         each_added_diff_line(path) do |_line, line_number|
           map[path] << line_number
         end
@@ -654,11 +679,6 @@ module Danger
       return @file_lines_cache[path] if @file_lines_cache.key?(path)
 
       @file_lines_cache[path] = File.exist?(path) ? File.readlines(path).map(&:chomp) : nil
-    end
-
-    def skip_result?(result)
-      result.description&.include?('No usage found') ||
-        result.description&.include?('Processing failed')
     end
 
     def report_extraction_errors(results)

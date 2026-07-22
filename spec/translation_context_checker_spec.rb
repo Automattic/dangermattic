@@ -15,14 +15,16 @@ module Danger
 
         allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
-        stub_const(
-          'ExtractionResultStruct',
-          Struct.new(
-            :key, :text, :description, :ui_element, :tone, :max_length, :locations,
-            :changed_locations, :translation_key, :changed_translation_locations, :error,
-            keyword_init: true
-          )
-        )
+        extraction_result_class = Struct.new(
+          :key, :text, :description, :ui_element, :tone, :max_length, :locations,
+          :changed_locations, :translation_key, :changed_translation_locations, :status, :error,
+          keyword_init: true
+        ) do
+          def actionable?
+            status == :success && error.nil? && !description.to_s.strip.empty?
+          end
+        end
+        stub_const('ExtractionResultStruct', extraction_result_class)
       end
 
       def build_extraction_result(**overrides)
@@ -38,6 +40,7 @@ module Danger
             changed_locations: [],
             translation_key: 'default_key',
             changed_translation_locations: [],
+            status: :success,
             error: nil
           }.merge(overrides)
         )
@@ -105,6 +108,28 @@ module Danger
           expect(@dangerfile).to report_warnings(
             ['source_paths is required for translation context suggestions.']
           )
+        end
+
+        it 'rejects blank source paths before they can normalize to the repository root' do
+          allow(@plugin).to receive(:run_extraction)
+
+          @plugin.check_context_suggestions(source_paths: ['Sources', '  '], discovery_mode: :source)
+
+          expect(@plugin).not_to have_received(:run_extraction)
+          expect(@dangerfile).to report_warnings(['source_paths must not contain blank paths.'])
+        end
+
+        it 'rejects blank translation paths before normalization' do
+          allow(@plugin).to receive(:run_extraction)
+
+          @plugin.check_context_suggestions(
+            source_paths: 'Sources',
+            translation_paths: ['Localizable.strings', ''],
+            discovery_mode: :translations
+          )
+
+          expect(@plugin).not_to have_received(:run_extraction)
+          expect(@dangerfile).to report_warnings(['translation_paths must not contain blank paths.'])
         end
 
         it 'warns when source discovery receives translation paths' do
@@ -290,9 +315,13 @@ module Danger
           ).to eq([true, true, false])
         end
 
-        it 'filters placeholder results without suppressing valid results' do
+        it 'filters non-actionable results without coupling to extractor wording' do
           results = [
-            build_extraction_result(key: 'missing', description: 'No usage found in source code'),
+            build_extraction_result(
+              key: 'missing',
+              description: 'This wording may change independently',
+              status: :no_usage
+            ),
             build_extraction_result(key: 'save', description: 'Save button')
           ]
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
@@ -359,9 +388,12 @@ module Danger
                 nil
               ]
             )
+            expect(@plugin.git).not_to have_received(:diff_for_file)
           end
 
           it 'builds an apply-ready translation suggestion' do
+            allow(@plugin.git).to receive(:modified_files).and_return([strings_path, 'Sources/View.swift'])
+
             @plugin.check_context_suggestions(
               source_paths: 'Sources',
               translation_paths: strings_path,
@@ -375,6 +407,7 @@ module Danger
               "save.button" = "Save";
               ```
             MARKDOWN
+            expect(@plugin.git).to have_received(:diff_for_file).once.with(strings_path)
           end
 
           it 'uses each exact extractor-provided translation location' do
@@ -617,8 +650,10 @@ module Danger
             )
 
             markdown = status_markdowns.fetch(0)
-            expect([markdown.file, markdown.line]).to eq([source_path, 2])
-            expect(markdown.message).to include('Title for the settings screen.')
+            expect([markdown.file, markdown.line, markdown.message.include?('Title for the settings screen.')]).to eq(
+              [source_path, 2, true]
+            )
+            expect(@plugin.git).not_to have_received(:diff_for_file)
           end
 
           it 'offers a Swift comment suggestion on an added comment line' do
