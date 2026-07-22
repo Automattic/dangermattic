@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require 'pathname'
+# Used directly below; keep this entry point independent of transitive requires.
+require 'set' # rubocop:disable Lint/RedundantRequireStatement
+require 'i18n_context_generator'
+
 module Danger
   # Plugin for suggesting translation context on new or modified localized strings.
   #
@@ -7,8 +12,8 @@ module Danger
   # generate context descriptions via LLM. Results are posted inline on the
   # changed translation file lines and/or as a summary table.
   #
-  # Requires the `i18n-context-generator` gem to be in the project's Gemfile and the
-  # `ANTHROPIC_API_KEY` environment variable to be set in CI.
+  # Relevant source snippets are sent to the configured external LLM provider.
+  # The matching provider API key must be available in CI.
   #
   # @example Suggest context for new iOS strings
   #
@@ -78,13 +83,6 @@ module Danger
       source_suggestion
       none
     ].freeze
-    STRINGS_KEY_PATTERN = /^\+\s*"([^"]+)"\s*=/
-    XML_STRING_KEY_PATTERN = /^\+.*<string\s+[^>]*?name=["']([^"']+)["']/
-    XML_STRING_ARRAY_KEY_PATTERN = /^\+.*<string-array\s+[^>]*?name=["']([^"']+)["']/
-    XML_PLURALS_KEY_PATTERN = /^\+.*<plurals\s+[^>]*?name=["']([^"']+)["']/
-    XML_FILE_STRING_PATTERN = /<string\s+[^>]*?name=["']([^"']+)["']/
-    XML_FILE_STRING_ARRAY_PATTERN = /<string-array\s+[^>]*?name=["']([^"']+)["']/
-    XML_FILE_PLURALS_PATTERN = /<plurals\s+[^>]*?name=["']([^"']+)["']/
     SWIFT_COMMENT_ARGUMENT_PATTERN = /comment:\s*"((?:\\.|[^"\\])*)"/
 
     # Analyze translation entries or source localization usages changed in the PR
@@ -92,7 +90,7 @@ module Danger
     # string is used in the app.
     #
     # @param discovery_mode [Symbol, String] (optional) How to discover entries. Values: :auto, :translations, :source.
-    #   Defaults to :auto.
+    #   Defaults to :auto, which runs one workflow: changed translations take priority, then changed source files.
     # @param source_paths [String, Array<String>] Path(s) to source code directories or files to search for string usage.
     #   This is required in all modes so code search scope is always explicit.
     # @param translation_paths [String, Array<String>, nil] (optional) Translation file(s) used for translation-backed
@@ -121,8 +119,8 @@ module Danger
         return if inline_mode.nil?
       end
 
-      translation_paths = Array(translation_paths).compact
-      configured_source_paths = Array(source_paths).compact
+      translation_paths = normalize_paths(translation_paths)
+      configured_source_paths = normalize_paths(source_paths)
 
       validation_message = validate_context_inputs(
         discovery_mode: discovery_mode,
@@ -137,32 +135,24 @@ module Danger
 
       return if inline_mode == :none && !summary
 
-      unless load_i18n_context_generator
-        reporter.report(
-          message: '`i18n-context-generator` gem is required for translation context suggestions. Add it to your Gemfile.',
-          type: :warning
-        )
-        return
-      end
-
       changed_translation_files = select_changed_translation_files(translation_paths)
       changed_source_files = select_changed_source_files(configured_source_paths, translation_paths: translation_paths)
-
-      return if changed_translation_files.empty? && changed_source_files.empty?
-
-      inline_mode ||= default_inline_mode_for(
-        discovery_mode: discovery_mode,
+      resolved_discovery_mode = resolve_discovery_mode(
+        discovery_mode,
         changed_translation_files: changed_translation_files,
         changed_source_files: changed_source_files
       )
+      return unless resolved_discovery_mode
+
+      inline_mode ||= default_inline_mode_for(
+        discovery_mode: resolved_discovery_mode
+      )
 
       begin
-        results = collect_extraction_results(
-          discovery_mode: discovery_mode,
-          translation_paths: translation_paths,
+        results = run_extraction(
+          discovery_mode: resolved_discovery_mode,
+          translation_paths: resolved_discovery_mode == :translations ? translation_paths : [],
           source_paths: configured_source_paths,
-          changed_translation_files: changed_translation_files,
-          changed_source_files: changed_source_files,
           provider: provider,
           model: model
         )
@@ -175,14 +165,16 @@ module Danger
       end
       return if results.empty?
 
-      # Filter out failed results
-      valid_results = deduplicate_results(results.reject { |r| skip_result?(r) })
+      failed_results, successful_results = results.partition(&:error)
+      report_extraction_errors(failed_results)
+
+      valid_results = successful_results.reject { |result| skip_result?(result) }
       return if valid_results.empty?
 
       if inline_reporting?(inline_mode)
         post_inline_comments(
           valid_results,
-          changed_translation_files,
+          (changed_translation_files + changed_source_files).uniq,
           report_type,
           inline_mode: inline_mode
         )
@@ -192,48 +184,14 @@ module Danger
 
     private
 
-    # Attempt to load the i18n-context-generator gem at runtime.
-    # Returns true if available, false otherwise.
-    def load_i18n_context_generator
-      require 'i18n_context_generator'
-      true
-    rescue LoadError
-      false
-    end
-
-    # Extract translation keys from added lines in the PR diff.
-    #
-    # @param translation_files [Array<String>] Paths to changed translation files.
-    # @return [Set<String>] Set of changed translation keys.
-    def extract_changed_keys(translation_files)
-      keys = Set.new
-
-      translation_files.each do |path|
-        ext = File.extname(path).downcase
-
-        each_added_diff_line(path) do |line, _line_number|
-          case ext
-          when '.strings'
-            keys << Regexp.last_match(1) if line =~ STRINGS_KEY_PATTERN
-          when '.xml'
-            keys << Regexp.last_match(1) if line =~ XML_STRING_KEY_PATTERN
-            keys << Regexp.last_match(1) if line =~ XML_STRING_ARRAY_KEY_PATTERN
-            keys << Regexp.last_match(1) if line =~ XML_PLURALS_KEY_PATTERN
-          end
-        end
-      end
-
-      keys
-    end
-
     def select_changed_translation_files(translation_paths)
-      changed_files = git_utils.added_and_modified_files
+      changed_files = normalized_changed_files
 
       translation_paths.select { |path| changed_files.include?(path) }
     end
 
     def select_changed_source_files(source_paths, translation_paths:)
-      changed_files = git_utils.added_and_modified_files
+      changed_files = normalized_changed_files
       translation_files = Set.new(translation_paths)
 
       changed_files.reject { |path| translation_files.include?(path) }.select do |path|
@@ -242,113 +200,60 @@ module Danger
     end
 
     def path_matches_source_path?(path, source_path)
-      normalized_source_path = source_path.to_s.sub(%r{/\z}, '')
-      return false if normalized_source_path.empty?
+      normalized_source_path = normalize_path(source_path)
+      return true if normalized_source_path == '.'
 
       path == normalized_source_path || path.start_with?("#{normalized_source_path}/")
     end
 
-    def collect_extraction_results(discovery_mode:, translation_paths:, source_paths:, changed_translation_files:, changed_source_files:,
-                                   provider:, model:)
+    def resolve_discovery_mode(discovery_mode, changed_translation_files:, changed_source_files:)
       case discovery_mode
       when :translations
-        extract_results_for_changed_translations(
-          translation_paths: translation_paths,
-          source_paths: source_paths,
-          changed_translation_files: changed_translation_files,
-          provider: provider,
-          model: model
-        )
+        :translations unless changed_translation_files.empty?
       when :source
-        extract_results_for_changed_source_files(
-          changed_source_files: changed_source_files,
-          source_paths: source_paths,
-          provider: provider,
-          model: model
-        )
+        :source unless changed_source_files.empty?
       else
-        results = []
+        return :translations unless changed_translation_files.empty?
 
-        translation_results = extract_results_for_changed_translations(
-          translation_paths: translation_paths,
-          source_paths: source_paths,
-          changed_translation_files: changed_translation_files,
-          provider: provider,
-          model: model
-        )
-        results.concat(translation_results)
-
-        source_results = extract_results_for_changed_source_files(
-          changed_source_files: changed_source_files,
-          source_paths: source_paths,
-          provider: provider,
-          model: model
-        )
-        results.concat(source_results)
-
-        results
+        :source unless changed_source_files.empty?
       end
     end
 
-    def extract_results_for_changed_translations(translation_paths:, source_paths:, changed_translation_files:, provider:, model:)
-      changed_keys = extract_changed_keys(changed_translation_files)
-      return [] if changed_keys.empty?
-
-      run_extraction(
-        translation_paths: translation_paths,
-        source_paths: source_paths,
-        discovery_mode: :translations,
-        changed_keys: changed_keys,
-        provider: provider,
-        model: model
-      )
+    def normalize_paths(paths)
+      Array(paths).compact.map { |path| normalize_path(path) }.reject(&:empty?).uniq
     end
 
-    def extract_results_for_changed_source_files(changed_source_files:, source_paths:, provider:, model:)
-      return [] if changed_source_files.empty?
-
-      source_line_filter = build_added_line_map(changed_source_files)
-      return [] if source_line_filter.empty?
-
-      run_extraction(
-        translation_paths: [],
-        source_paths: source_paths,
-        discovery_mode: :source,
-        changed_keys: nil,
-        source_line_filter: source_line_filter,
-        provider: provider,
-        model: model
-      )
+    def normalize_path(path)
+      Pathname.new(path.to_s).cleanpath.to_s
     end
 
-    # Run i18n-context-generator extraction for the given keys.
-    #
-    # @param translation_paths [Array<String>] Translation file paths used for discovery, inline placement, and hydration.
-    # @param source_paths [Array<String>] Source code directories or files.
-    # @param changed_keys [Set<String>, nil] Keys to generate context for. When nil,
-    #   extraction is not filtered by key.
-    # @return [Array<I18nContextGenerator::ContextExtractor::ExtractionResult>] Extraction results.
-    # @raise [StandardError] if extraction fails (caller is responsible for handling).
-    def run_extraction(translation_paths:, source_paths:, provider:, model:, changed_keys: nil, discovery_mode: nil,
-                       source_line_filter: nil)
-      key_filter = changed_keys&.map { |k| Regexp.escape(k) }&.join(',')
+    def normalized_changed_files
+      git_utils.added_and_modified_files.map { |path| normalize_path(path) }
+    end
 
-      config_args = {
+    def run_extraction(translation_paths:, source_paths:, provider:, model:, discovery_mode:)
+      diff_base, diff_head = danger_diff_range
+      config = I18nContextGenerator::Config.new(
         translations: translation_paths,
         source_paths: source_paths,
-        key_filter: key_filter,
+        discovery_mode: discovery_mode,
         provider: provider,
         model: model,
-        no_cache: true
-      }
-      config_args[:discovery_mode] = discovery_mode if discovery_mode
-      config_args[:source_line_filter] = source_line_filter if source_line_filter
-
-      config = I18nContextGenerator::Config.new(**config_args)
+        no_cache: true,
+        diff_base: diff_base,
+        diff_head: diff_head
+      )
 
       extractor = I18nContextGenerator::ContextExtractor.new(config)
       extractor.run
       extractor.results
+    end
+
+    def danger_diff_range
+      [
+        Danger::EnvironmentManager.danger_base_branch,
+        Danger::EnvironmentManager.danger_head_branch
+      ]
     end
 
     def validate_context_inputs(discovery_mode:, source_paths:, translation_paths:, inline_mode:)
@@ -363,33 +268,27 @@ module Danger
       nil
     end
 
-    def default_inline_mode_for(discovery_mode:, changed_translation_files:, changed_source_files:)
+    def default_inline_mode_for(discovery_mode:)
       return :source_comment if discovery_mode == :source
-      return :translation_comment if discovery_mode == :translations
-      return :translation_comment unless changed_translation_files.empty?
-      return :source_comment unless changed_source_files.empty?
 
       :translation_comment
     end
 
     # Post inline comments on the translation file lines where keys were changed.
     #
-    # When inline_mode requests suggestion blocks, suggestions are posted via
-    # inline_markdown_poster which handles both single-line (via Danger) and
-    # multi-line (via raw GitHub API) cases. If posting fails, a plain-text
-    # fallback is attempted. If no inline location is found at all, a PR-level
-    # comment is posted using report_type severity.
-    def post_inline_comments(results, translation_files, report_type, inline_mode:)
-      key_lines = build_key_line_map(translation_files)
-      added_lines_by_file = build_added_line_map(translation_files)
+    # Suggestions use Danger's native ranged Markdown support. If no changed
+    # inline location is available, a PR-level comment is posted instead.
+    def post_inline_comments(results, changed_files, report_type, inline_mode:)
+      added_lines_by_file = build_added_line_map(changed_files)
       inline_suggestions = inline_suggestion_mode?(inline_mode)
       inline_target = inline_target_for(inline_mode)
 
       results.each do |result|
         locations = resolve_inline_locations(
           result,
-          key_lines,
-          inline_target: inline_target
+          inline_target: inline_target,
+          inline_suggestions: inline_suggestions,
+          added_lines_by_file: added_lines_by_file
         )
 
         if locations&.any?
@@ -402,30 +301,19 @@ module Danger
             comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
             next if comment.to_s.empty?
 
-            if inline_suggestions
-              next if inline_markdown_poster.post(
-                markdown: comment,
-                file: location[:file],
-                line: location[:line],
-                start_line: location[:start_line],
-                side: 'RIGHT',
-                start_side: 'RIGHT'
-              )
-
-              fallback_comment = format_inline_message(result, location: location, inline_suggestions: false)
-              next if fallback_comment.to_s.empty?
-
-              markdown(fallback_comment, file: location[:file], line: location[:line])
-              next
-            end
-
-            markdown(comment, file: location[:file], line: location[:line])
+            post_inline_markdown(comment, location)
           end
         else
           # Fallback to PR-level comment if line not found
           reporter.report(message: format_inline_message(result), type: report_type)
         end
       end
+    end
+
+    def post_inline_markdown(comment, location)
+      options = { file: location[:file], line: location[:line] }
+      options.merge!(start_line: location[:start_line], side: 'RIGHT', start_side: 'RIGHT') if location[:start_line]
+      markdown(comment, **options)
     end
 
     # Post a summary markdown table with all context suggestions.
@@ -442,32 +330,6 @@ module Danger
       end
 
       markdown(table)
-    end
-
-    # Build a map of translation key -> [{ file:, line:, content: }, ...] for inline comment placement.
-    # Returns an array of locations per key to handle the same key appearing in multiple files.
-    def build_key_line_map(translation_files)
-      map = Hash.new { |h, k| h[k] = [] }
-
-      translation_files.each do |path|
-        lines = cached_file_lines(path)
-        next unless lines
-
-        lines.each_with_index do |line, idx|
-          location = { file: path, line: idx + 1, content: line }
-
-          case File.extname(path).downcase
-          when '.strings'
-            map[Regexp.last_match(1)] << location if line =~ /^\s*"([^"]+)"\s*=/
-          when '.xml'
-            map[Regexp.last_match(1)] << location if line =~ XML_FILE_STRING_PATTERN
-            map[Regexp.last_match(1)] << location if line =~ XML_FILE_STRING_ARRAY_PATTERN
-            map[Regexp.last_match(1)] << location if line =~ XML_FILE_PLURALS_PATTERN
-          end
-        end
-      end
-
-      map
     end
 
     def build_added_line_map(translation_files)
@@ -638,7 +500,7 @@ module Danger
     def update_swift_comment_argument(content, comment_text)
       replacement = "comment: \"#{escape_swift_string(comment_text)}\""
 
-      content.sub(SWIFT_COMMENT_ARGUMENT_PATTERN, replacement)
+      content.sub(SWIFT_COMMENT_ARGUMENT_PATTERN) { replacement }
     end
 
     def escape_strings_comment(text)
@@ -648,7 +510,7 @@ module Danger
     def escape_swift_string(text)
       text
         .to_s
-        .gsub('\\', '\\\\')
+        .gsub('\\') { '\\\\' }
         .gsub('"', '\\"')
         .gsub("\r", '\\r')
         .gsub("\n", '\\n')
@@ -684,13 +546,16 @@ module Danger
       nil
     end
 
-    def resolve_inline_locations(result, key_lines, inline_target:)
+    def resolve_inline_locations(result, inline_target:, inline_suggestions:, added_lines_by_file:)
       if inline_target == :source
-        source_locations = build_source_line_locations(result)
-        return source_locations
+        return build_source_line_locations(
+          result,
+          inline_suggestions: inline_suggestions,
+          added_lines_by_file: added_lines_by_file
+        )
       end
 
-      Array(key_lines[result.key]).map { |location| location.merge(inline_target: :translation) }
+      build_translation_line_locations(result)
     end
 
     def enrich_inline_location(location, added_lines_by_file, inline_suggestions:)
@@ -708,9 +573,26 @@ module Danger
       end
     end
 
-    def build_source_line_locations(result)
-      Array(result.locations).filter_map do |entry|
-        parse_source_location(entry)
+    def build_translation_line_locations(result)
+      Array(result.changed_translation_locations).filter_map do |entry|
+        location = parse_result_location(entry)
+        next unless location
+
+        lines = cached_file_lines(location[:file])
+        next unless lines
+        next if location[:line] < 1 || location[:line] > lines.length
+
+        location.merge(content: lines[location[:line] - 1], inline_target: :translation)
+      end
+    end
+
+    def build_source_line_locations(result, inline_suggestions:, added_lines_by_file:)
+      Array(result.changed_locations).filter_map do |entry|
+        parse_source_location(
+          entry,
+          inline_suggestions: inline_suggestions,
+          added_lines_by_file: added_lines_by_file
+        )
       end
     end
 
@@ -724,7 +606,7 @@ module Danger
       }
     end
 
-    def parse_source_location(entry)
+    def parse_source_location(entry, inline_suggestions:, added_lines_by_file:)
       location = parse_result_location(entry)
       return unless location
 
@@ -734,12 +616,22 @@ module Danger
       return unless lines
       return if line < 1 || line > lines.length
 
+      unless inline_suggestions
+        return location.merge(
+          content: lines[line - 1],
+          inline_target: :source
+        )
+      end
+
       comment_line_index = find_swift_comment_line(lines, line - 1)
       return unless comment_line_index
 
+      comment_line = comment_line_index + 1
+      return unless added_lines_by_file[file].include?(comment_line)
+
       {
         file: file,
-        line: comment_line_index + 1,
+        line: comment_line,
         content: lines[comment_line_index],
         inline_target: :source
       }
@@ -757,16 +649,6 @@ module Danger
       nil
     end
 
-    def deduplicate_results(results)
-      seen_keys = Set.new
-
-      results.each_with_object([]) do |result, deduplicated_results|
-        next unless seen_keys.add?(result.key)
-
-        deduplicated_results << result
-      end
-    end
-
     def cached_file_lines(path)
       @file_lines_cache ||= {}
       return @file_lines_cache[path] if @file_lines_cache.key?(path)
@@ -775,9 +657,21 @@ module Danger
     end
 
     def skip_result?(result)
-      !result.error.nil? ||
-        result.description&.include?('No usage found') ||
+      result.description&.include?('No usage found') ||
         result.description&.include?('Processing failed')
+    end
+
+    def report_extraction_errors(results)
+      return if results.empty?
+
+      details = results.first(10).map do |result|
+        "- `#{result.key}`: #{result.error}"
+      end
+      details << "- …and #{results.size - 10} more" if results.size > 10
+      reporter.report(
+        message: "Translation context extraction failed for #{results.size} key(s):\n#{details.join("\n")}",
+        type: :warning
+      )
     end
 
     def escape_table_cell(text)
