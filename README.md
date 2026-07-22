@@ -12,6 +12,15 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 The `i18n-context-generator` gem is included as a dependency and installed automatically.
 
+While the extractor integration is under review, applications testing this plugin must temporarily pin the
+extractor branch alongside Dangermattic:
+
+```ruby
+gem 'i18n-context-generator',
+    github: 'Automattic/i18n-context-generator',
+    branch: 'iangmaia/dangermattic-integration'
+```
+
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
 
 ```yaml
@@ -23,6 +32,15 @@ For `translation_context_checker`, use `discovery_mode: :source` for code-first 
 `discovery_mode: :translations` for resource-first flows like Android. `source_paths` should always be set
 explicitly because the generator still searches source code for usage context, including when
 `discovery_mode` is `:translations` or `:auto`. `translation_paths` is only for translation-backed runs.
+
+The default `:auto` mode performs exactly one extraction: translation-backed discovery takes priority when a
+configured translation file changed; otherwise it uses source-backed discovery when a configured source file
+changed. Explicit modes run only when their corresponding files changed. Extraction failures are reported as
+one aggregate warning while successful suggestions are still shown.
+
+The extractor uses the base and head refs prepared by Danger, so it shares Danger's merge-base behavior in
+shallow CI clones. Relevant source snippets are sent to the configured external LLM provider. Do not enable
+this check for source that your provider is not permitted to process.
 
 ## Example of available plugins and their usage
 
@@ -50,6 +68,14 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
       discovery_mode: :source,
       source_paths: ['WooCommerce/', 'Modules/Sources/'],
       inline_mode: :source_suggestion
+    )
+    ```
+    ```ruby
+    # Suggests comments on exact changed Android translation entries
+    translation_context_checker.check_context_suggestions(
+      discovery_mode: :translations,
+      source_paths: ['app/src/main/java/'],
+      translation_paths: 'app/src/main/res/values/strings.xml'
     )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots

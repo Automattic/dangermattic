@@ -14,11 +14,15 @@ _None_
 
 ### Bug Fixes
 
-_None_
+- Use the extractor's exact Git range and changed locations so punctuation-bearing keys, duplicate keys,
+  Android collection members, and changed-only source comments are handled correctly.
+- Report partial extraction failures instead of silently dropping them.
+- Normalize configured source paths such as `.` and `./Sources`.
 
 ### Internal Changes
 
-_None_
+- Require Danger 9.6 and use its native ranged Markdown support instead of a custom GitHub posting layer.
+- Run at most one extractor workflow per plugin invocation and delegate translation diff parsing to the extractor.
 
 ## 1.4.0
 
