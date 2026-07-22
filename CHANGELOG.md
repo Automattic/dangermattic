@@ -18,11 +18,14 @@ _None_
   Android collection members, and changed-only source comments are handled correctly.
 - Report partial extraction failures instead of silently dropping them.
 - Normalize configured source paths such as `.` and `./Sources`.
+- Reject blank source and translation paths before normalization to avoid unintentionally scanning the repository.
+- Use machine-readable extractor result states instead of matching placeholder descriptions.
 
 ### Internal Changes
 
 - Require Danger 9.6 and use its native ranged Markdown support instead of a custom GitHub posting layer.
 - Run at most one extractor workflow per plugin invocation and delegate translation diff parsing to the extractor.
+- Read file diffs only when constructing apply-ready inline suggestions.
 
 ## 1.4.0
 

@@ -10,10 +10,9 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 ### Translation context plugin setup
 
-The `i18n-context-generator` gem is included as a dependency and installed automatically.
-
-While the extractor integration is under review, applications testing this plugin must temporarily pin the
-extractor branch alongside Dangermattic:
+Dangermattic requires `i18n-context-generator` 0.5 or newer. Once that version is published, Bundler installs
+it with Dangermattic. While the extractor integration is under review, applications testing this plugin must
+temporarily pin the extractor branch alongside Dangermattic:
 
 ```ruby
 gem 'i18n-context-generator',
@@ -37,6 +36,21 @@ The default `:auto` mode performs exactly one extraction: translation-backed dis
 configured translation file changed; otherwise it uses source-backed discovery when a configured source file
 changed. Explicit modes run only when their corresponding files changed. Extraction failures are reported as
 one aggregate warning while successful suggestions are still shown.
+
+In a mixed PR, `:auto` intentionally does not run a second source-backed pass, so localization calls that exist
+only in changed source are not included. Run the plugin twice with explicit modes when both workflows are wanted:
+
+```ruby
+translation_context_checker.check_context_suggestions(
+  discovery_mode: :translations,
+  source_paths: ['Sources/'],
+  translation_paths: 'Resources/Localizable.strings'
+)
+translation_context_checker.check_context_suggestions(
+  discovery_mode: :source,
+  source_paths: ['Sources/']
+)
+```
 
 The extractor uses the base and head refs prepared by Danger, so it shares Danger's merge-base behavior in
 shallow CI clones. Relevant source snippets are sent to the configured external LLM provider. Do not enable
