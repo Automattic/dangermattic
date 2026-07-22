@@ -612,13 +612,31 @@ module Danger
     end
 
     def build_source_line_locations(result, inline_suggestions:, added_lines_by_file:)
-      Array(result.changed_locations).filter_map do |entry|
-        parse_source_location(
-          entry,
-          inline_suggestions: inline_suggestions,
-          added_lines_by_file: added_lines_by_file
-        )
+      grouped_locations = changed_source_location_groups(result).filter_map do |group|
+        locations = Array(group).filter_map do |entry|
+          parse_source_location(
+            entry,
+            inline_suggestions: inline_suggestions,
+            added_lines_by_file: added_lines_by_file
+          )
+        end
+        next if locations.empty?
+
+        if inline_suggestions
+          locations.first
+        else
+          locations.find { |location| location[:content].match?(SWIFT_COMMENT_ARGUMENT_PATTERN) } || locations.first
+        end
       end
+
+      grouped_locations.uniq { |location| [location[:file], location[:line]] }
+    end
+
+    def changed_source_location_groups(result)
+      groups = result.changed_location_groups if result.respond_to?(:changed_location_groups)
+      return groups if groups&.any?
+
+      Array(result.changed_locations).map { |location| [location] }
     end
 
     def parse_result_location(entry)

@@ -17,7 +17,8 @@ module Danger
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         extraction_result_class = Struct.new(
           :key, :text, :description, :ui_element, :tone, :max_length, :locations,
-          :changed_locations, :translation_key, :changed_translation_locations, :status, :error,
+          :changed_locations, :changed_location_groups, :translation_key,
+          :changed_translation_locations, :status, :error,
           keyword_init: true
         ) do
           def actionable?
@@ -38,6 +39,7 @@ module Danger
             max_length: nil,
             locations: [],
             changed_locations: [],
+            changed_location_groups: [],
             translation_key: 'default_key',
             changed_translation_locations: [],
             status: :success,
@@ -627,8 +629,9 @@ module Danger
             build_extraction_result(
               key: 'settings.title',
               description: 'Title for the settings screen.',
-              locations: ["#{source_path}:2", 'Sources/Other.swift:8'],
-              changed_locations: ["#{source_path}:2"]
+              locations: ["#{source_path}:2", "#{source_path}:3", 'Sources/Other.swift:8'],
+              changed_locations: ["#{source_path}:2", "#{source_path}:3"],
+              changed_location_groups: [["#{source_path}:2", "#{source_path}:3"]]
             )
           end
 
@@ -650,8 +653,11 @@ module Danger
             )
 
             markdown = status_markdowns.fetch(0)
-            expect([markdown.file, markdown.line, markdown.message.include?('Title for the settings screen.')]).to eq(
-              [source_path, 2, true]
+            expect(
+              [status_markdowns.size, markdown.file, markdown.line,
+               markdown.message.include?('Title for the settings screen.')]
+            ).to eq(
+              [1, source_path, 3, true]
             )
             expect(@plugin.git).not_to have_received(:diff_for_file)
           end
@@ -664,7 +670,7 @@ module Danger
             )
 
             markdown = status_markdowns.fetch(0)
-            expect([markdown.file, markdown.line]).to eq([source_path, 3])
+            expect([status_markdowns.size, markdown.file, markdown.line]).to eq([1, source_path, 3])
             expect(markdown.message).to eq(<<~MARKDOWN.chomp)
               ```suggestion
                                    comment: "Title for the settings screen.")
@@ -688,6 +694,17 @@ module Danger
                                        comment: "")
                 DIFF
               )
+            )
+            allow(@plugin).to receive(:run_extraction).and_return(
+              [
+                build_extraction_result(
+                  key: 'settings.title',
+                  description: 'Title for the settings screen.',
+                  locations: ["#{source_path}:2", "#{source_path}:3"],
+                  changed_locations: ["#{source_path}:2"],
+                  changed_location_groups: [["#{source_path}:2"]]
+                )
+              ]
             )
 
             @plugin.check_context_suggestions(

@@ -20,6 +20,7 @@ _None_
 - Normalize configured source paths such as `.` and `./Sources`.
 - Reject blank source and translation paths before normalization to avoid unintentionally scanning the repository.
 - Use machine-readable extractor result states instead of matching placeholder descriptions.
+- Group changed source locations by localization occurrence so multiline calls produce one inline result.
 
 ### Internal Changes
 

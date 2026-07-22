@@ -8,8 +8,8 @@ require_relative 'spec_helper'
 module Danger
   describe Danger::TranslationContextChecker, 'extractor integration' do
     before do
-      dangerfile = testing_dangerfile
-      @plugin = dangerfile.translation_context_checker
+      @dangerfile = testing_dangerfile
+      @plugin = @dangerfile.translation_context_checker
       @llm = instance_double(I18nContextGenerator::LLM::Client)
 
       allow(@llm).to receive(:generate_context) do |key:, **|
@@ -172,13 +172,61 @@ module Danger
         )
 
         expect(
-          [results.map(&:key), results.first.locations, results.first.changed_locations]
+          [
+            results.map(&:key),
+            results.first.locations,
+            results.first.changed_locations,
+            results.first.changed_location_groups
+          ]
         ).to eq(
-          [['settings.title'], ["#{source_file}:1", "#{source_file}:2"], ["#{source_file}:2"]]
+          [
+            ['settings.title'],
+            ["#{source_file}:1", "#{source_file}:2"],
+            ["#{source_file}:2"],
+            [["#{source_file}:2"]]
+          ]
         )
         expect(@llm).to have_received(:generate_context).with(
           hash_including(key: 'settings.title', comment: 'Improved context')
         )
+      end
+    end
+
+    it 'posts one inline result per newly added multiline source occurrence' do
+      with_fixture_repo do
+        source_file = 'Sources/SettingsView.swift'
+        write_fixture(source_file, "struct SettingsView {}\n")
+        base_ref = commit_fixture('Base fixture')
+        write_fixture(
+          source_file,
+          <<~SWIFT
+            struct SettingsView {
+              let title = String(localized: "settings.title",
+                                 comment: "")
+            }
+          SWIFT
+        )
+        commit_fixture('Add localization call')
+
+        results = run_extraction(
+          base_ref: base_ref,
+          source_path: 'Sources',
+          discovery_mode: :source
+        )
+        allow(@plugin).to receive(:build_added_line_map)
+          .with([source_file]).and_return(source_file => Set[2, 3])
+
+        @plugin.send(:post_inline_comments, results, :message, inline_mode: :source_comment)
+        @plugin.send(:post_inline_comments, results, :message, inline_mode: :source_suggestion)
+
+        expect([results.first.changed_locations, results.first.changed_location_groups]).to eq(
+          [["#{source_file}:2", "#{source_file}:3"], [["#{source_file}:2", "#{source_file}:3"]]]
+        )
+        expect(
+          @dangerfile.status_report[:markdowns].map do |markdown|
+            [markdown.file, markdown.line, markdown.message.include?('```suggestion')]
+          end
+        ).to eq([[source_file, 3, false], [source_file, 3, true]])
       end
     end
   end
