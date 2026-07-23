@@ -17,7 +17,7 @@ temporarily pin the extractor branch alongside Dangermattic:
 ```ruby
 gem 'i18n-context-generator',
     github: 'Automattic/i18n-context-generator',
-    branch: 'iangmaia/dangermattic-integration'
+    branch: 'iangmaia/harden-context-extraction-phase-5'
 ```
 
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:

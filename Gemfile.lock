@@ -1,7 +1,7 @@
 GIT
   remote: https://github.com/Automattic/i18n-context-generator.git
-  revision: 9450f73c51c2f7e069afdbd5697890e99a7a42cf
-  branch: iangmaia/integration-review-followups
+  revision: 4a54b39d92df00b30cd794d8689864a6ac27802c
+  branch: iangmaia/harden-context-extraction-phase-5
   specs:
     i18n-context-generator (0.5.0)
       concurrent-ruby (~> 1.2)
@@ -9,7 +9,7 @@ GIT
       dotstrings (~> 0.6)
       oj (~> 3.16)
       rexml (~> 3.2)
-      thor (~> 1.3)
+      thor (~> 1.5)
       tty-progressbar (~> 0.18)
 
 PATH
@@ -204,7 +204,7 @@ GEM
     strings-ansi (0.2.0)
     terminal-table (4.0.0)
       unicode-display_width (>= 1.1.1, < 4)
-    thor (1.4.0)
+    thor (1.5.0)
     tty-cursor (0.7.1)
     tty-progressbar (0.18.3)
       strings-ansi (~> 0.2)
@@ -231,9 +231,9 @@ DEPENDENCIES
   pry
   rake (~> 13.1)
   rspec (~> 3.4)
-  rubocop-rake
-  rubocop-rspec
-  yard
+  rubocop-rake (~> 0.7.1)
+  rubocop-rspec (~> 3.6.0)
+  yard (~> 0.9.44)
 
 BUNDLED WITH
    2.6.8

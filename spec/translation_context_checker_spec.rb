@@ -17,7 +17,7 @@ module Danger
         allow(@plugin).to receive(:validate_configured_paths).and_return(nil)
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         extraction_result_class = Struct.new(
-          :key, :text, :description, :ui_element, :tone, :max_length, :locations,
+          :key, :text, :description, :source_file, :ui_element, :tone, :max_length, :locations,
           :changed_locations, :changed_location_groups, :translation_key,
           :changed_translation_locations, :status, :error,
           keyword_init: true
@@ -35,6 +35,7 @@ module Danger
             key: 'default_key',
             text: 'Default text',
             description: 'Default description',
+            source_file: nil,
             ui_element: nil,
             tone: nil,
             max_length: nil,
@@ -835,8 +836,18 @@ module Danger
 
         it 'escapes summary table cells and sorts keys' do
           results = [
-            build_extraction_result(key: 'z|key', text: "First\nline", description: 'Z description'),
-            build_extraction_result(key: 'a.key', text: 'A', description: 'A|description')
+            build_extraction_result(
+              key: 'z|key',
+              source_file: 'Resources/Z.strings',
+              text: "First\nline",
+              description: 'Z description'
+            ),
+            build_extraction_result(
+              key: 'a.key',
+              source_file: 'Resources/A.strings',
+              text: 'A',
+              description: 'A|description'
+            )
           ]
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return(results)
@@ -853,9 +864,154 @@ module Danger
             [
               table.index('`a.key`') < table.index('`z\\|key`'),
               table.include?('A\\|description'),
-              table.include?('First line')
+              table.include?('First line'),
+              table.include?('Resources/A.strings')
             ]
-          ).to eq([true, true, true])
+          ).to eq([true, true, true, true])
+        end
+      end
+
+      describe 'typed translation diff locations' do
+        let(:strings_path) { 'Resources/Localizable.strings' }
+
+        before do
+          allow(@plugin).to receive(:build_added_line_map).and_return(
+            strings_path => Set.new,
+            'Resources/Localizable.xcstrings' => Set.new
+          )
+          allow(File).to receive(:exist?).and_call_original
+          allow(File).to receive(:readlines).and_call_original
+        end
+
+        it 'uses the head fallback for a removed-side translation suggestion' do
+          allow(File).to receive(:exist?).with(strings_path).and_return(true)
+          allow(File).to receive(:readlines).with(strings_path).and_return(
+            ["\"save.button\" = \"Save\";\n"]
+          )
+          result = build_extraction_result(
+            key: 'save.button',
+            description: 'Button that saves changes.',
+            changed_translation_locations: [
+              I18nContextGenerator::ChangedLocation.new(
+                file: strings_path,
+                line: 1,
+                side: :left,
+                fallback_line: 1
+              )
+            ]
+          )
+
+          @plugin.send(
+            :post_inline_comments,
+            [result],
+            :message,
+            inline_mode: :translation_suggestion
+          )
+
+          markdown = status_markdowns.fetch(0)
+          expect([markdown.file, markdown.line, markdown.side]).to eq(
+            [strings_path, 1, nil]
+          )
+          expect(markdown.message).to include(
+            '```suggestion',
+            '/* Button that saves changes. */',
+            '"save.button" = "Save";'
+          )
+        end
+
+        it 'posts plain feedback on the left when no head fallback exists' do
+          result = build_extraction_result(
+            key: 'removed.key',
+            description: 'Removed translation context.',
+            changed_translation_locations: [
+              I18nContextGenerator::ChangedLocation.new(
+                file: strings_path,
+                line: 4,
+                side: :left
+              )
+            ]
+          )
+
+          @plugin.send(
+            :post_inline_comments,
+            [result],
+            :message,
+            inline_mode: :translation_suggestion
+          )
+
+          markdown = status_markdowns.fetch(0)
+          expect([markdown.file, markdown.line, markdown.side]).to eq(
+            [strings_path, 4, 'LEFT']
+          )
+          expect(markdown.message).to eq(
+            "**Translation Context Suggestion**\nRemoved translation context."
+          )
+        end
+
+        it 'falls back to a plain inline comment for string catalogs' do
+          catalog_path = 'Resources/Localizable.xcstrings'
+          allow(File).to receive(:exist?).with(catalog_path).and_return(true)
+          allow(File).to receive(:readlines).with(catalog_path).and_return(
+            ["{\n", "  \"strings\": {\n", "    \"settings.title\": {}\n", "  }\n", "}\n"]
+          )
+          result = build_extraction_result(
+            key: 'settings.title',
+            description: 'Settings screen title.',
+            changed_translation_locations: [
+              I18nContextGenerator::ChangedLocation.new(
+                file: catalog_path,
+                line: 3,
+                side: :right
+              )
+            ]
+          )
+
+          @plugin.send(
+            :post_inline_comments,
+            [result],
+            :message,
+            inline_mode: :translation_suggestion
+          )
+
+          markdown = status_markdowns.fetch(0)
+          expect([markdown.file, markdown.line]).to eq([catalog_path, 3])
+          expect(markdown.message).to eq(
+            "**Translation Context Suggestion**\nSettings screen title."
+          )
+        end
+
+        it 'posts results in deterministic file and key order' do
+          allow(File).to receive(:exist?).with('Resources/A.strings').and_return(true)
+          allow(File).to receive(:exist?).with('Resources/Z.strings').and_return(true)
+          allow(File).to receive(:readlines).with('Resources/A.strings').and_return(
+            ["\"a.key\" = \"A\";\n"]
+          )
+          allow(File).to receive(:readlines).with('Resources/Z.strings').and_return(
+            ["\"z.key\" = \"Z\";\n"]
+          )
+          results = [
+            build_extraction_result(
+              key: 'z.key',
+              source_file: 'Resources/Z.strings',
+              changed_translation_locations: ['Resources/Z.strings:1']
+            ),
+            build_extraction_result(
+              key: 'a.key',
+              source_file: 'Resources/A.strings',
+              changed_translation_locations: ['Resources/A.strings:1']
+            )
+          ]
+
+          @plugin.send(
+            :post_inline_comments,
+            results,
+            :message,
+            inline_mode: :translation_comment
+          )
+
+          expect(status_markdowns.map(&:file)).to eq(
+            ['Resources/A.strings', 'Resources/Z.strings']
+          )
         end
       end
 
@@ -869,7 +1025,11 @@ module Danger
             danger_head_branch: 'danger_head'
           )
           allow(I18nContextGenerator::Config).to receive(:new).and_return(config)
-          allow(I18nContextGenerator::ContextExtractor).to receive(:new).with(config).and_return(extractor)
+          allow(I18nContextGenerator::ContextExtractor).to receive(:new).with(
+            config,
+            quiet: true,
+            progress: false
+          ).and_return(extractor)
 
           results = @plugin.send(
             :run_extraction,

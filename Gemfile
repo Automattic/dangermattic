@@ -4,6 +4,6 @@ source 'https://rubygems.org'
 
 gem 'i18n-context-generator',
     github: 'Automattic/i18n-context-generator',
-    branch: 'iangmaia/integration-review-followups'
+    branch: 'iangmaia/harden-context-extraction-phase-5'
 
 gemspec

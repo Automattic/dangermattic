@@ -138,6 +138,91 @@ module Danger
       end
     end
 
+    it 'preserves removed-side metadata when an iOS translator comment is deleted' do
+      with_fixture_repo do
+        translation_path = 'Resources/Localizable.strings'
+        source_path = 'Sources/Strings.swift'
+        write_fixture(
+          translation_path,
+          <<~STRINGS
+            /* Old context */
+            "save.button" = "Save";
+          STRINGS
+        )
+        write_fixture(source_path, 'let title = String(localized: "save.button", comment: "")')
+        base_ref = commit_fixture('Base fixture')
+        write_fixture(translation_path, "\"save.button\" = \"Save\";\n")
+        commit_fixture('Remove translator comment')
+
+        results = run_extraction(
+          base_ref: base_ref,
+          translation_path: translation_path,
+          source_path: 'Sources'
+        )
+
+        location = results.fetch(0).changed_translation_locations.fetch(0)
+        expect(results.map(&:key)).to eq(['save.button'])
+        expect(location).to have_attributes(
+          file: translation_path,
+          line: 1,
+          side: :left,
+          fallback_line: 1
+        )
+      end
+    end
+
+    it 'retains typed catalog locations through the real extractor contract' do
+      with_fixture_repo do
+        translation_path = 'Resources/Localizable.xcstrings'
+        source_path = 'Sources/Strings.swift'
+        write_fixture(
+          translation_path,
+          <<~JSON
+            {
+              "sourceLanguage": "en",
+              "strings": {
+                "settings.title": {
+                  "comment": "Old context"
+                }
+              },
+              "version": "1.0"
+            }
+          JSON
+        )
+        write_fixture(source_path, 'let title = String(localized: "settings.title", comment: "")')
+        base_ref = commit_fixture('Base fixture')
+        write_fixture(
+          translation_path,
+          <<~JSON
+            {
+              "sourceLanguage": "en",
+              "strings": {
+                "settings.title": {
+                  "comment": "Better context"
+                }
+              },
+              "version": "1.0"
+            }
+          JSON
+        )
+        commit_fixture('Change catalog comment')
+
+        results = run_extraction(
+          base_ref: base_ref,
+          translation_path: translation_path,
+          source_path: 'Sources'
+        )
+
+        location = results.fetch(0).changed_translation_locations.fetch(0)
+        expect(results.map(&:key)).to eq(['settings.title'])
+        expect(location).to have_attributes(
+          file: translation_path,
+          line: 5,
+          side: :right
+        )
+      end
+    end
+
     it 'selects only the changed Android collection member and retains its exact line' do
       with_fixture_repo do
         translation_path = 'app/src/main/res/values/strings.xml'
