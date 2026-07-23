@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/Automattic/i18n-context-generator.git
-  revision: 4a54b39d92df00b30cd794d8689864a6ac27802c
+  revision: 58ed57c8a4ad5967062fcb9fa94a3342b18b1afd
   branch: iangmaia/harden-context-extraction-phase-5
   specs:
     i18n-context-generator (0.5.0)
