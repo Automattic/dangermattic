@@ -311,15 +311,19 @@ module Danger
           )
         end
 
-        it 'reports an actionable warning when extraction raises' do
+        it 'reports a provider credential failure as one actionable warning' do
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
-          allow(@plugin).to receive(:run_extraction).and_raise(I18nContextGenerator::Error, 'missing merge base')
+          allow(@plugin).to receive(:run_extraction).and_raise(
+            I18nContextGenerator::Error,
+            'ANTHROPIC_API_KEY environment variable is required'
+          )
 
           @plugin.check_context_suggestions(source_paths: 'Sources', discovery_mode: :source)
 
-          expect(@dangerfile).to report_warnings(
-            ['Translation context extraction failed: missing merge base']
+          expect(@dangerfile.status_report[:warnings]).to eq(
+            ['Translation context extraction failed: ANTHROPIC_API_KEY environment variable is required']
           )
+          expect(@dangerfile.status_report[:warnings].join).not_to include('failed for')
         end
 
         it 'reports failed results while preserving successful suggestions' do
@@ -919,7 +923,7 @@ module Danger
           )
         end
 
-        it 'posts plain feedback on the left when no head fallback exists' do
+        it 'reports plain PR-level feedback when no head fallback exists' do
           result = build_extraction_result(
             key: 'removed.key',
             description: 'Removed translation context.',
@@ -935,16 +939,55 @@ module Danger
           @plugin.send(
             :post_inline_comments,
             [result],
-            :message,
+            :warning,
             inline_mode: :translation_suggestion
           )
 
-          markdown = status_markdowns.fetch(0)
-          expect([markdown.file, markdown.line, markdown.side]).to eq(
-            [strings_path, 4, 'LEFT']
+          expect(status_markdowns).to be_empty
+          expect(@dangerfile.status_report[:warnings]).to eq(
+            ["**Translation Context Suggestion**\nRemoved translation context."]
           )
-          expect(markdown.message).to eq(
-            "**Translation Context Suggestion**\nRemoved translation context."
+        end
+
+        it 'deduplicates residual left reports while publishing right locations' do
+          allow(File).to receive(:exist?).with(strings_path).and_return(true)
+          allow(File).to receive(:readlines).with(strings_path).and_return(
+            ["\"removed.key\" = \"Removed\";\n"]
+          )
+          result = build_extraction_result(
+            key: 'removed.key',
+            description: 'Removed translation context.',
+            changed_translation_locations: [
+              I18nContextGenerator::ChangedLocation.new(
+                file: strings_path,
+                line: 4,
+                side: :left
+              ),
+              I18nContextGenerator::ChangedLocation.new(
+                file: strings_path,
+                line: 5,
+                side: :left
+              ),
+              I18nContextGenerator::ChangedLocation.new(
+                file: strings_path,
+                line: 1,
+                side: :right
+              )
+            ]
+          )
+
+          @plugin.send(
+            :post_inline_comments,
+            [result],
+            :warning,
+            inline_mode: :translation_comment
+          )
+
+          expect(@dangerfile.status_report[:warnings]).to eq(
+            ["**Translation Context Suggestion**\nRemoved translation context."]
+          )
+          expect(status_markdowns.map { |markdown| [markdown.file, markdown.line] }).to eq(
+            [[strings_path, 1]]
           )
         end
 

@@ -27,7 +27,8 @@ module Danger
             result,
             locations,
             added_lines_by_file,
-            inline_suggestions: inline_suggestions
+            inline_suggestions: inline_suggestions,
+            report_type: report_type
           )
         else
           reporter.report(message: format_inline_message(result), type: report_type)
@@ -35,7 +36,9 @@ module Danger
       end
     end
 
-    def post_result_locations(result, locations, added_lines_by_file, inline_suggestions:)
+    def post_result_locations(result, locations, added_lines_by_file, inline_suggestions:, report_type:)
+      reported_left_fallback = false
+
       locations.sort_by { |location| inline_location_sort_key(location) }.each do |location|
         location = enrich_inline_location(
           location,
@@ -45,7 +48,14 @@ module Danger
         comment = format_inline_message(result, location: location, inline_suggestions: inline_suggestions)
         next if comment.to_s.empty?
 
-        post_inline_markdown(comment, location)
+        if location[:side] == 'LEFT'
+          next if reported_left_fallback
+
+          reporter.report(message: comment, type: report_type)
+          reported_left_fallback = true
+        else
+          post_inline_markdown(comment, location)
+        end
       end
     end
 

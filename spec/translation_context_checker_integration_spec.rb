@@ -93,10 +93,15 @@ module Danger
         )
 
         expect(results.map(&:key)).to match_array(keys)
-        expect(results.to_h { |result| [result.key, result.changed_translation_locations] }).to eq(
-          'save.button' => ["#{translation_path}:2"],
-          'cart+cta' => ["#{translation_path}:3"],
-          'key,with,commas' => ["#{translation_path}:4"]
+        expect(
+          results.to_h do |result|
+            locations = result.changed_translation_locations.map { |location| [location.file, location.line] }
+            [result.key, locations]
+          end
+        ).to eq(
+          'save.button' => [[translation_path, 2]],
+          'cart+cta' => [[translation_path, 3]],
+          'key,with,commas' => [[translation_path, 4]]
         )
       end
     end
@@ -129,7 +134,9 @@ module Danger
           source_path: 'Sources'
         )
 
-        expect([results.map(&:key), results.first.changed_translation_locations]).to eq(
+        expect(
+          [results.map(&:key), results.first.changed_translation_locations.map(&:to_s)]
+        ).to eq(
           [['save.button'], ["#{translation_path}:1"]]
         )
         expect(@llm).to have_received(:generate_context).with(
@@ -263,7 +270,9 @@ module Danger
         )
 
         expect(results.map(&:key)).to eq(['item_count:other'])
-        expect(results.first.changed_translation_locations).to eq(["#{translation_path}:4"])
+        expect(results.first.changed_translation_locations.map(&:to_s)).to eq(
+          ["#{translation_path}:4"]
+        )
       end
     end
 
