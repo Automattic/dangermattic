@@ -10,15 +10,8 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 ### Translation context plugin setup
 
-Dangermattic requires `i18n-context-generator` 0.5 or newer. Once that version is published, Bundler installs
-it with Dangermattic. While the extractor integration is under review, applications testing this plugin must
-temporarily pin the extractor branch alongside Dangermattic:
-
-```ruby
-gem 'i18n-context-generator',
-    github: 'Automattic/i18n-context-generator',
-    branch: 'iangmaia/harden-context-extraction-phase-5'
-```
+Dangermattic requires `i18n-context-generator` 0.5 or newer. Bundler installs the released gem automatically
+with Dangermattic.
 
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
 
