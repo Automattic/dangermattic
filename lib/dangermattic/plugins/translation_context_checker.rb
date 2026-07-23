@@ -54,14 +54,17 @@ module Danger
     # @param source_paths [String, Array<String>] Explicit source search scope.
     # @param discovery_mode [Symbol, String] :auto, :translations, or :source.
     # @param translation_paths [String, Array<String>, nil] Translation inputs.
+    # @param context_files [String, Array<String>, nil] Free-form files included in full as untrusted evidence.
+    # @param include_pull_request_context [Boolean] Include the PR title and description as untrusted evidence.
     # @param inline_mode [Symbol, String, nil] Inline comment/suggestion target.
     # @param summary [Boolean] Whether to add a PR-level summary table.
     # @param report_type [Symbol] Severity for PR-level fallback reports.
     # @param provider [Symbol, String] Extractor LLM provider.
     # @param model [String, nil] Optional provider model override.
     # @return [void]
-    def check_context_suggestions(source_paths:, discovery_mode: :auto, translation_paths: nil, inline_mode: nil,
-                                  summary: false, report_type: :message,
+    def check_context_suggestions(source_paths:, discovery_mode: :auto, translation_paths: nil,
+                                  context_files: nil, include_pull_request_context: true,
+                                  inline_mode: nil, summary: false, report_type: :message,
                                   provider: :anthropic, model: nil)
       @file_lines_cache = {}
 
@@ -73,10 +76,20 @@ module Danger
         return if inline_mode.nil?
       end
 
-      return if invalid_blank_paths?(source_paths, translation_paths)
+      raw_validation_message = validate_raw_context_options(
+        source_paths: source_paths,
+        translation_paths: translation_paths,
+        context_files: context_files,
+        include_pull_request_context: include_pull_request_context
+      )
+      if raw_validation_message
+        reporter.report(message: raw_validation_message, type: :warning)
+        return
+      end
 
       translation_paths = normalize_paths(translation_paths)
       configured_source_paths = normalize_paths(source_paths)
+      context_files = normalize_paths(context_files)
       reporting_enabled = inline_mode != :none || summary
 
       validation_message = validate_context_configuration(
@@ -84,6 +97,7 @@ module Danger
         source_paths: configured_source_paths,
         translation_paths: translation_paths,
         inline_mode: inline_mode,
+        context_files: context_files,
         validate_paths: reporting_enabled
       )
       if validation_message
@@ -116,7 +130,9 @@ module Danger
         translation_paths: translation_paths,
         source_paths: configured_source_paths,
         provider: provider,
-        model: model
+        model: model,
+        context_files: context_files,
+        include_pull_request_context: include_pull_request_context
       )
       return if results.nil? || results.empty?
 
@@ -124,19 +140,6 @@ module Danger
     end
 
     private
-
-    def invalid_blank_paths?(source_paths, translation_paths)
-      if paths_contain_blank?(source_paths)
-        reporter.report(message: 'source_paths must not contain blank paths.', type: :warning)
-        return true
-      end
-      if paths_contain_blank?(translation_paths)
-        reporter.report(message: 'translation_paths must not contain blank paths.', type: :warning)
-        return true
-      end
-
-      false
-    end
 
     def resolved_discovery_mode(discovery_mode, source_paths:, translation_paths:)
       changed_translation_files = select_changed_translation_files(translation_paths)
@@ -151,13 +154,17 @@ module Danger
       )
     end
 
-    def extract_results(discovery_mode:, translation_paths:, source_paths:, provider:, model:)
+    def extract_results(discovery_mode:, translation_paths:, source_paths:, provider:, model:,
+                        context_files:, include_pull_request_context:)
+      supplemental_context = include_pull_request_context ? pull_request_context : {}
       run_extraction(
         discovery_mode: discovery_mode,
         translation_paths: discovery_mode == :translations ? translation_paths : [],
         source_paths: source_paths,
         provider: provider,
-        model: model
+        model: model,
+        context_files: context_files,
+        supplemental_context: supplemental_context
       )
     rescue StandardError => e
       reporter.report(
@@ -226,12 +233,37 @@ module Danger
       Array(paths).compact.any? { |path| path.to_s.strip.empty? }
     end
 
+    def validate_raw_context_options(source_paths:, translation_paths:, context_files:,
+                                     include_pull_request_context:)
+      return 'include_pull_request_context must be true or false.' unless
+        [true, false].include?(include_pull_request_context)
+
+      {
+        source_paths: source_paths,
+        translation_paths: translation_paths,
+        context_files: context_files
+      }.each do |name, paths|
+        return "#{name} must not contain blank paths." if paths_contain_blank?(paths)
+      end
+
+      nil
+    end
+
     def normalize_path(path)
       Pathname.new(path.to_s).cleanpath.to_s
     end
 
     def normalized_changed_files
       git_utils.added_and_modified_files.map { |path| normalize_path(path) }
+    end
+
+    def pull_request_context
+      {
+        'Pull request title' => github.pr_title.to_s,
+        'Pull request description' => github.pr_body.to_s
+      }.reject do |_name, content|
+        content.strip.empty?
+      end
     end
 
     def validate_context_inputs(discovery_mode:, source_paths:, translation_paths:, inline_mode:)
@@ -245,19 +277,29 @@ module Danger
       'inline_mode `translation_suggestion` requires translation_paths.' if inline_mode == :translation_suggestion && translation_paths.empty?
     end
 
-    def validate_context_configuration(discovery_mode:, source_paths:, translation_paths:, inline_mode:, validate_paths:)
-      validate_context_inputs(
+    def validate_context_configuration(discovery_mode:, source_paths:, translation_paths:, inline_mode:,
+                                       context_files:, validate_paths:)
+      input_error = validate_context_inputs(
         discovery_mode: discovery_mode,
         source_paths: source_paths,
         translation_paths: translation_paths,
         inline_mode: inline_mode
-      ) || (validate_configured_paths(source_paths: source_paths, translation_paths: translation_paths) if validate_paths)
+      )
+      return input_error if input_error
+      return unless validate_paths
+
+      validate_configured_paths(
+        source_paths: source_paths,
+        translation_paths: translation_paths,
+        context_files: context_files
+      )
     end
 
-    def validate_configured_paths(source_paths:, translation_paths:)
+    def validate_configured_paths(source_paths:, translation_paths:, context_files: [])
       missing_paths = []
       source_paths.each { |path| missing_paths << [:source, path] unless File.exist?(path) }
       translation_paths.each { |path| missing_paths << [:translation, path] unless File.exist?(path) }
+      context_files.each { |path| missing_paths << [:context, path] unless File.file?(path) }
       return if missing_paths.empty?
 
       details = missing_paths.map { |type, path| "- #{type}: `#{path}`" }

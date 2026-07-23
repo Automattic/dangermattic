@@ -5,7 +5,8 @@ module Danger
   module TranslationContextCheckerExtraction
     private
 
-    def run_extraction(translation_paths:, source_paths:, provider:, model:, discovery_mode:)
+    def run_extraction(translation_paths:, source_paths:, provider:, model:, discovery_mode:,
+                       context_files: [], supplemental_context: {})
       diff_base, diff_head = danger_diff_range
       config = I18nContextGenerator::Config.new(
         translations: translation_paths,
@@ -13,6 +14,8 @@ module Danger
         discovery_mode: discovery_mode,
         provider: provider,
         model: model,
+        context_files: context_files,
+        supplemental_context: supplemental_context,
         no_cache: true,
         diff_base: diff_base,
         diff_head: diff_head

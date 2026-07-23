@@ -32,10 +32,12 @@ For `translation_context_checker`, use `discovery_mode: :source` for code-first 
 explicitly because the generator still searches source code for usage context, including when
 `discovery_mode` is `:translations` or `:auto`. `translation_paths` is only for translation-backed runs.
 
-The default `:auto` mode performs exactly one extraction: translation-backed discovery takes priority when a
-configured translation file changed; otherwise it uses source-backed discovery when a configured source file
-changed. Explicit modes run only when their corresponding files changed. Extraction failures are reported as
-one aggregate warning while successful suggestions are still shown.
+The plugin includes the pull request title and description as untrusted model evidence by default. Set
+`include_pull_request_context: false` to disable that behavior. The default `:auto` mode performs exactly one
+extraction: translation-backed discovery takes priority when a configured translation file changed; otherwise
+it uses source-backed discovery when a configured source file changed. Explicit modes run only when their
+corresponding files changed. Extraction failures are reported as one aggregate warning while successful
+suggestions are still shown.
 
 In a mixed PR, `:auto` intentionally does not run a second source-backed pass, so localization calls that exist
 only in changed source are not included. Run the plugin twice with explicit modes when both workflows are wanted:
@@ -48,13 +50,16 @@ translation_context_checker.check_context_suggestions(
 )
 translation_context_checker.check_context_suggestions(
   discovery_mode: :source,
-  source_paths: ['Sources/']
+  source_paths: ['Sources/'],
+  context_files: ['GLOSSARY.md', 'docs/localization-style.md']
 )
 ```
 
 The extractor uses the base and head refs prepared by Danger, so it shares Danger's merge-base behavior in
 shallow CI clones. Relevant source snippets are sent to the configured external LLM provider. Do not enable
-this check for source that your provider is not permitted to process.
+this check for source that your provider is not permitted to process. Context files and pull request metadata
+are sent under the same redaction and prompt-injection-resistant evidence boundary; context files are included
+in full and must fit the configured prompt limit.
 
 ## Example of available plugins and their usage
 
