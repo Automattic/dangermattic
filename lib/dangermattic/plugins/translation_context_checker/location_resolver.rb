@@ -141,7 +141,7 @@ module Danger
       return location unless location[:inline_target] == :translation
       return location if location[:side] == 'LEFT'
 
-      return enrich_xcstrings_inline_location(location) if File.extname(location[:file]).downcase == '.xcstrings'
+      return enrich_xcstrings_inline_location(location, added_lines_by_file[location[:file]]) if File.extname(location[:file]).downcase == '.xcstrings'
 
       containing_comment = translator_comment_block_containing(location)
       if containing_comment
@@ -163,32 +163,49 @@ module Danger
       end
     end
 
-    def enrich_xcstrings_inline_location(location)
+    def enrich_xcstrings_inline_location(location, added_lines)
       content = location[:content].to_s
-      return location.merge(replace_comment: true) if xcstrings_comment_line?(content)
+      return enrich_xcstrings_comment_location(location, location[:line], content, added_lines) if xcstrings_comment_line?(content)
       return location unless xcstrings_key_line?(content)
 
       lines = cached_file_lines(location[:file])
       return location unless lines
 
-      key_index = location[:line] - 1
-      key_indentation = content[/^\s*/].to_s
-      first_child_index = ((key_index + 1)...lines.length).find { |index| !lines[index].strip.empty? }
-      return location unless first_child_index
-
-      child_indentation = lines[first_child_index][/^\s*/].to_s
-      return location unless child_indentation.length > key_indentation.length
-
-      comment_index = (first_child_index...lines.length).find do |index|
-        line = lines[index]
-        indentation = line[/^\s*/].to_s
-        break if !line.strip.empty? && indentation.length <= key_indentation.length
-
-        indentation == child_indentation && xcstrings_comment_line?(line)
+      body_indexes = xcstrings_body_line_indexes(lines, location[:line], content)
+      comment_index = body_indexes.find { |index| xcstrings_comment_line?(lines[index]) }
+      if comment_index
+        return enrich_xcstrings_comment_location(
+          location,
+          comment_index + 1,
+          lines[comment_index],
+          added_lines
+        )
       end
-      return location unless comment_index
 
-      location.merge(line: comment_index + 1, content: lines[comment_index], replace_comment: true)
+      first_child_index = body_indexes.find { |index| !lines[index].strip.empty? }
+      child_indentation = if first_child_index
+                            lines[first_child_index][/^\s*/].to_s
+                          else
+                            "#{content[/^\s*/]}  "
+                          end
+      location.merge(
+        child_indentation: child_indentation,
+        trailing_comma: !first_child_index.nil?
+      )
+    end
+
+    def enrich_xcstrings_comment_location(location, line, content, added_lines)
+      return location.merge(existing_comment: true) unless added_lines.include?(line)
+
+      location.merge(line: line, content: content, replace_comment: true)
+    end
+
+    def xcstrings_body_line_indexes(lines, key_line, key_content)
+      key_indentation_length = key_content[/^\s*/].to_s.length
+      (key_line...lines.length).take_while do |index|
+        line = lines[index]
+        line.strip.empty? || line[/^\s*/].to_s.length > key_indentation_length
+      end
     end
 
     def xcstrings_key_line?(content)

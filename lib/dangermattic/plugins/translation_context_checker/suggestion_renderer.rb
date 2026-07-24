@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module Danger
   # Format-specific inline suggestion rendering.
   module TranslationContextCheckerSuggestionRenderer
@@ -52,17 +54,18 @@ module Danger
     def format_xcstrings_inline_suggestion(result, location)
       content = location[:content].to_s
       return if content.strip.empty?
-      return unless location[:replace_comment] || xcstrings_key_line?(content)
+      return if location[:existing_comment]
 
-      indentation = content[/^\s*/].to_s
-      indentation += '  ' unless location[:replace_comment]
-      trailing_comma = !location[:replace_comment] || content.rstrip.end_with?(',')
-      comment_text = single_line_suggestion_comment_text(result)
-      comment_line = "#{indentation}\"comment\" : \"#{escape_xcstrings_string(comment_text)}\""
+      indentation = location[:replace_comment] ? content[/^\s*/].to_s : location[:child_indentation]
+      return unless indentation
+
+      comment_value = JSON.generate(single_line_suggestion_comment_text(result))
+      comment_line = "#{indentation}\"comment\" : #{comment_value}"
+      trailing_comma = location[:replace_comment] ? content.rstrip.end_with?(',') : location[:trailing_comma]
       comment_line += ',' if trailing_comma
 
       lines = ['```suggestion']
-      lines << content unless location[:replace_comment]
+      lines << content if location[:child_indentation]
       lines << comment_line
       lines << '```'
       lines.join("\n")
@@ -134,19 +137,6 @@ module Danger
         .gsub("\r", '\\r')
         .gsub("\n", '\\n')
         .gsub("\t", '\\t')
-    end
-
-    def escape_xcstrings_string(text)
-      text
-        .to_s
-        .gsub('\\') { '\\\\' }
-        .gsub('"', '\\"')
-        .gsub("\b", '\\b')
-        .gsub("\f", '\\f')
-        .gsub("\r", '\\r')
-        .gsub("\n", '\\n')
-        .gsub("\t", '\\t')
-        .gsub(/[\u0000-\u001f]/) { |character| format('\\u%04x', character.ord) }
     end
 
     def escape_xml_comment(text)

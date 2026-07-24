@@ -70,6 +70,59 @@ module Danger
         DIFF
       end
 
+      def added_file_diff(path, lines)
+        <<~DIFF + lines.map { |line| "+#{line}" }.join
+          diff --git a/#{path} b/#{path}
+          --- /dev/null
+          +++ b/#{path}
+          @@ -0,0 +1,#{lines.length} @@
+        DIFF
+      end
+
+      def stub_xcstrings_catalog(path, lines, patch: added_file_diff(path, lines))
+        allow(File).to receive(:exist?).with(path).and_return(true)
+        allow(File).to receive(:readlines).with(path).and_return(lines)
+        allow(@plugin).to receive(:build_added_line_map).and_call_original
+        allow(@plugin.danger.git).to receive(:diff_for_file).with(path).and_return(
+          GitDiffStruct.new('modified', path, patch)
+        )
+      end
+
+      def post_xcstrings_suggestion(path, description:, lines: [3])
+        result = build_extraction_result(
+          key: 'settings.title',
+          description: description,
+          changed_translation_locations: lines.map do |line|
+            I18nContextGenerator::ChangedLocation.new(
+              file: path,
+              line: line,
+              side: :right
+            )
+          end
+        )
+
+        @plugin.send(
+          :post_inline_comments,
+          [result],
+          :message,
+          inline_mode: :translation_suggestion
+        )
+
+        status_markdowns.fetch(0)
+      end
+
+      def parse_applied_suggestion(lines, markdown)
+        match = markdown.message.match(/\A```suggestion\n(?<replacement>.*)\n```\z/m)
+        raise 'Expected a GitHub suggestion block' unless match
+
+        updated = lines.dup
+        first_line = (markdown.start_line || markdown.line) - 1
+        last_line = markdown.line - 1
+        replacement = match[:replacement].lines(chomp: true).map { |line| "#{line}\n" }
+        updated[first_line..last_line] = replacement
+        JSON.parse(updated.join)
+      end
+
       describe '#check_context_suggestions' do
         it 'returns before extraction when all reporting is disabled' do
           allow(@plugin).to receive(:run_extraction)
@@ -1090,85 +1143,59 @@ module Danger
 
         it 'builds one apply-ready inline suggestion per string-catalog key' do
           catalog_path = 'Resources/Localizable.xcstrings'
-          allow(File).to receive(:exist?).with(catalog_path).and_return(true)
-          allow(File).to receive(:readlines).with(catalog_path).and_return(
-            ["{\n", "  \"strings\": {\n", "    \"settings.title\": {\n", "    }\n", "  }\n", "}\n"]
-          )
-          result = build_extraction_result(
-            key: 'settings.title',
+          catalog_lines = [
+            "{\n",
+            "  \"strings\": {\n",
+            "    \"settings.title\": {\n",
+            "    }\n",
+            "  }\n",
+            "}\n"
+          ]
+          stub_xcstrings_catalog(catalog_path, catalog_lines)
+
+          markdown = post_xcstrings_suggestion(
+            catalog_path,
             description: 'Settings screen title.',
-            changed_translation_locations: [
-              I18nContextGenerator::ChangedLocation.new(
-                file: catalog_path,
-                line: 3,
-                side: :right
-              ),
-              I18nContextGenerator::ChangedLocation.new(
-                file: catalog_path,
-                line: 4,
-                side: :right
-              )
-            ]
+            lines: [3, 4]
           )
 
-          @plugin.send(
-            :post_inline_comments,
-            [result],
-            :message,
-            inline_mode: :translation_suggestion
-          )
-
-          markdown = status_markdowns.fetch(0)
-          expect([markdown.message, markdown.file, markdown.line]).to eq(
+          parsed = parse_applied_suggestion(catalog_lines, markdown)
+          expect([markdown.message, markdown.file, markdown.line, parsed.dig('strings', 'settings.title', 'comment')]).to eq(
             [
               <<~MARKDOWN.chomp,
                 ```suggestion
                     "settings.title": {
-                      "comment" : "Settings screen title.",
+                      "comment" : "Settings screen title."
                 ```
               MARKDOWN
               catalog_path,
-              3
+              3,
+              'Settings screen title.'
             ]
           )
         end
 
-        it 'replaces an existing string-catalog comment' do
+        it 'replaces an existing string-catalog comment with JSON-encoded text' do
           catalog_path = 'Resources/Localizable.xcstrings'
-          allow(File).to receive(:exist?).with(catalog_path).and_return(true)
-          allow(File).to receive(:readlines).with(catalog_path).and_return(
-            [
-              "{\n",
-              "  \"strings\": {\n",
-              "    \"settings.title\" : {\n",
-              "      \"comment\" : \"Old context\",\n",
-              "      \"localizations\" : {}\n",
-              "    }\n",
-              "  }\n",
-              "}\n"
-            ]
-          )
-          result = build_extraction_result(
-            key: 'settings.title',
-            description: 'Settings "home" screen title.',
-            changed_translation_locations: [
-              I18nContextGenerator::ChangedLocation.new(
-                file: catalog_path,
-                line: 3,
-                side: :right
-              )
-            ]
+          catalog_lines = [
+            "{\n",
+            "  \"strings\": {\n",
+            "    \"settings.title\" : {\n",
+            "      \"comment\" : \"Old context\",\n",
+            "      \"localizations\" : {}\n",
+            "    }\n",
+            "  }\n",
+            "}\n"
+          ]
+          stub_xcstrings_catalog(catalog_path, catalog_lines)
+
+          markdown = post_xcstrings_suggestion(
+            catalog_path,
+            description: 'Settings "home" screen title.'
           )
 
-          @plugin.send(
-            :post_inline_comments,
-            [result],
-            :message,
-            inline_mode: :translation_suggestion
-          )
-
-          markdown = status_markdowns.fetch(0)
-          expect([markdown.message, markdown.file, markdown.line]).to eq(
+          parsed = parse_applied_suggestion(catalog_lines, markdown)
+          expect([markdown.message, markdown.file, markdown.line, parsed.dig('strings', 'settings.title', 'comment')]).to eq(
             [
               <<~MARKDOWN.chomp,
                 ```suggestion
@@ -1176,7 +1203,111 @@ module Danger
                 ```
               MARKDOWN
               catalog_path,
-              4
+              4,
+              'Settings "home" screen title.'
+            ]
+          )
+        end
+
+        it 'adds a comma when inserting before existing string-catalog members' do
+          catalog_path = 'Resources/Localizable.xcstrings'
+          catalog_lines = [
+            "{\n",
+            "  \"strings\": {\n",
+            "    \"settings.title\" : {\n",
+            "      \"extractionState\" : \"manual\"\n",
+            "    }\n",
+            "  }\n",
+            "}\n"
+          ]
+          stub_xcstrings_catalog(catalog_path, catalog_lines)
+
+          markdown = post_xcstrings_suggestion(
+            catalog_path,
+            description: 'Settings screen title.'
+          )
+
+          parsed = parse_applied_suggestion(catalog_lines, markdown)
+          expect(
+            [
+              markdown.message.include?('"comment" : "Settings screen title.",'),
+              parsed.dig('strings', 'settings.title', 'comment'),
+              parsed.dig('strings', 'settings.title', 'extractionState')
+            ]
+          ).to eq([true, 'Settings screen title.', 'manual'])
+        end
+
+        it 'uses plain text when an existing string-catalog comment is outside the diff' do
+          catalog_path = 'Resources/Localizable.xcstrings'
+          catalog_lines = [
+            "{\n",
+            "  \"strings\": {\n",
+            "    \"settings.title\" : {\n",
+            "      \"comment\" : \"Old context\"\n",
+            "    }\n",
+            "  }\n",
+            "}\n"
+          ]
+          patch = <<~DIFF
+            diff --git a/#{catalog_path} b/#{catalog_path}
+            --- a/#{catalog_path}
+            +++ b/#{catalog_path}
+            @@ -3,2 +3,2 @@
+            -    "old.title" : {
+            +    "settings.title" : {
+                   "comment" : "Old context"
+          DIFF
+          stub_xcstrings_catalog(catalog_path, catalog_lines, patch: patch)
+
+          markdown = post_xcstrings_suggestion(
+            catalog_path,
+            description: 'Settings screen title.'
+          )
+
+          expect([markdown.message, markdown.file, markdown.line]).to eq(
+            [
+              "**Translation Context Suggestion**\nSettings screen title.",
+              catalog_path,
+              3
+            ]
+          )
+        end
+
+        it 'finds a changed existing comment despite ragged indentation' do
+          catalog_path = 'Resources/Localizable.xcstrings'
+          catalog_lines = [
+            "{\n",
+            "  \"strings\": {\n",
+            "    \"settings.title\" : {\n",
+            "      \"localizations\" : {},\n",
+            "        \"comment\" : \"Old context\"\n",
+            "    }\n",
+            "  }\n",
+            "}\n"
+          ]
+          stub_xcstrings_catalog(catalog_path, catalog_lines)
+
+          markdown = post_xcstrings_suggestion(
+            catalog_path,
+            description: 'Settings screen title.'
+          )
+
+          parsed = parse_applied_suggestion(catalog_lines, markdown)
+          expect(
+            [
+              markdown.line,
+              markdown.message,
+              parsed.dig('strings', 'settings.title', 'comment')
+            ]
+          ).to eq(
+            [
+              5,
+              <<~MARKDOWN.chomp,
+                ```suggestion
+                        "comment" : "Settings screen title."
+                ```
+              MARKDOWN
+              'Settings screen title.'
             ]
           )
         end
