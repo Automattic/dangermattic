@@ -189,6 +189,7 @@ module Danger
                             "#{content[/^\s*/]}  "
                           end
       location.merge(
+        insert_comment: true,
         child_indentation: child_indentation,
         trailing_comma: !first_child_index.nil?
       )

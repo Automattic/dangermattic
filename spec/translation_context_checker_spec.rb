@@ -1228,13 +1228,11 @@ module Danger
           )
 
           parsed = parse_applied_suggestion(catalog_lines, markdown)
+          expect(markdown.message).to include('"comment" : "Settings screen title.",')
           expect(
-            [
-              markdown.message.include?('"comment" : "Settings screen title.",'),
-              parsed.dig('strings', 'settings.title', 'comment'),
-              parsed.dig('strings', 'settings.title', 'extractionState')
-            ]
-          ).to eq([true, 'Settings screen title.', 'manual'])
+            [parsed.dig('strings', 'settings.title', 'comment'),
+             parsed.dig('strings', 'settings.title', 'extractionState')]
+          ).to eq(['Settings screen title.', 'manual'])
         end
 
         it 'uses plain text when an existing string-catalog comment is outside the diff' do

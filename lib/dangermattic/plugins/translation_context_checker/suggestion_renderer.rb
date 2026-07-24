@@ -56,16 +56,19 @@ module Danger
       return if content.strip.empty?
       return if location[:existing_comment]
 
-      indentation = location[:replace_comment] ? content[/^\s*/].to_s : location[:child_indentation]
+      inserting_comment = location[:insert_comment]
+      return unless inserting_comment || location[:replace_comment]
+
+      indentation = inserting_comment ? location[:child_indentation] : content[/^\s*/].to_s
       return unless indentation
 
       comment_value = JSON.generate(single_line_suggestion_comment_text(result))
       comment_line = "#{indentation}\"comment\" : #{comment_value}"
-      trailing_comma = location[:replace_comment] ? content.rstrip.end_with?(',') : location[:trailing_comma]
+      trailing_comma = inserting_comment ? location[:trailing_comma] : content.rstrip.end_with?(',')
       comment_line += ',' if trailing_comma
 
       lines = ['```suggestion']
-      lines << content if location[:child_indentation]
+      lines << content if inserting_comment
       lines << comment_line
       lines << '```'
       lines.join("\n")
