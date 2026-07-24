@@ -1088,11 +1088,11 @@ module Danger
           )
         end
 
-        it 'falls back to a plain inline comment for string catalogs' do
+        it 'falls back to one plain inline comment per string-catalog key' do
           catalog_path = 'Resources/Localizable.xcstrings'
           allow(File).to receive(:exist?).with(catalog_path).and_return(true)
           allow(File).to receive(:readlines).with(catalog_path).and_return(
-            ["{\n", "  \"strings\": {\n", "    \"settings.title\": {}\n", "  }\n", "}\n"]
+            ["{\n", "  \"strings\": {\n", "    \"settings.title\": {\n", "    }\n", "  }\n", "}\n"]
           )
           result = build_extraction_result(
             key: 'settings.title',
@@ -1101,6 +1101,11 @@ module Danger
               I18nContextGenerator::ChangedLocation.new(
                 file: catalog_path,
                 line: 3,
+                side: :right
+              ),
+              I18nContextGenerator::ChangedLocation.new(
+                file: catalog_path,
+                line: 4,
                 side: :right
               )
             ]
@@ -1113,8 +1118,10 @@ module Danger
             inline_mode: :translation_suggestion
           )
 
+          expect(status_markdowns.map { |item| [item.file, item.line] }).to eq(
+            [[catalog_path, 3]]
+          )
           markdown = status_markdowns.fetch(0)
-          expect([markdown.file, markdown.line]).to eq([catalog_path, 3])
           expect(markdown.message).to eq(
             "**Translation Context Suggestion**\nSettings screen title."
           )

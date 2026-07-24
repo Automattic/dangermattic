@@ -162,7 +162,7 @@ module Danger
     end
 
     def build_translation_line_locations(result)
-      Array(result.changed_translation_locations).filter_map do |entry|
+      locations = Array(result.changed_translation_locations).filter_map do |entry|
         location = parse_result_location(entry)
         next unless location
 
@@ -179,6 +179,10 @@ module Danger
         next unless lines && location[:line].between?(1, lines.length)
 
         location.merge(content: lines[location[:line] - 1], inline_target: :translation)
+      end
+
+      locations.uniq do |location|
+        [location[:file], location.fetch(:original_side, location[:side])]
       end
     end
 
