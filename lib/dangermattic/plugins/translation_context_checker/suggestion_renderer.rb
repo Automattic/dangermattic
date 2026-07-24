@@ -26,6 +26,8 @@ module Danger
     def format_inline_suggestion(result, location)
       return unless location
       return format_source_inline_suggestion(result, location) if location[:inline_target] == :source
+
+      return format_xcstrings_inline_suggestion(result, location) if File.extname(location[:file]).downcase == '.xcstrings'
       return unless translation_suggestion_supported?(location)
 
       comment_line = translator_comment_for(result, location)
@@ -45,6 +47,25 @@ module Danger
         location[:content],
         '```'
       ].join("\n")
+    end
+
+    def format_xcstrings_inline_suggestion(result, location)
+      content = location[:content].to_s
+      return if content.strip.empty?
+      return unless location[:replace_comment] || xcstrings_key_line?(content)
+
+      indentation = content[/^\s*/].to_s
+      indentation += '  ' unless location[:replace_comment]
+      trailing_comma = !location[:replace_comment] || content.rstrip.end_with?(',')
+      comment_text = single_line_suggestion_comment_text(result)
+      comment_line = "#{indentation}\"comment\" : \"#{escape_xcstrings_string(comment_text)}\""
+      comment_line += ',' if trailing_comma
+
+      lines = ['```suggestion']
+      lines << content unless location[:replace_comment]
+      lines << comment_line
+      lines << '```'
+      lines.join("\n")
     end
 
     def format_source_inline_suggestion(result, location)
@@ -113,6 +134,19 @@ module Danger
         .gsub("\r", '\\r')
         .gsub("\n", '\\n')
         .gsub("\t", '\\t')
+    end
+
+    def escape_xcstrings_string(text)
+      text
+        .to_s
+        .gsub('\\') { '\\\\' }
+        .gsub('"', '\\"')
+        .gsub("\b", '\\b')
+        .gsub("\f", '\\f')
+        .gsub("\r", '\\r')
+        .gsub("\n", '\\n')
+        .gsub("\t", '\\t')
+        .gsub(/[\u0000-\u001f]/) { |character| format('\\u%04x', character.ord) }
     end
 
     def escape_xml_comment(text)

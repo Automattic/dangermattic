@@ -141,6 +141,8 @@ module Danger
       return location unless location[:inline_target] == :translation
       return location if location[:side] == 'LEFT'
 
+      return enrich_xcstrings_inline_location(location) if File.extname(location[:file]).downcase == '.xcstrings'
+
       containing_comment = translator_comment_block_containing(location)
       if containing_comment
         single_added_line = containing_comment[:start_line] == containing_comment[:end_line] &&
@@ -159,6 +161,42 @@ module Danger
       else
         location.merge(existing_comment: true)
       end
+    end
+
+    def enrich_xcstrings_inline_location(location)
+      content = location[:content].to_s
+      return location.merge(replace_comment: true) if xcstrings_comment_line?(content)
+      return location unless xcstrings_key_line?(content)
+
+      lines = cached_file_lines(location[:file])
+      return location unless lines
+
+      key_index = location[:line] - 1
+      key_indentation = content[/^\s*/].to_s
+      first_child_index = ((key_index + 1)...lines.length).find { |index| !lines[index].strip.empty? }
+      return location unless first_child_index
+
+      child_indentation = lines[first_child_index][/^\s*/].to_s
+      return location unless child_indentation.length > key_indentation.length
+
+      comment_index = (first_child_index...lines.length).find do |index|
+        line = lines[index]
+        indentation = line[/^\s*/].to_s
+        break if !line.strip.empty? && indentation.length <= key_indentation.length
+
+        indentation == child_indentation && xcstrings_comment_line?(line)
+      end
+      return location unless comment_index
+
+      location.merge(line: comment_index + 1, content: lines[comment_index], replace_comment: true)
+    end
+
+    def xcstrings_key_line?(content)
+      content.match?(/^\s*"(?:\\.|[^"\\])*"\s*:\s*\{\s*$/)
+    end
+
+    def xcstrings_comment_line?(content)
+      content.match?(/^\s*"comment"\s*:\s*"(?:\\.|[^"\\])*"\s*,?\s*$/)
     end
 
     def build_translation_line_locations(result)

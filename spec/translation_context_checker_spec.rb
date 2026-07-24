@@ -1088,7 +1088,7 @@ module Danger
           )
         end
 
-        it 'falls back to one plain inline comment per string-catalog key' do
+        it 'builds one apply-ready inline suggestion per string-catalog key' do
           catalog_path = 'Resources/Localizable.xcstrings'
           allow(File).to receive(:exist?).with(catalog_path).and_return(true)
           allow(File).to receive(:readlines).with(catalog_path).and_return(
@@ -1118,12 +1118,66 @@ module Danger
             inline_mode: :translation_suggestion
           )
 
-          expect(status_markdowns.map { |item| [item.file, item.line] }).to eq(
-            [[catalog_path, 3]]
-          )
           markdown = status_markdowns.fetch(0)
-          expect(markdown.message).to eq(
-            "**Translation Context Suggestion**\nSettings screen title."
+          expect([markdown.message, markdown.file, markdown.line]).to eq(
+            [
+              <<~MARKDOWN.chomp,
+                ```suggestion
+                    "settings.title": {
+                      "comment" : "Settings screen title.",
+                ```
+              MARKDOWN
+              catalog_path,
+              3
+            ]
+          )
+        end
+
+        it 'replaces an existing string-catalog comment' do
+          catalog_path = 'Resources/Localizable.xcstrings'
+          allow(File).to receive(:exist?).with(catalog_path).and_return(true)
+          allow(File).to receive(:readlines).with(catalog_path).and_return(
+            [
+              "{\n",
+              "  \"strings\": {\n",
+              "    \"settings.title\" : {\n",
+              "      \"comment\" : \"Old context\",\n",
+              "      \"localizations\" : {}\n",
+              "    }\n",
+              "  }\n",
+              "}\n"
+            ]
+          )
+          result = build_extraction_result(
+            key: 'settings.title',
+            description: 'Settings "home" screen title.',
+            changed_translation_locations: [
+              I18nContextGenerator::ChangedLocation.new(
+                file: catalog_path,
+                line: 3,
+                side: :right
+              )
+            ]
+          )
+
+          @plugin.send(
+            :post_inline_comments,
+            [result],
+            :message,
+            inline_mode: :translation_suggestion
+          )
+
+          markdown = status_markdowns.fetch(0)
+          expect([markdown.message, markdown.file, markdown.line]).to eq(
+            [
+              <<~MARKDOWN.chomp,
+                ```suggestion
+                      "comment" : "Settings \\"home\\" screen title.",
+                ```
+              MARKDOWN
+              catalog_path,
+              4
+            ]
           )
         end
 
