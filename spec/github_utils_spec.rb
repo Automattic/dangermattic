@@ -13,9 +13,7 @@ module Danger
         instance_double(Danger::DangerfileGitHubPlugin, {
                           pr_json: {
                             'base' => { 'repo' => { 'full_name' => 'Automattic/dangermattic' } },
-                            'number' => 42,
-                            'requested_teams' => [],
-                            'requested_reviewers' => []
+                            'number' => 42
                           },
                           api: instance_double(Octokit::Client),
                           branch_for_base: 'main',
@@ -44,8 +42,20 @@ module Danger
       end
 
       describe '#requested_reviewers?' do
-        it 'returns true when there are requested reviewers' do
-          allow(github.pr_json).to receive(:[]).with('requested_teams').and_return(['team1'])
+        before do
+          allow(github.api).to receive_messages(
+            pull_request_review_requests: { 'users' => [], 'teams' => [] },
+            pull_request_reviews: []
+          )
+        end
+
+        it 'returns true when a user has been requested for review' do
+          allow(github.api).to receive(:pull_request_review_requests).and_return({ 'users' => ['user1'], 'teams' => [] })
+          expect(@plugin.requested_reviewers?).to be(true)
+        end
+
+        it 'returns true when only a team has been requested for review' do
+          allow(github.api).to receive(:pull_request_review_requests).and_return({ 'users' => [], 'teams' => ['team1'] })
           expect(@plugin.requested_reviewers?).to be(true)
         end
 
@@ -55,7 +65,6 @@ module Danger
         end
 
         it 'returns false when there are no requested reviewers or active reviewers' do
-          allow(github.api).to receive(:pull_request_reviews).and_return([])
           expect(@plugin.requested_reviewers?).to be(false)
         end
       end

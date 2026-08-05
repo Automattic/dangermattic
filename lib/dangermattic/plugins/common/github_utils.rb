@@ -27,17 +27,19 @@ module Danger
     #
     # @return [Boolean] True if there are active reviewers, otherwise false.
     def active_reviewers?
-      repo_name = github.pr_json['base']['repo']['full_name']
-      pr_number = github.pr_json['number']
-
-      !github.api.pull_request_reviews(repo_name, pr_number).empty?
+      !github.api.pull_request_reviews(pr_repo_name, pr_number).empty?
     end
 
     # Checks if there are requested teams or reviewers who haven't reacted yet.
     #
     # @return [Boolean] True if there are requested teams or reviewers, otherwise false.
     def requested_reviewers?
-      has_requested_reviews = !github.pr_json['requested_teams'].to_a.empty? || !github.pr_json['requested_reviewers'].to_a.empty?
+      # GitHub strips `requested_teams` from the pull request payload — and therefore from `pr_json` —
+      # for tokens that cannot see the organization's teams, such as a bot account that is only an
+      # outside collaborator. The dedicated endpoint reports them regardless.
+      review_requests = github.api.pull_request_review_requests(pr_repo_name, pr_number)
+      has_requested_reviews = !review_requests['users'].to_a.empty? || !review_requests['teams'].to_a.empty?
+
       has_requested_reviews || active_reviewers?
     end
 
@@ -63,6 +65,16 @@ module Danger
       has_wip_title = github.pr_title.include?('WIP')
 
       has_wip_label || has_wip_title
+    end
+
+    private
+
+    def pr_repo_name
+      github.pr_json['base']['repo']['full_name']
+    end
+
+    def pr_number
+      github.pr_json['number']
     end
   end
 end
