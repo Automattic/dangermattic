@@ -1,0 +1,8 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+RUBY_VERSION="$(cat "$SCRIPT_DIR/../.ruby-version")"
+export RUBY_VERSION
+
+export DOCKER_RUBY_IMAGE="public.ecr.aws/docker/library/ruby:$RUBY_VERSION"
