@@ -14,11 +14,17 @@ _None_
 
 ### Bug Fixes
 
-- `github_utils`: `requested_reviewers?` now detects review requests assigned to a GitHub team when Danger runs with a token that cannot see the organization's teams. [#141]
+_None_
 
 ### Internal Changes
 
 _None_
+
+## 1.4.1
+
+### Bug Fixes
+
+- `github_utils`: `requested_reviewers?` now detects review requests assigned to a GitHub team when Danger runs with a token that cannot see the organization's teams. [#141]
 
 ## 1.4.0
 
