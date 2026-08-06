@@ -197,7 +197,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler (~> 2.0)
   danger-dangermattic!
   guard (~> 2.18)
   guard-rspec (~> 4.7)
@@ -209,4 +208,4 @@ DEPENDENCIES
   yard
 
 BUNDLED WITH
-   2.6.8
+  4.0.18

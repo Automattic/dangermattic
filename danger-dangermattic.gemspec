@@ -28,7 +28,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'danger-rubocop', '~> 0.13'
 
   # General ruby development
-  spec.add_development_dependency 'bundler', '~> 2.0'
   spec.add_development_dependency 'rake', '~> 13.1'
 
   # Testing support
