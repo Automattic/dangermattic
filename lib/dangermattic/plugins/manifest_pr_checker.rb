@@ -112,6 +112,23 @@ module Danger
       )
     end
 
+    # Check for duplicate Package.resolved files across all provided SwiftPM package directories
+    #
+    # @param report_type [Symbol] (optional) The type of report for the message. Types: :error, :warning (default), :message.
+    #
+    # @return [void]
+    def check_swift_duplicate_package_resolved(report_type: :warning)
+      package_files = Dir.glob('./**/Package.swift')
+      resolved_files = Dir.glob('./**/Package.resolved')
+      return if package_files.length == resolved_files.length
+
+      reporter.report(
+        message: "Multiple `Package.resolved` files found:\n```#{resolved_files.join("\n")}```\n" \
+                 'Please ensure only one `Package.resolved` exists for each `Package.swift` file.',
+        type: report_type
+      )
+    end
+
     private
 
     def check_manifest_lock_updated(file_name:, lock_file_name:, instruction:, report_type: :warning)
