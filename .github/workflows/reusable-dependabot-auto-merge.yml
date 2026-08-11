@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+on:
+  workflow_call:
+    inputs:
+      merge-method:
+        description: The merge method to use. One of `merge`, `squash` or `rebase`.
+        default: merge
+        type: string
+        required: false
+      minor-update-allowlist:
+        description: Dependencies that may also be auto-merged on minor updates; must be a JSON array of strings.
+        default: |
+          []
+        type: string
+        required: false
+      denylist:
+        description: Dependencies that must never be auto-merged, whatever the update type; must be a JSON array of strings.
+        default: |
+          []
+        type: string
+        required: false
+    secrets:
+      github-token:
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+
+jobs:
+  dependabot-auto-merge:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: 🤖 Fetch Dependabot Metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.github-token || secrets.GITHUB_TOKEN }}
+
+      - name: 🚦 Decide Whether to Auto-Merge
+        id: decision
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
+          MINOR_ALLOWLIST: ${{ inputs.minor-update-allowlist }}
+          DENYLIST: ${{ inputs.denylist }}
+          MERGE_METHOD: ${{ inputs.merge-method }}
+        run: |
+          #!/usr/bin/env bash
+
+          set -euo pipefail
+
+          deny() {
+            echo "🛑 Not auto-merging: $1"
+            echo 'should-merge=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          allow() {
+            echo "✅ Auto-merging: $1"
+            echo 'should-merge=true' >> "$GITHUB_OUTPUT"
+            echo "reason=$1" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+
+          validate_json_array() {
+            local value="$1" name="$2"
+
+            if ! printf '%s\n' "$value" | jq -e 'type == "array" and all(.[]; type == "string")' > /dev/null; then
+              echo "❌ $name must be a JSON array of strings. Example: [\"release-toolkit\"]"
+              exit 1
+            fi
+          }
+
+          in_list() {
+            printf '%s\n' "$2" | jq -e --arg name "$1" 'index($name) != null' > /dev/null
+          }
+
+          case "$MERGE_METHOD" in
+            merge | squash | rebase) ;;
+            *)
+              echo "❌ merge-method must be one of 'merge', 'squash' or 'rebase'. Got '$MERGE_METHOD'."
+              exit 1
+              ;;
+          esac
+
+          validate_json_array "$MINOR_ALLOWLIST" minor-update-allowlist
+          validate_json_array "$DENYLIST" denylist
+
+          readarray -t dependencies < <(printf '%s' "$DEPENDENCY_NAMES" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' || true)
+
+          if [ "${#dependencies[@]}" -eq 0 ]; then
+            deny 'Dependabot reported no updated dependencies.'
+          fi
+
+          echo "📦 Updated dependencies: ${dependencies[*]}"
+          echo "🔖 Update type: $UPDATE_TYPE"
+
+          # A denylisted dependency anywhere in a grouped update blocks the whole pull request.
+          for dependency in "${dependencies[@]}"; do
+            if in_list "$dependency" "$DENYLIST"; then
+              deny "'$dependency' is on the denylist."
+            fi
+          done
+
+          # For grouped updates, Dependabot reports the highest bump across the group,
+          # so a `semver-patch` here means every dependency in the group is a patch.
+          if [ "$UPDATE_TYPE" = 'version-update:semver-patch' ]; then
+            allow 'all updates are patch level.'
+          fi
+
+          if [ "$UPDATE_TYPE" != 'version-update:semver-minor' ]; then
+            deny "update type '$UPDATE_TYPE' is never auto-merged."
+          fi
+
+          for dependency in "${dependencies[@]}"; do
+            if ! in_list "$dependency" "$MINOR_ALLOWLIST"; then
+              deny "minor update to '$dependency', which is not on the minor update allowlist."
+            fi
+          done
+
+          allow 'every dependency in this minor update is on the allowlist.'
+
+      - name: 👍 Approve the Pull Request
+        if: steps.decision.outputs.should-merge == 'true'
+        env:
+          REASON: ${{ steps.decision.outputs.reason }}
+        run: gh pr review --approve --body "🤖 Auto-approved by Dangermattic's Dependabot auto-merge workflow, because $REASON" "$PR_NUMBER"
+
+      - name: 🚀 Enable Auto-Merge
+        if: steps.decision.outputs.should-merge == 'true'
+        env:
+          MERGE_METHOD: ${{ inputs.merge-method }}
+        run: gh pr merge --auto "--$MERGE_METHOD" "$PR_NUMBER"
