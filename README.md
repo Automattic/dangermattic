@@ -8,6 +8,20 @@ Add to your project's `Gemfile`
 gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 ```
 
+### LLM-backed plugin setup
+
+Plugins that call LLM APIs need the matching provider key available in CI:
+
+- `OPENAI_API_KEY` for OpenAI models such as `gpt-4o`
+- `ANTHROPIC_API_KEY` for Anthropic models such as `claude-sonnet-4-20250514`
+
+Example Buildkite step configuration:
+
+```yaml
+env:
+  OPENAI_API_KEY: "${OPENAI_API_KEY}"
+```
+
 ## Example of available plugins and their usage
 
 Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
@@ -26,6 +40,15 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```ruby
     # Reports a warning if a pull request diff size is greater than 300
     pr_size_checker.check_diff_size(max_size: 300)
+    ```
+- `llm_reviewer` - Performs an automated LLM-based code review on the changed lines in a pull request
+    ```ruby
+    # Reviews the PR diff with GPT-4o and posts inline findings
+    llm_reviewer.review(
+      model: 'gpt-4o',
+      max_comments: 10,
+      report_type: :warning
+    )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
     ```ruby
