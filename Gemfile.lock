@@ -5,7 +5,7 @@ PATH
       danger (~> 9.6)
       danger-plugin-api (~> 1.0)
       danger-rubocop (~> 0.13)
-      i18n-context-generator (~> 0.5)
+      i18n-context-generator (~> 0.5.2)
       rubocop (~> 1.63)
 
 GEM
@@ -97,7 +97,7 @@ GEM
       rspec (>= 2.99.0, < 4.0)
     i18n (1.14.8)
       concurrent-ruby (~> 1.0)
-    i18n-context-generator (0.5.1)
+    i18n-context-generator (0.5.2)
       concurrent-ruby (~> 1.2)
       csv (~> 3.3)
       dotstrings (~> 0.6)

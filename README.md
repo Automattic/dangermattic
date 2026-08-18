@@ -10,7 +10,7 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 ### Translation context plugin setup
 
-Dangermattic requires `i18n-context-generator` 0.5 or newer. Bundler installs the released gem automatically
+Dangermattic requires `i18n-context-generator` 0.5.2 or newer. Bundler installs the released gem automatically
 with Dangermattic.
 
 Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
