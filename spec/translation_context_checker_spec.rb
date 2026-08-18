@@ -861,7 +861,12 @@ module Danger
               inline_mode: :translation_suggestion
             )
 
-            expect(status_markdowns.fetch(0).message).to include('"save.button" = "Save";')
+            expect(status_markdowns.fetch(0).message).to eq(<<~MARKDOWN.chomp)
+              ```suggestion
+              /* Button that saves the edited settings. */
+              "save.button" = "Save";
+              ```
+            MARKDOWN
           end
 
           it 'keeps the strings.xml entry in the apply-ready suggestion' do
@@ -875,7 +880,12 @@ module Danger
               inline_mode: :translation_suggestion
             )
 
-            expect(status_markdowns.fetch(0).message).to include('<string name="save">Save</string>')
+            expect(status_markdowns.fetch(0).message).to eq(<<~MARKDOWN.chomp)
+              ```suggestion
+                <!-- Button that saves the edited settings. -->
+                <string name="save">Save</string>
+              ```
+            MARKDOWN
           end
         end
 

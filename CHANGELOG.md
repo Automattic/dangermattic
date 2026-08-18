@@ -27,6 +27,8 @@ _None_
   not support one-click comment suggestions.
 - Include translation-file identity in summary rows and publish inline feedback
   in deterministic file/key/line order.
+- Preserve translation entries when replacing same-line translator comments and
+  keep added-line numbering correct for header-like diff content.
 
 ### Internal Changes
 

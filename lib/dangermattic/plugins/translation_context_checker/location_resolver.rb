@@ -32,13 +32,18 @@ module Danger
       new_line_number = nil
 
       diff.patch.each_line do |line|
+        if line.start_with?('diff --git')
+          new_line_number = nil
+          next
+        end
+
         if (match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/))
           new_line_number = match[1].to_i
           next
         end
 
         next if new_line_number.nil?
-        next if line.start_with?('diff --git', 'index ', '--- ', '+++ ', '\\')
+        next if line.start_with?('\\')
 
         if line.start_with?('+')
           yield(line, new_line_number)
@@ -91,11 +96,26 @@ module Danger
       end_index = (location_index...lines.length).find { |index| lines[index].include?(closing) }
       return nil unless end_index
 
-      {
+      block = {
         start_line: start_index + 1,
         end_line: end_index + 1,
         lines: lines[start_index..end_index]
       }
+
+      if start_index == end_index
+        line = lines[start_index]
+        opening_index = line.index(opening)
+        closing_index = line.index(closing, opening_index + opening.length)
+        if closing_index
+          before_comment = line[0...opening_index]
+          after_comment = line[(closing_index + closing.length)..].to_s
+
+          block[:comment_only] = before_comment.strip.empty? && after_comment.strip.empty?
+          block[:content_without_comment] = before_comment.rstrip if !before_comment.strip.empty? && after_comment.strip.empty?
+        end
+      end
+
+      block
     end
 
     def extract_strings_comment_block(lines, comment_end_index)
@@ -147,7 +167,10 @@ module Danger
       if containing_comment
         single_added_line = containing_comment[:start_line] == containing_comment[:end_line] &&
                             added_lines_by_file[location[:file]].include?(location[:line])
-        return location.merge(replace_comment: true) if single_added_line
+        if single_added_line
+          return location.merge(replace_comment: true) if containing_comment[:comment_only]
+          return location.merge(content: containing_comment[:content_without_comment]) if containing_comment[:content_without_comment]
+        end
 
         return location.merge(existing_comment: true)
       end
