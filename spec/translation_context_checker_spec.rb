@@ -1465,6 +1465,28 @@ module Danger
 
           expect(added).to eq([['+new line', 9], ['+another line', 10]])
         end
+
+        it 'numbers added lines correctly when an added line begins with a plus' do
+          path = 'Sources/View.swift'
+          patch = <<~DIFF
+            diff --git a/#{path} b/#{path}
+            --- a/#{path}
+            +++ b/#{path}
+            @@ -1,1 +1,4 @@
+             first
+            +++ shell style marker
+            +second added
+            +third added
+          DIFF
+          allow(@plugin.danger.git).to receive(:diff_for_file).with(path).and_return(
+            GitDiffStruct.new('modified', path, patch)
+          )
+
+          added = []
+          @plugin.send(:each_added_diff_line, path) { |line, number| added << [line.chomp, number] }
+
+          expect(added).to eq([['+++ shell style marker', 2], ['+second added', 3], ['+third added', 4]])
+        end
       end
 
       describe 'suggestion escaping' do
