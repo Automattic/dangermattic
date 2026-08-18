@@ -829,6 +829,56 @@ module Danger
           end
         end
 
+        context 'when the changed entry carries a same-line translator comment' do
+          let(:description) { 'Button that saves the edited settings.' }
+
+          def stub_single_line_entry(path, entry)
+            allow(@plugin.git).to receive(:modified_files).and_return([path])
+            allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(
+              GitDiffStruct.new('modified', path, added_file_diff(path, [entry]))
+            )
+            allow(File).to receive(:exist?).with(path).and_return(true)
+            allow(File).to receive(:readlines).with(path).and_return([entry])
+            allow(@plugin).to receive(:run_extraction).and_return(
+              [
+                build_extraction_result(
+                  key: 'save.button',
+                  description: description,
+                  changed_translation_locations: ["#{path}:1"]
+                )
+              ]
+            )
+          end
+
+          it 'keeps the .strings entry in the apply-ready suggestion' do
+            strings_path = 'Localizable.strings'
+            stub_single_line_entry(strings_path, %("save.button" = "Save"; /* Old context */\n))
+
+            @plugin.check_context_suggestions(
+              source_paths: 'Sources',
+              translation_paths: strings_path,
+              discovery_mode: :translations,
+              inline_mode: :translation_suggestion
+            )
+
+            expect(status_markdowns.fetch(0).message).to include('"save.button" = "Save";')
+          end
+
+          it 'keeps the strings.xml entry in the apply-ready suggestion' do
+            xml_path = 'app/src/main/res/values/strings.xml'
+            stub_single_line_entry(xml_path, %(  <string name="save">Save</string> <!-- Old context -->\n))
+
+            @plugin.check_context_suggestions(
+              source_paths: 'app/src/main/java',
+              translation_paths: xml_path,
+              discovery_mode: :translations,
+              inline_mode: :translation_suggestion
+            )
+
+            expect(status_markdowns.fetch(0).message).to include('<string name="save">Save</string>')
+          end
+        end
+
         context 'with an Android collection child' do
           let(:xml_path) { 'app/src/main/res/values/strings.xml' }
 
