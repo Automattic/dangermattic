@@ -39,6 +39,12 @@ _None_
   rendering, and publication into focused components.
 - Bound lint and documentation development dependencies to prevent rule drift.
 
+## 1.4.1
+
+### Bug Fixes
+
+- `github_utils`: `requested_reviewers?` now detects review requests assigned to a GitHub team when Danger runs with a token that cannot see the organization's teams. [#141]
+
 ## 1.4.0
 
 ### New Features
