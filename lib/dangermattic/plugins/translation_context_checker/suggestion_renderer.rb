@@ -30,7 +30,7 @@ module Danger
       return format_source_inline_suggestion(result, location) if location[:inline_target] == :source
 
       return format_xcstrings_inline_suggestion(result, location) if File.extname(location[:file]).downcase == '.xcstrings'
-      return unless translation_suggestion_supported?(location)
+      return unless resource_suggestion_supported?(location)
 
       comment_line = translator_comment_for(result, location)
       return unless comment_line
@@ -87,7 +87,7 @@ module Danger
       ].join("\n")
     end
 
-    def translation_suggestion_supported?(location)
+    def resource_suggestion_supported?(location)
       return false if location[:content].to_s.strip.empty?
       return false if location[:existing_comment] && !location[:start_line]
 
@@ -151,7 +151,7 @@ module Danger
     end
 
     def inline_suggestion_mode?(inline_mode)
-      %i[translation_suggestion source_suggestion].include?(inline_mode)
+      %i[resource_suggestion source_suggestion].include?(inline_mode)
     end
 
     def inline_target_for(inline_mode)

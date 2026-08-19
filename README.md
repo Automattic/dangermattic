@@ -36,8 +36,9 @@ Danger's merge-base behavior in shallow CI clones.
 Anthropic is the default provider and reads `ANTHROPIC_API_KEY` from the environment. Pass `provider: :openai`
 to use OpenAI with `OPENAI_API_KEY`. Store the matching key as a CI secret.
 
-The checker posts inline comments by default. Use `inline_mode` for apply-ready suggestions or to disable inline
-output, and `summary: true` for a pull-request summary. Optional `context_files` are included in full;
+The checker posts inline comments by default. Use `inline_mode: :source_suggestion` or
+`inline_mode: :resource_suggestion` for apply-ready suggestions, or `inline_mode: :none` to disable inline
+output. Use `summary: true` for a pull-request summary. Optional `context_files` are included in full;
 `include_pull_request_context: false` excludes the pull request title and description.
 
 Relevant source snippets, context files, and pull request metadata are sent to the configured external LLM

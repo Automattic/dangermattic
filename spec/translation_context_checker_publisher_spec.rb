@@ -66,7 +66,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'Sources',
               resource_paths: strings_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             expect(status_markdowns.fetch(0).message).to eq(<<~MARKDOWN.chomp)
@@ -165,7 +165,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'Sources',
               resource_paths: strings_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             markdown = status_markdowns.fetch(0)
@@ -210,7 +210,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'Sources',
               resource_paths: strings_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             markdown = status_markdowns.fetch(0)
@@ -276,7 +276,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'Sources',
               resource_paths: strings_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             markdown = status_markdowns.fetch(0)
@@ -322,7 +322,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'Sources',
               resource_paths: strings_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             expect(status_markdowns.fetch(0).message).to eq(<<~MARKDOWN.chomp)
@@ -340,7 +340,7 @@ module Danger
             @plugin.check_resource_changes(
               source_paths: 'app/src/main/java',
               resource_paths: xml_path,
-              inline_mode: :translation_suggestion
+              inline_mode: :resource_suggestion
             )
 
             expect(status_markdowns.fetch(0).message).to eq(<<~MARKDOWN.chomp)

@@ -106,7 +106,7 @@ RSpec.shared_context 'with translation context checker' do
       :post_inline_comments,
       [result],
       :message,
-      inline_mode: :translation_suggestion
+      inline_mode: :resource_suggestion
     )
 
     status_markdowns.fetch(0)

@@ -34,7 +34,7 @@ module Danger
 
           expect(@plugin).not_to have_received(:run_extraction)
           expect(@dangerfile).to report_warnings(
-            ['Invalid inline_mode `sideways`. Expected one of: translation_comment, translation_suggestion, source_comment, source_suggestion, none.']
+            ['Invalid inline_mode `sideways`. Expected one of: resource_comment, resource_suggestion, source_comment, source_suggestion, none.']
           )
         end
 
@@ -104,11 +104,11 @@ module Danger
         it 'warns when a translation inline mode is used with source discovery' do
           @plugin.check_source_changes(
             source_paths: 'Sources',
-            inline_mode: :translation_suggestion
+            inline_mode: :resource_suggestion
           )
 
           expect(@dangerfile).to report_warnings(
-            ['inline_mode `translation_suggestion` is not supported for source changes.']
+            ['inline_mode `resource_suggestion` is not supported for source changes.']
           )
         end
 

@@ -36,8 +36,8 @@ module Danger
     include TranslationContextCheckerSuggestionRenderer
 
     VALID_INLINE_MODES = %i[
-      translation_comment
-      translation_suggestion
+      resource_comment
+      resource_suggestion
       source_comment
       source_suggestion
       none
@@ -49,7 +49,7 @@ module Danger
     # @param source_paths [String, Array<String>] Explicit source search scope.
     # @param context_files [String, Array<String>, nil] Free-form files included in full as untrusted evidence.
     # @param include_pull_request_context [Boolean] Include the PR title and description as untrusted evidence.
-    # @param inline_mode [Symbol, String, nil] Inline comment/suggestion target.
+    # @param inline_mode [Symbol, String, nil] Source inline output mode, or :none.
     # @param summary [Boolean] Whether to add a PR-level summary table.
     # @param report_type [Symbol] Severity for PR-level fallback reports.
     # @param provider [Symbol, String] Extractor LLM provider.
@@ -80,7 +80,7 @@ module Danger
     # @param source_paths [String, Array<String>] Explicit source search scope.
     # @param context_files [String, Array<String>, nil] Free-form files included in full as untrusted evidence.
     # @param include_pull_request_context [Boolean] Include the PR title and description as untrusted evidence.
-    # @param inline_mode [Symbol, String, nil] Inline comment/suggestion target.
+    # @param inline_mode [Symbol, String, nil] Resource or source inline output mode, or :none.
     # @param summary [Boolean] Whether to add a PR-level summary table.
     # @param report_type [Symbol] Severity for PR-level fallback reports.
     # @param provider [Symbol, String] Extractor LLM provider.
@@ -276,8 +276,8 @@ module Danger
     def validate_context_inputs(discovery_mode:, source_paths:, resource_paths:, inline_mode:)
       return 'source_paths is required for translation context suggestions.' if source_paths.empty?
       return 'resource_paths is required for resource changes.' if discovery_mode == :translations && resource_paths.empty?
-      return 'inline_mode `translation_comment` is not supported for source changes.' if discovery_mode == :source && inline_mode == :translation_comment
-      return 'inline_mode `translation_suggestion` is not supported for source changes.' if discovery_mode == :source && inline_mode == :translation_suggestion
+      return 'inline_mode `resource_comment` is not supported for source changes.' if discovery_mode == :source && inline_mode == :resource_comment
+      return 'inline_mode `resource_suggestion` is not supported for source changes.' if discovery_mode == :source && inline_mode == :resource_suggestion
 
       nil
     end
@@ -312,7 +312,7 @@ module Danger
     end
 
     def default_inline_mode_for(discovery_mode:)
-      discovery_mode == :source ? :source_comment : :translation_comment
+      discovery_mode == :source ? :source_comment : :resource_comment
     end
 
     def normalize_enum_param(value, valid_values, param_name)

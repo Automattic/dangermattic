@@ -42,7 +42,7 @@ module Danger
             :post_inline_comments,
             [result],
             :message,
-            inline_mode: :translation_suggestion
+            inline_mode: :resource_suggestion
           )
 
           markdown = status_markdowns.fetch(0)
@@ -73,7 +73,7 @@ module Danger
             :post_inline_comments,
             [result],
             :warning,
-            inline_mode: :translation_suggestion
+            inline_mode: :resource_suggestion
           )
 
           expect(status_markdowns).to be_empty
@@ -113,7 +113,7 @@ module Danger
             :post_inline_comments,
             [result],
             :warning,
-            inline_mode: :translation_comment
+            inline_mode: :resource_comment
           )
 
           expect(@dangerfile.status_report[:warnings]).to eq(
@@ -150,7 +150,7 @@ module Danger
             :post_inline_comments,
             results,
             :message,
-            inline_mode: :translation_comment
+            inline_mode: :resource_comment
           )
 
           expect(status_markdowns.map { |markdown| [markdown.file, markdown.line, markdown.message] }).to eq(
@@ -356,7 +356,7 @@ module Danger
             :post_inline_comments,
             results,
             :message,
-            inline_mode: :translation_comment
+            inline_mode: :resource_comment
           )
 
           expect(status_markdowns.map(&:file)).to eq(
