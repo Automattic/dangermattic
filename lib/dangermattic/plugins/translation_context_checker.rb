@@ -296,7 +296,7 @@ module Danger
     def validate_configured_paths(source_paths:, translation_paths:, context_files: [])
       missing_paths = []
       source_paths.each { |path| missing_paths << [:source, path] unless File.exist?(path) }
-      translation_paths.each { |path| missing_paths << [:translation, path] unless File.exist?(path) }
+      translation_paths.each { |path| missing_paths << [:translation, path] unless File.file?(path) }
       context_files.each { |path| missing_paths << [:context, path] unless File.file?(path) }
       return if missing_paths.empty?
 

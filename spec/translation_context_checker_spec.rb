@@ -274,7 +274,7 @@ module Danger
         it 'warns about missing configured paths before checking changed files' do
           allow(@plugin).to receive(:validate_configured_paths).and_call_original
           allow(File).to receive(:exist?).with('MissingSources').and_return(false)
-          allow(File).to receive(:exist?).with('Missing.strings').and_return(false)
+          allow(File).to receive(:file?).with('Missing.strings').and_return(false)
           allow(File).to receive(:file?).with('MissingGlossary.md').and_return(false)
           allow(@plugin).to receive(:run_extraction)
 
@@ -294,6 +294,22 @@ module Danger
                 - context: `MissingGlossary.md`
               WARNING
             ]
+          )
+        end
+
+        it 'rejects a directory as a translation input' do
+          allow(@plugin).to receive(:validate_configured_paths).and_call_original
+          allow(File).to receive(:exist?).with('Sources').and_return(true)
+          allow(File).to receive(:file?).with('Resources').and_return(false)
+
+          @plugin.check_context_suggestions(
+            source_paths: 'Sources',
+            translation_paths: 'Resources',
+            discovery_mode: :translations
+          )
+
+          expect(@dangerfile).to report_warnings(
+            ["Translation context configuration paths were not found:\n- translation: `Resources`"]
           )
         end
 
@@ -1205,6 +1221,43 @@ module Danger
           )
           expect(status_markdowns.map { |markdown| [markdown.file, markdown.line] }).to eq(
             [[strings_path, 1]]
+          )
+        end
+
+        it 'publishes separate results from the same translation file' do
+          allow(File).to receive(:exist?).with(strings_path).and_return(true)
+          allow(File).to receive(:readlines).with(strings_path).and_return(
+            %w[first second third fourth]
+          )
+          results = [
+            build_extraction_result(
+              key: 'first.key',
+              description: 'First description.',
+              changed_translation_locations: [
+                I18nContextGenerator::ChangedLocation.new(file: strings_path, line: 2, side: :right)
+              ]
+            ),
+            build_extraction_result(
+              key: 'second.key',
+              description: 'Second description.',
+              changed_translation_locations: [
+                I18nContextGenerator::ChangedLocation.new(file: strings_path, line: 4, side: :right)
+              ]
+            )
+          ]
+
+          @plugin.send(
+            :post_inline_comments,
+            results,
+            :message,
+            inline_mode: :translation_comment
+          )
+
+          expect(status_markdowns.map { |markdown| [markdown.file, markdown.line, markdown.message] }).to eq(
+            [
+              [strings_path, 2, "**Translation Context Suggestion**\nFirst description."],
+              [strings_path, 4, "**Translation Context Suggestion**\nSecond description."]
+            ]
           )
         end
 
