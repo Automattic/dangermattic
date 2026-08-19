@@ -30,6 +30,8 @@ translation_context_checker.check_resource_changes(
 
 `source_paths` is the source-code search scope in both workflows. In a pull request that changes both source
 calls and localization resources, call the checker once for each workflow if both sets of keys need context.
+Extraction and suggestion eligibility use the `danger_base...danger_head` range prepared by Danger, preserving
+Danger's merge-base behavior in shallow CI clones.
 
 Anthropic is the default provider and reads `ANTHROPIC_API_KEY` from the environment. Pass `provider: :openai`
 to use OpenAI with `OPENAI_API_KEY`. Store the matching key as a CI secret.
