@@ -21,11 +21,12 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = '~> 3.2'
 
-  spec.add_dependency 'danger', '~> 9.5', '>= 9.5.3'
+  spec.add_dependency 'danger', '~> 9.6'
   spec.add_dependency 'danger-plugin-api', '~> 1.0'
 
   # Danger plugins
   spec.add_dependency 'danger-rubocop', '~> 0.13'
+  spec.add_dependency 'i18n-context-generator', '~> 0.5.2'
 
   # General ruby development
   spec.add_development_dependency 'rake', '~> 13.1'
@@ -35,9 +36,9 @@ Gem::Specification.new do |spec|
 
   # Linting code and docs
   spec.add_dependency 'rubocop', '~> 1.63'
-  spec.add_development_dependency 'rubocop-rake'
-  spec.add_development_dependency 'rubocop-rspec'
-  spec.add_development_dependency 'yard'
+  spec.add_development_dependency 'rubocop-rake', '~> 0.7.1'
+  spec.add_development_dependency 'rubocop-rspec', '~> 3.6.0'
+  spec.add_development_dependency 'yard', '~> 0.9.44'
 
   # Makes testing easy via `bundle exec guard`
   spec.add_development_dependency 'guard', '~> 2.18'
