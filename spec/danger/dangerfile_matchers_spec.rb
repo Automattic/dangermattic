@@ -2,7 +2,7 @@
 
 require_relative '../spec_helper'
 
-RSpec.describe Danger::Dangerfile do
+RSpec.describe 'not_report matcher' do # rubocop:disable RSpec/DescribeClass
   it 'treats absent report collections as empty' do
     dangerfile = Struct.new(:status_report).new({})
 

@@ -30,16 +30,12 @@ module Danger
 
           before do
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(strings_path).and_return(
-              GitDiffStruct.new(
-                'modified',
-                strings_path,
-                strings_diff(strings_path, added_line: '"save.button" = "Save";')
-              )
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { strings_path => Set[2] },
+              run_extraction: [result]
             )
             allow(File).to receive(:exist?).with(strings_path).and_return(true)
             allow(File).to receive(:readlines).with(strings_path).and_return(strings_content)
-            allow(@plugin).to receive(:run_extraction).and_return([result])
           end
 
           it 'posts a native inline comment at the extractor-provided translation line' do
@@ -57,7 +53,7 @@ module Danger
                 nil
               ]
             )
-            expect(@plugin.git).not_to have_received(:diff_for_file)
+            expect(@plugin).not_to have_received(:build_added_line_map)
           end
 
           it 'builds an apply-ready translation suggestion' do
@@ -75,7 +71,7 @@ module Danger
               "save.button" = "Save";
               ```
             MARKDOWN
-            expect(@plugin.git).to have_received(:diff_for_file).once.with(strings_path)
+            expect(@plugin).to have_received(:build_added_line_map).once.with([strings_path])
           end
 
           it 'uses each exact extractor-provided translation location' do
@@ -86,7 +82,6 @@ module Danger
               changed_translation_locations: ["#{strings_path}:2", "#{second_path}:1"]
             )
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path, second_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(second_path).and_return(nil)
             allow(File).to receive(:exist?).with(second_path).and_return(true)
             allow(File).to receive(:readlines).with(second_path).and_return(["\"save.button\" = \"Save\";\n"])
             allow(@plugin).to receive(:run_extraction).and_return([second_result])
@@ -130,28 +125,12 @@ module Danger
               "\"save.button\" = \"Save\";\n"
             ]
           end
-          let(:patch) do
-            <<~DIFF
-              diff --git a/#{strings_path} b/#{strings_path}
-              --- a/#{strings_path}
-              +++ b/#{strings_path}
-              @@ -1,1 +1,4 @@
-              +/*
-              + * Old context
-              + */
-              +"save.button" = "Save";
-            DIFF
-          end
 
           before do
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(strings_path).and_return(
-              GitDiffStruct.new('modified', strings_path, patch)
-            )
-            allow(File).to receive(:exist?).with(strings_path).and_return(true)
-            allow(File).to receive(:readlines).with(strings_path).and_return(content)
-            allow(@plugin).to receive(:run_extraction).and_return(
-              [
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { strings_path => Set[1, 2, 3, 4] },
+              run_extraction: [
                 build_extraction_result(
                   key: 'save.button',
                   description: description,
@@ -159,6 +138,8 @@ module Danger
                 )
               ]
             )
+            allow(File).to receive(:exist?).with(strings_path).and_return(true)
+            allow(File).to receive(:readlines).with(strings_path).and_return(content)
           end
 
           it 'uses Danger 9.6 native ranged Markdown for a replaceable comment block' do
@@ -189,22 +170,8 @@ module Danger
           end
 
           it 'uses plain text when the existing comment is not fully in added lines' do
-            allow(@plugin.git).to receive(:diff_for_file).with(strings_path).and_return(
-              GitDiffStruct.new(
-                'modified',
-                strings_path,
-                <<~DIFF
-                  diff --git a/#{strings_path} b/#{strings_path}
-                  --- a/#{strings_path}
-                  +++ b/#{strings_path}
-                  @@ -1,4 +1,4 @@
-                   /*
-                    * Old context
-                   */
-                  -"save.button" = "Old";
-                  +"save.button" = "Save";
-                DIFF
-              )
+            allow(@plugin).to receive(:build_added_line_map).and_return(
+              strings_path => Set[4]
             )
 
             @plugin.check_resource_changes(
@@ -242,24 +209,12 @@ module Danger
 
           before do
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(strings_path).and_return(
-              GitDiffStruct.new(
-                'modified',
-                strings_path,
-                <<~DIFF
-                  diff --git a/#{strings_path} b/#{strings_path}
-                  --- a/#{strings_path}
-                  +++ b/#{strings_path}
-                  @@ -1,2 +1,2 @@
-                  -/* Old context */
-                  +/* Better context */
-                   "save.button" = "Save";
-                DIFF
-              )
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { strings_path => Set[1] },
+              run_extraction: [result]
             )
             allow(File).to receive(:exist?).with(strings_path).and_return(true)
             allow(File).to receive(:readlines).with(strings_path).and_return(content)
-            allow(@plugin).to receive(:run_extraction).and_return([result])
           end
 
           it 'posts feedback on the exact changed comment line' do
@@ -299,13 +254,9 @@ module Danger
 
           def stub_single_line_entry(path, entry)
             allow(@plugin.git).to receive(:modified_files).and_return([path])
-            allow(@plugin.git).to receive(:diff_for_file).with(path).and_return(
-              GitDiffStruct.new('modified', path, added_file_diff(path, [entry]))
-            )
-            allow(File).to receive(:exist?).with(path).and_return(true)
-            allow(File).to receive(:readlines).with(path).and_return([entry])
-            allow(@plugin).to receive(:run_extraction).and_return(
-              [
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { path => Set[1] },
+              run_extraction: [
                 build_extraction_result(
                   key: 'save.button',
                   description: description,
@@ -313,6 +264,8 @@ module Danger
                 )
               ]
             )
+            allow(File).to receive(:exist?).with(path).and_return(true)
+            allow(File).to receive(:readlines).with(path).and_return([entry])
           end
 
           it 'keeps the .strings entry in the apply-ready suggestion' do
@@ -357,7 +310,6 @@ module Danger
 
           before do
             allow(@plugin.git).to receive(:modified_files).and_return([xml_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(xml_path).and_return(nil)
             allow(File).to receive(:exist?).with(xml_path).and_return(true)
             allow(File).to receive(:readlines).with(xml_path).and_return(
               [
@@ -402,18 +354,6 @@ module Danger
               "}\n"
             ]
           end
-          let(:source_patch) do
-            <<~DIFF
-              diff --git a/#{source_path} b/#{source_path}
-              --- a/#{source_path}
-              +++ b/#{source_path}
-              @@ -1,3 +1,4 @@
-               struct SettingsView {
-              +  let title = String(localized: "settings.title",
-              +                     comment: "")
-               }
-            DIFF
-          end
           let(:result) do
             build_extraction_result(
               key: 'settings.title',
@@ -426,12 +366,12 @@ module Danger
 
           before do
             allow(@plugin.git).to receive(:modified_files).and_return([source_path])
-            allow(@plugin.git).to receive(:diff_for_file).with(source_path).and_return(
-              GitDiffStruct.new('modified', source_path, source_patch)
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { source_path => Set[2, 3] },
+              run_extraction: [result]
             )
             allow(File).to receive(:exist?).with(source_path).and_return(true)
             allow(File).to receive(:readlines).with(source_path).and_return(source_content)
-            allow(@plugin).to receive(:run_extraction).and_return([result])
           end
 
           it 'comments only on changed evidence, not every usage location' do
@@ -447,7 +387,7 @@ module Danger
             ).to eq(
               [1, source_path, 3, true]
             )
-            expect(@plugin.git).not_to have_received(:diff_for_file)
+            expect(@plugin).not_to have_received(:build_added_line_map)
           end
 
           it 'offers a Swift comment suggestion on an added comment line' do
@@ -466,6 +406,7 @@ module Danger
           end
 
           it 'falls back to PR-level feedback when suggestion line lookup fails' do
+            allow(@plugin).to receive(:build_added_line_map).and_call_original
             git_diff = instance_double(I18nContextGenerator::GitDiff)
             allow(git_diff).to receive(:changed_lines).and_raise(
               I18nContextGenerator::Error,
@@ -487,24 +428,9 @@ module Danger
           end
 
           it 'falls back to a PR-level report when the comment line is unchanged' do
-            allow(@plugin.git).to receive(:diff_for_file).with(source_path).and_return(
-              GitDiffStruct.new(
-                'modified',
-                source_path,
-                <<~DIFF
-                  diff --git a/#{source_path} b/#{source_path}
-                  --- a/#{source_path}
-                  +++ b/#{source_path}
-                  @@ -1,3 +1,3 @@
-                   struct SettingsView {
-                  -  let title = String(localized: "old.title",
-                  +  let title = String(localized: "settings.title",
-                                       comment: "")
-                DIFF
-              )
-            )
-            allow(@plugin).to receive(:run_extraction).and_return(
-              [
+            allow(@plugin).to receive_messages(
+              build_added_line_map: { source_path => Set[2] },
+              run_extraction: [
                 build_extraction_result(
                   key: 'settings.title',
                   description: 'Title for the settings screen.',

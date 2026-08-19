@@ -2,6 +2,7 @@
 
 require_relative 'spec_helper'
 require_relative 'support/translation_context_checker_context'
+require 'tmpdir'
 
 module Danger
   describe Danger::TranslationContextChecker do
@@ -266,16 +267,7 @@ module Danger
             "  }\n",
             "}\n"
           ]
-          patch = <<~DIFF
-            diff --git a/#{catalog_path} b/#{catalog_path}
-            --- a/#{catalog_path}
-            +++ b/#{catalog_path}
-            @@ -3,2 +3,2 @@
-            -    "old.title" : {
-            +    "settings.title" : {
-                   "comment" : "Old context"
-          DIFF
-          stub_xcstrings_catalog(catalog_path, catalog_lines, patch: patch)
+          stub_xcstrings_catalog(catalog_path, catalog_lines, added_lines: [3])
 
           markdown = post_xcstrings_suggestion(
             catalog_path,
@@ -366,6 +358,10 @@ module Danger
       end
 
       describe '#build_added_line_map' do
+        before do
+          allow(@plugin).to receive(:build_added_line_map).and_call_original
+        end
+
         it 'uses the Danger diff range with the generator changed-lines API', :aggregate_failures do
           changed_lines = { 'Sources/View.swift' => Set[9, 10] }
           git_diff = instance_double(I18nContextGenerator::GitDiff, changed_lines: changed_lines)
@@ -382,25 +378,28 @@ module Danger
         end
 
         it 'keeps the generator contract for added lines that begin with a plus' do
-          path = 'Sources/View.swift'
-          patch = <<~DIFF
-            diff --git a/#{path} b/#{path}
-            --- a/#{path}
-            +++ b/#{path}
-            @@ -1,1 +1,4 @@
-             first
-            +++ shell style marker
-            +second added
-            +third added
-          DIFF
-          allow(File).to receive(:exist?).with(path).and_return(true)
-          git_diff = I18nContextGenerator::GitDiff.new(base_ref: 'danger_base', head_ref: 'danger_head')
-          allow(git_diff).to receive(:git_diff_for_path).with(path).and_return(patch)
-          allow(I18nContextGenerator::GitDiff).to receive(:new).and_return(git_diff)
+          Dir.mktmpdir('dangermattic-git-diff') do |repository|
+            path = File.join(repository, 'View.swift')
+            system('git', 'init', '--quiet', chdir: repository, exception: true)
+            File.write(path, "first\n")
+            system('git', 'add', 'View.swift', chdir: repository, exception: true)
+            system(
+              'git', '-c', 'user.name=Dangermattic', '-c', 'user.email=test@example.com',
+              'commit', '--quiet', '-m', 'base', chdir: repository, exception: true
+            )
+            system('git', 'branch', 'danger_base', chdir: repository, exception: true)
+            File.write(path, "first\n++ shell style marker\nsecond added\nthird added\n")
+            system('git', 'add', 'View.swift', chdir: repository, exception: true)
+            system(
+              'git', '-c', 'user.name=Dangermattic', '-c', 'user.email=test@example.com',
+              'commit', '--quiet', '-m', 'head', chdir: repository, exception: true
+            )
+            system('git', 'branch', 'danger_head', chdir: repository, exception: true)
 
-          result = @plugin.send(:build_added_line_map, [path])
+            result = @plugin.send(:build_added_line_map, [path])
 
-          expect(result).to eq(path => Set[2, 3, 4])
+            expect(result).to eq(path => Set[2, 3, 4])
+          end
         end
       end
     end

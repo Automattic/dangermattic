@@ -9,15 +9,10 @@ RSpec.shared_context 'with translation context checker' do
 
     allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
     allow(@plugin.github).to receive_messages(pr_title: '', pr_body: '')
-    allow(@plugin).to receive(:validate_configured_paths).and_return(nil)
-    allow(I18nContextGenerator::GitDiff).to receive(:new).and_wrap_original do |constructor, *args, **kwargs|
-      git_diff = constructor.call(*args, **kwargs)
-      allow(git_diff).to receive(:git_diff_for_path) do |path|
-        @plugin.danger.git.diff_for_file(path)&.patch.to_s
-      end
-      git_diff
-    end
-    stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
+    allow(@plugin).to receive_messages(
+      validate_configured_paths: nil,
+      build_added_line_map: Hash.new { |line_map, path| line_map[path] = Set.new }
+    )
     extraction_result_class = Struct.new(
       :key, :text, :description, :source_file, :ui_element, :tone, :max_length, :locations,
       :changed_locations, :changed_location_groups, :translation_key,
@@ -60,32 +55,11 @@ RSpec.shared_context 'with translation context checker' do
     @dangerfile.status_report[:markdowns]
   end
 
-  def strings_diff(path, added_line:, start_line: 1)
-    <<~DIFF
-      diff --git a/#{path} b/#{path}
-      --- a/#{path}
-      +++ b/#{path}
-      @@ -#{start_line},1 +#{start_line},2 @@
-       "Existing" = "Existing";
-      +#{added_line}
-    DIFF
-  end
-
-  def added_file_diff(path, lines)
-    <<~DIFF + lines.map { |line| "+#{line}" }.join
-      diff --git a/#{path} b/#{path}
-      --- /dev/null
-      +++ b/#{path}
-      @@ -0,0 +1,#{lines.length} @@
-    DIFF
-  end
-
-  def stub_xcstrings_catalog(path, lines, patch: added_file_diff(path, lines))
+  def stub_xcstrings_catalog(path, lines, added_lines: (1..lines.length))
     allow(File).to receive(:exist?).with(path).and_return(true)
     allow(File).to receive(:readlines).with(path).and_return(lines)
-    allow(@plugin).to receive(:build_added_line_map).and_call_original
-    allow(@plugin.danger.git).to receive(:diff_for_file).with(path).and_return(
-      GitDiffStruct.new('modified', path, patch)
+    allow(@plugin).to receive(:build_added_line_map).and_return(
+      path => Set.new(added_lines)
     )
   end
 
