@@ -130,13 +130,13 @@ module Danger
         JSON.parse(updated.join)
       end
 
-      describe '#check_context_suggestions' do
+      describe 'public checks' do
         it 'returns before extraction when all reporting is disabled' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: 'Localizable.strings',
+            resource_paths: 'Localizable.strings',
             inline_mode: :none,
             summary: false
           )
@@ -145,21 +145,10 @@ module Danger
           expect_no_danger_output
         end
 
-        it 'warns about an invalid discovery mode before extraction' do
-          allow(@plugin).to receive(:run_extraction)
-
-          @plugin.check_context_suggestions(source_paths: 'Sources', discovery_mode: :both)
-
-          expect(@plugin).not_to have_received(:run_extraction)
-          expect(@dangerfile).to report_warnings(
-            ['Invalid discovery_mode `both`. Expected one of: auto, translations, source.']
-          )
-        end
-
         it 'warns about an invalid inline mode before extraction' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(source_paths: 'Sources', inline_mode: :sideways)
+          @plugin.check_source_changes(source_paths: 'Sources', inline_mode: :sideways)
 
           expect(@plugin).not_to have_received(:run_extraction)
           expect(@dangerfile).to report_warnings(
@@ -168,7 +157,7 @@ module Danger
         end
 
         it 'warns when source paths are empty' do
-          @plugin.check_context_suggestions(source_paths: [])
+          @plugin.check_source_changes(source_paths: [])
 
           expect(@dangerfile).to report_warnings(
             ['source_paths is required for translation context suggestions.']
@@ -178,32 +167,30 @@ module Danger
         it 'rejects blank source paths before they can normalize to the repository root' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(source_paths: ['Sources', '  '], discovery_mode: :source)
+          @plugin.check_source_changes(source_paths: ['Sources', '  '])
 
           expect(@plugin).not_to have_received(:run_extraction)
           expect(@dangerfile).to report_warnings(['source_paths must not contain blank paths.'])
         end
 
-        it 'rejects blank translation paths before normalization' do
+        it 'rejects blank resource paths before normalization' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: ['Localizable.strings', ''],
-            discovery_mode: :translations
+            resource_paths: ['Localizable.strings', '']
           )
 
           expect(@plugin).not_to have_received(:run_extraction)
-          expect(@dangerfile).to report_warnings(['translation_paths must not contain blank paths.'])
+          expect(@dangerfile).to report_warnings(['resource_paths must not contain blank paths.'])
         end
 
         it 'rejects blank context paths before normalization' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            context_files: ['GLOSSARY.md', '  '],
-            discovery_mode: :source
+            context_files: ['GLOSSARY.md', '  ']
           )
 
           expect(@plugin).not_to have_received(:run_extraction)
@@ -213,7 +200,7 @@ module Danger
         it 'rejects a non-boolean pull request context option' do
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
             include_pull_request_context: :sometimes
           )
@@ -224,35 +211,22 @@ module Danger
           )
         end
 
-        it 'warns when source discovery receives translation paths' do
-          @plugin.check_context_suggestions(
-            source_paths: 'Sources',
-            translation_paths: 'Localizable.strings',
-            discovery_mode: :source
-          )
+        it 'warns when resource paths are empty' do
+          @plugin.check_resource_changes(source_paths: 'Sources', resource_paths: [])
 
           expect(@dangerfile).to report_warnings(
-            ['translation_paths is not supported when discovery_mode is `source`.']
-          )
-        end
-
-        it 'warns when translation discovery has no translation paths' do
-          @plugin.check_context_suggestions(source_paths: 'Sources', discovery_mode: :translations)
-
-          expect(@dangerfile).to report_warnings(
-            ['translation_paths is required when discovery_mode is `translations`.']
+            ['resource_paths is required for resource changes.']
           )
         end
 
         it 'warns when a translation inline mode is used with source discovery' do
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             inline_mode: :translation_suggestion
           )
 
           expect(@dangerfile).to report_warnings(
-            ['inline_mode `translation_suggestion` is not supported when discovery_mode is `source`.']
+            ['inline_mode `translation_suggestion` is not supported for source changes.']
           )
         end
 
@@ -261,9 +235,9 @@ module Danger
           allow(@plugin).to receive(:run_extraction)
           allow(@plugin).to receive(:pull_request_context).and_call_original
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: 'Localizable.strings'
+            resource_paths: 'Localizable.strings'
           )
 
           expect(@plugin).not_to have_received(:run_extraction)
@@ -278,9 +252,9 @@ module Danger
           allow(File).to receive(:file?).with('MissingGlossary.md').and_return(false)
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'MissingSources',
-            translation_paths: 'Missing.strings',
+            resource_paths: 'Missing.strings',
             context_files: 'MissingGlossary.md'
           )
 
@@ -290,26 +264,25 @@ module Danger
               <<~WARNING.chomp
                 Translation context configuration paths were not found:
                 - source: `MissingSources`
-                - translation: `Missing.strings`
+                - resource: `Missing.strings`
                 - context: `MissingGlossary.md`
               WARNING
             ]
           )
         end
 
-        it 'rejects a directory as a translation input' do
+        it 'rejects a directory as a resource input' do
           allow(@plugin).to receive(:validate_configured_paths).and_call_original
           allow(File).to receive(:exist?).with('Sources').and_return(true)
           allow(File).to receive(:file?).with('Resources').and_return(false)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: 'Resources',
-            discovery_mode: :translations
+            resource_paths: 'Resources'
           )
 
           expect(@dangerfile).to report_warnings(
-            ["Translation context configuration paths were not found:\n- translation: `Resources`"]
+            ["Translation context configuration paths were not found:\n- resource: `Resources`"]
           )
         end
 
@@ -317,7 +290,7 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(source_paths: './Sources/', discovery_mode: :source)
+          @plugin.check_source_changes(source_paths: './Sources/')
 
           expect(@plugin).to have_received(:run_extraction).with(
             translation_paths: [],
@@ -334,19 +307,19 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Feature/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(source_paths: '.', discovery_mode: :source)
+          @plugin.check_source_changes(source_paths: '.')
 
           expect(@plugin).to have_received(:run_extraction).with(hash_including(source_paths: ['.']))
         end
 
-        it 'prefers one translation-backed extraction in auto mode when both input types changed' do
+        it 'runs resource discovery when resource changes are requested' do
           translation_path = 'Localizable.strings'
           allow(@plugin.git).to receive(:modified_files).and_return([translation_path, 'Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: translation_path
+            resource_paths: translation_path
           )
 
           expect(@plugin).to have_received(:run_extraction).once.with(
@@ -360,14 +333,35 @@ module Danger
           )
         end
 
-        it 'uses one source-backed extraction in auto mode when only source changed' do
+        it 'can report resource-discovered context on a source location' do
+          resource_path = 'Localizable.strings'
+          source_path = 'Sources/MyView.swift'
+          result = build_extraction_result(
+            description: 'Settings title.',
+            changed_locations: ["#{source_path}:1"]
+          )
+          allow(@plugin.git).to receive(:modified_files).and_return([resource_path])
+          allow(File).to receive(:exist?).with(source_path).and_return(true)
+          allow(File).to receive(:readlines).with(source_path).and_return(['String(localized: "settings.title")'])
+          allow(@plugin).to receive(:run_extraction).and_return([result])
+
+          @plugin.check_resource_changes(
+            source_paths: 'Sources',
+            resource_paths: resource_path,
+            inline_mode: :source_comment
+          )
+
+          markdown = status_markdowns.fetch(0)
+          expect([markdown.file, markdown.line, markdown.message]).to eq(
+            [source_path, 1, "**Translation Context Suggestion**\nSettings title."]
+          )
+        end
+
+        it 'runs source discovery when source changes are requested' do
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(
-            source_paths: 'Sources',
-            translation_paths: 'Localizable.strings'
-          )
+          @plugin.check_source_changes(source_paths: 'Sources')
 
           expect(@plugin).to have_received(:run_extraction).once.with(
             translation_paths: [],
@@ -388,9 +382,8 @@ module Danger
           )
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             context_files: ['./GLOSSARY.md', 'docs/../GLOSSARY.md']
           )
 
@@ -410,9 +403,8 @@ module Danger
           allow(@plugin).to receive(:run_extraction).and_return([])
           allow(@plugin).to receive(:pull_request_context).and_call_original
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             include_pull_request_context: false
           )
 
@@ -427,9 +419,8 @@ module Danger
           allow(@plugin.github).to receive(:pr_title).and_raise('PR metadata unavailable')
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
-            source_paths: 'Sources',
-            discovery_mode: :source
+          @plugin.check_source_changes(
+            source_paths: 'Sources'
           )
 
           expect(@plugin).not_to have_received(:run_extraction)
@@ -438,30 +429,13 @@ module Danger
           )
         end
 
-        it 'warns when an explicit translation inline mode conflicts with auto-resolved source discovery' do
+        it 'does not run resource discovery when only source files changed' do
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_resource_changes(
             source_paths: 'Sources',
-            translation_paths: 'Localizable.strings',
-            inline_mode: :translation_suggestion
-          )
-
-          expect(@plugin).not_to have_received(:run_extraction)
-          expect(@dangerfile).to report_warnings(
-            ['inline_mode `translation_suggestion` is not supported when `auto` resolves to source discovery.']
-          )
-        end
-
-        it 'does not switch an explicit translation mode to source mode' do
-          allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
-          allow(@plugin).to receive(:run_extraction)
-
-          @plugin.check_context_suggestions(
-            source_paths: 'Sources',
-            translation_paths: 'Localizable.strings',
-            discovery_mode: :translations
+            resource_paths: 'Localizable.strings'
           )
 
           expect(@plugin).not_to have_received(:run_extraction)
@@ -472,9 +446,8 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return([])
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             provider: 'openai',
             model: 'gpt-5-mini'
           )
@@ -491,7 +464,7 @@ module Danger
             'ANTHROPIC_API_KEY environment variable is required'
           )
 
-          @plugin.check_context_suggestions(source_paths: 'Sources', discovery_mode: :source)
+          @plugin.check_source_changes(source_paths: 'Sources')
 
           expect(@dangerfile.status_report[:warnings]).to eq(
             ['Translation context extraction failed: ANTHROPIC_API_KEY environment variable is required']
@@ -507,9 +480,8 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return(results)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             inline_mode: :none,
             summary: true
           )
@@ -527,7 +499,7 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return(results)
 
-          @plugin.check_context_suggestions(source_paths: 'Sources', discovery_mode: :source)
+          @plugin.check_source_changes(source_paths: 'Sources')
 
           warning = @dangerfile.status_report[:warnings].first
           expect(
@@ -547,9 +519,8 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return(results)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             inline_mode: :none,
             summary: true
           )
@@ -593,10 +564,9 @@ module Danger
           end
 
           it 'posts a native inline comment at the extractor-provided translation line' do
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations
+              resource_paths: strings_path
             )
 
             markdown = status_markdowns.fetch(0)
@@ -614,10 +584,9 @@ module Danger
           it 'builds an apply-ready translation suggestion' do
             allow(@plugin.git).to receive(:modified_files).and_return([strings_path, 'Sources/View.swift'])
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               inline_mode: :translation_suggestion
             )
 
@@ -643,10 +612,9 @@ module Danger
             allow(File).to receive(:readlines).with(second_path).and_return(["\"save.button\" = \"Save\";\n"])
             allow(@plugin).to receive(:run_extraction).and_return([second_result])
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: [strings_path, second_path],
-              discovery_mode: :translations
+              resource_paths: [strings_path, second_path]
             )
 
             expect(status_markdowns.map { |markdown| [markdown.file, markdown.line] }).to contain_exactly(
@@ -660,10 +628,9 @@ module Danger
               [build_extraction_result(description: 'Save button')]
             )
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               report_type: :warning
             )
 
@@ -716,10 +683,9 @@ module Danger
           end
 
           it 'uses Danger 9.6 native ranged Markdown for a replaceable comment block' do
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               inline_mode: :translation_suggestion
             )
 
@@ -762,10 +728,9 @@ module Danger
               )
             )
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               inline_mode: :translation_suggestion
             )
 
@@ -819,10 +784,9 @@ module Danger
           end
 
           it 'posts feedback on the exact changed comment line' do
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations
+              resource_paths: strings_path
             )
 
             markdown = status_markdowns.fetch(0)
@@ -830,10 +794,9 @@ module Danger
           end
 
           it 'replaces the changed comment instead of nesting another comment' do
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               inline_mode: :translation_suggestion
             )
 
@@ -877,10 +840,9 @@ module Danger
             strings_path = 'Localizable.strings'
             stub_single_line_entry(strings_path, %("save.button" = "Save"; /* Old context */\n))
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'Sources',
-              translation_paths: strings_path,
-              discovery_mode: :translations,
+              resource_paths: strings_path,
               inline_mode: :translation_suggestion
             )
 
@@ -896,10 +858,9 @@ module Danger
             xml_path = 'app/src/main/res/values/strings.xml'
             stub_single_line_entry(xml_path, %(  <string name="save">Save</string> <!-- Old context -->\n))
 
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'app/src/main/java',
-              translation_paths: xml_path,
-              discovery_mode: :translations,
+              resource_paths: xml_path,
               inline_mode: :translation_suggestion
             )
 
@@ -941,10 +902,9 @@ module Danger
           end
 
           it 'posts on the exact changed item line supplied by the extractor' do
-            @plugin.check_context_suggestions(
+            @plugin.check_resource_changes(
               source_paths: 'app/src/main/java',
-              translation_paths: xml_path,
-              discovery_mode: :translations
+              resource_paths: xml_path
             )
 
             markdown = status_markdowns.fetch(0)
@@ -996,9 +956,8 @@ module Danger
           end
 
           it 'comments only on changed evidence, not every usage location' do
-            @plugin.check_context_suggestions(
+            @plugin.check_source_changes(
               source_paths: 'Sources',
-              discovery_mode: :source,
               inline_mode: :source_comment
             )
 
@@ -1013,9 +972,8 @@ module Danger
           end
 
           it 'offers a Swift comment suggestion on an added comment line' do
-            @plugin.check_context_suggestions(
+            @plugin.check_source_changes(
               source_paths: 'Sources',
-              discovery_mode: :source,
               inline_mode: :source_suggestion
             )
 
@@ -1057,9 +1015,8 @@ module Danger
               ]
             )
 
-            @plugin.check_context_suggestions(
+            @plugin.check_source_changes(
               source_paths: 'Sources',
-              discovery_mode: :source,
               inline_mode: :source_suggestion,
               report_type: :warning
             )
@@ -1089,9 +1046,8 @@ module Danger
           allow(@plugin.git).to receive(:modified_files).and_return(['Sources/MyView.swift'])
           allow(@plugin).to receive(:run_extraction).and_return(results)
 
-          @plugin.check_context_suggestions(
+          @plugin.check_source_changes(
             source_paths: 'Sources',
-            discovery_mode: :source,
             inline_mode: :none,
             summary: true
           )

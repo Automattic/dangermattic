@@ -13,9 +13,8 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 Use source discovery when a project defines localization keys directly in source code, as is common on iOS:
 
 ```ruby
-translation_context_checker.check_context_suggestions(
+translation_context_checker.check_source_changes(
   source_paths: ['WooCommerce/', 'Modules/Sources/'],
-  discovery_mode: :source,
   inline_mode: :source_suggestion
 )
 ```
@@ -23,10 +22,9 @@ translation_context_checker.check_context_suggestions(
 Use resource discovery when keys are added to a source-language localization file, as is common on Android:
 
 ```ruby
-translation_context_checker.check_context_suggestions(
+translation_context_checker.check_resource_changes(
   source_paths: ['app/src/main/java/'],
-  discovery_mode: :translations,
-  translation_paths: ['app/src/main/res/values/strings.xml']
+  resource_paths: ['app/src/main/res/values/strings.xml']
 )
 ```
 
@@ -67,8 +65,7 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
 - `translation_context_checker` - Suggests translator-facing context for changed localization keys
     ```ruby
     # Suggests apply-ready comments for changed iOS localization calls
-    translation_context_checker.check_context_suggestions(
-      discovery_mode: :source,
+    translation_context_checker.check_source_changes(
       source_paths: ['WooCommerce/', 'Modules/Sources/'],
       inline_mode: :source_suggestion
     )
