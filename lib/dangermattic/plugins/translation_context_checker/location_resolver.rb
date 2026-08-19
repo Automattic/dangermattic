@@ -14,46 +14,10 @@ module Danger
     end
 
     def build_added_line_map(files)
-      map = Hash.new { |hash, key| hash[key] = Set.new }
-
-      files.each do |path|
-        each_added_diff_line(path) do |_line, line_number|
-          map[path] << line_number
-        end
-      end
-
-      map
-    end
-
-    def each_added_diff_line(path)
-      diff = danger.git.diff_for_file(path)
-      return unless diff
-
-      new_line_number = nil
-
-      diff.patch.each_line do |line|
-        if line.start_with?('diff --git')
-          new_line_number = nil
-          next
-        end
-
-        if (match = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/))
-          new_line_number = match[1].to_i
-          next
-        end
-
-        next if new_line_number.nil?
-        next if line.start_with?('\\')
-
-        if line.start_with?('+')
-          yield(line, new_line_number)
-          new_line_number += 1
-        elsif line.start_with?('-')
-          next
-        elsif line.start_with?(' ')
-          new_line_number += 1
-        end
-      end
+      diff_base, diff_head = danger_diff_range
+      I18nContextGenerator::GitDiff
+        .new(base_ref: diff_base, head_ref: diff_head)
+        .changed_lines(files)
     end
 
     def existing_translator_comment_block(location)

@@ -16,6 +16,13 @@ module Danger
         allow(@plugin.git).to receive_messages(added_files: [], modified_files: [], deleted_files: [])
         allow(@plugin.github).to receive_messages(pr_title: '', pr_body: '')
         allow(@plugin).to receive(:validate_configured_paths).and_return(nil)
+        allow(I18nContextGenerator::GitDiff).to receive(:new).and_wrap_original do |constructor, *args, **kwargs|
+          git_diff = constructor.call(*args, **kwargs)
+          allow(git_diff).to receive(:git_diff_for_path) do |path|
+            @plugin.danger.git.diff_for_file(path)&.patch.to_s
+          end
+          git_diff
+        end
         stub_const('GitDiffStruct', Struct.new(:type, :path, :patch))
         extraction_result_class = Struct.new(
           :key, :text, :description, :source_file, :ui_element, :tone, :max_length, :locations,
@@ -1452,31 +1459,23 @@ module Danger
         end
       end
 
-      describe '#each_added_diff_line' do
-        it 'tracks new-file line numbers across additions, removals, and context' do
-          path = 'Sources/View.swift'
-          patch = <<~DIFF
-            diff --git a/#{path} b/#{path}
-            --- a/#{path}
-            +++ b/#{path}
-            @@ -8,3 +8,4 @@
-             line eight
-            -old line
-            +new line
-            +another line
-             last line
-          DIFF
-          allow(@plugin.danger.git).to receive(:diff_for_file).with(path).and_return(
-            GitDiffStruct.new('modified', path, patch)
+      describe '#build_added_line_map' do
+        it 'uses the Danger diff range with the generator changed-lines API', :aggregate_failures do
+          changed_lines = { 'Sources/View.swift' => Set[9, 10] }
+          git_diff = instance_double(I18nContextGenerator::GitDiff, changed_lines: changed_lines)
+          allow(I18nContextGenerator::GitDiff).to receive(:new).and_return(git_diff)
+
+          result = @plugin.send(:build_added_line_map, ['Sources/View.swift'])
+
+          expect(I18nContextGenerator::GitDiff).to have_received(:new).with(
+            base_ref: 'danger_base',
+            head_ref: 'danger_head'
           )
-
-          added = []
-          @plugin.send(:each_added_diff_line, path) { |line, number| added << [line.chomp, number] }
-
-          expect(added).to eq([['+new line', 9], ['+another line', 10]])
+          expect(git_diff).to have_received(:changed_lines).with(['Sources/View.swift'])
+          expect(result).to eq(changed_lines)
         end
 
-        it 'numbers added lines correctly when an added line begins with a plus' do
+        it 'keeps the generator contract for added lines that begin with a plus' do
           path = 'Sources/View.swift'
           patch = <<~DIFF
             diff --git a/#{path} b/#{path}
@@ -1488,14 +1487,14 @@ module Danger
             +second added
             +third added
           DIFF
-          allow(@plugin.danger.git).to receive(:diff_for_file).with(path).and_return(
-            GitDiffStruct.new('modified', path, patch)
-          )
+          allow(File).to receive(:exist?).with(path).and_return(true)
+          git_diff = I18nContextGenerator::GitDiff.new(base_ref: 'danger_base', head_ref: 'danger_head')
+          allow(git_diff).to receive(:git_diff_for_path).with(path).and_return(patch)
+          allow(I18nContextGenerator::GitDiff).to receive(:new).and_return(git_diff)
 
-          added = []
-          @plugin.send(:each_added_diff_line, path) { |line, number| added << [line.chomp, number] }
+          result = @plugin.send(:build_added_line_map, [path])
 
-          expect(added).to eq([['+++ shell style marker', 2], ['+second added', 3], ['+third added', 4]])
+          expect(result).to eq(path => Set[2, 3, 4])
         end
       end
 
