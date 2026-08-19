@@ -15,20 +15,18 @@ module Danger
   # Relevant source snippets are sent to the configured external LLM provider.
   # The matching provider API key must be available in CI.
   #
-  # @example Translation-backed suggestions
-  #   translation_context_checker.check_context_suggestions(
-  #     discovery_mode: :translations,
-  #     source_paths: ['Sources/'],
-  #     translation_paths: ['Resources/Localizable.strings'],
-  #     inline_mode: :translation_suggestion,
-  #     summary: true
-  #   )
-  #
   # @example Source-backed Swift suggestions
   #   translation_context_checker.check_context_suggestions(
-  #     discovery_mode: :source,
   #     source_paths: ['Sources/'],
+  #     discovery_mode: :source,
   #     inline_mode: :source_suggestion
+  #   )
+  #
+  # @example Resource-backed Android suggestions
+  #   translation_context_checker.check_context_suggestions(
+  #     source_paths: ['app/src/main/java/'],
+  #     discovery_mode: :translations,
+  #     translation_paths: ['app/src/main/res/values/strings.xml']
   #   )
   #
   # @see Automattic/dangermattic

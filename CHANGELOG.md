@@ -10,34 +10,15 @@ _None_
 
 ### New Features
 
-- Add `translation_context_checker` plugin to suggest translator context for changed localization keys using `i18n-context-generator`, with inline and summary reporting options
+- Add `translation_context_checker` to generate translator context for localization keys changed in source code or source-language resource files, with inline and summary reporting options.
 
 ### Bug Fixes
 
-- Use the extractor's exact Git range and changed locations so punctuation-bearing keys, duplicate keys,
-  Android collection members, and changed-only source comments are handled correctly.
-- Report partial extraction failures instead of silently dropping them.
-- Normalize configured source paths such as `.` and `./Sources`.
-- Reject blank source and translation paths before normalization to avoid unintentionally scanning the repository.
-- Use machine-readable extractor result states instead of matching placeholder descriptions.
-- Group changed source locations by localization occurrence so multiline calls produce one inline result.
-- Preserve left/right diff-side metadata, using head fallbacks for apply-ready
-  suggestions when translator comments are removed.
-- Fall back to plain inline feedback for `.xcstrings` and other formats that do
-  not support one-click comment suggestions.
-- Include translation-file identity in summary rows and publish inline feedback
-  in deterministic file/key/line order.
-- Preserve translation entries when replacing same-line translator comments and
-  keep added-line numbering correct for header-like diff content.
+_None_
 
 ### Internal Changes
 
 - Require Danger 9.6 and use its native ranged Markdown support instead of a custom GitHub posting layer.
-- Run at most one extractor workflow per plugin invocation and delegate translation diff parsing to the extractor.
-- Read file diffs only when constructing apply-ready inline suggestions.
-- Run the extractor quietly and split extraction, location resolution, suggestion
-  rendering, and publication into focused components.
-- Bound lint and documentation development dependencies to prevent rule drift.
 
 ## 1.4.1
 

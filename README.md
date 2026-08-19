@@ -10,49 +10,40 @@ gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 
 ### Translation context plugin setup
 
-Dangermattic requires `i18n-context-generator` 0.5.2 or newer. Bundler installs the released gem automatically
-with Dangermattic.
-
-Expose `ANTHROPIC_API_KEY` in CI so `i18n-context-generator` can generate context suggestions:
-
-```yaml
-env:
-  ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
-```
-
-For `translation_context_checker`, use `discovery_mode: :source` for code-first flows like iOS and
-`discovery_mode: :translations` for resource-first flows like Android. `source_paths` should always be set
-explicitly because the generator still searches source code for usage context, including when
-`discovery_mode` is `:translations` or `:auto`. `translation_paths` is only for translation-backed runs.
-
-The plugin includes the pull request title and description as untrusted model evidence by default. Set
-`include_pull_request_context: false` to disable that behavior. The default `:auto` mode performs exactly one
-extraction: translation-backed discovery takes priority when a configured translation file changed; otherwise
-it uses source-backed discovery when a configured source file changed. Explicit modes run only when their
-corresponding files changed. Extraction failures are reported as one aggregate warning while successful
-suggestions are still shown.
-
-In a mixed PR, `:auto` intentionally does not run a second source-backed pass, so localization calls that exist
-only in changed source are not included. Run the plugin twice with explicit modes when both workflows are wanted:
+Use source discovery when a project defines localization keys directly in source code, as is common on iOS:
 
 ```ruby
 translation_context_checker.check_context_suggestions(
-  discovery_mode: :translations,
-  source_paths: ['Sources/'],
-  translation_paths: 'Resources/Localizable.strings'
-)
-translation_context_checker.check_context_suggestions(
+  source_paths: ['WooCommerce/', 'Modules/Sources/'],
   discovery_mode: :source,
-  source_paths: ['Sources/'],
-  context_files: ['GLOSSARY.md', 'docs/localization-style.md']
+  inline_mode: :source_suggestion
 )
 ```
 
-The extractor uses the base and head refs prepared by Danger, so it shares Danger's merge-base behavior in
-shallow CI clones. Relevant source snippets are sent to the configured external LLM provider. Do not enable
-this check for source that your provider is not permitted to process. Context files and pull request metadata
-are sent under the same redaction and prompt-injection-resistant evidence boundary; context files are included
-in full and must fit the configured prompt limit.
+Use resource discovery when keys are added to a source-language localization file, as is common on Android:
+
+```ruby
+translation_context_checker.check_context_suggestions(
+  source_paths: ['app/src/main/java/'],
+  discovery_mode: :translations,
+  translation_paths: ['app/src/main/res/values/strings.xml']
+)
+```
+
+`source_paths` is the source-code search scope in both workflows. In a pull request that changes both source
+calls and localization resources, call the checker once for each workflow if both sets of keys need context.
+
+Anthropic is the default provider and reads `ANTHROPIC_API_KEY` from the environment. Pass `provider: :openai`
+to use OpenAI with `OPENAI_API_KEY`. Store the matching key as a CI secret.
+
+The checker posts inline comments by default. Use `inline_mode` for apply-ready suggestions or to disable inline
+output, and `summary: true` for a pull-request summary. Optional `context_files` are included in full;
+`include_pull_request_context: false` excludes the pull request title and description.
+
+Relevant source snippets, context files, and pull request metadata are sent to the configured external LLM
+provider. Enable the checker only for content that provider is permitted to process. Bundler installs the
+required [`i18n-context-generator`](https://github.com/Automattic/i18n-context-generator) gem with Dangermattic;
+see that project for supported source syntax and advanced generator behavior.
 
 ## Example of available plugins and their usage
 
@@ -75,19 +66,11 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```
 - `translation_context_checker` - Suggests translator-facing context for changed localization keys
     ```ruby
-    # Suggests inline source suggestions for changed iOS localization calls
+    # Suggests apply-ready comments for changed iOS localization calls
     translation_context_checker.check_context_suggestions(
       discovery_mode: :source,
       source_paths: ['WooCommerce/', 'Modules/Sources/'],
       inline_mode: :source_suggestion
-    )
-    ```
-    ```ruby
-    # Suggests comments on exact changed Android translation entries
-    translation_context_checker.check_context_suggestions(
-      discovery_mode: :translations,
-      source_paths: ['app/src/main/java/'],
-      translation_paths: 'app/src/main/res/values/strings.xml'
     )
     ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
