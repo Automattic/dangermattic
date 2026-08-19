@@ -18,6 +18,12 @@ module Danger
       I18nContextGenerator::GitDiff
         .new(base_ref: diff_base, head_ref: diff_head)
         .changed_lines(files)
+    rescue I18nContextGenerator::Error => e
+      reporter.report(
+        message: "Translation context suggestion line lookup failed: #{e.message}",
+        type: :warning
+      )
+      Hash.new { |hash, key| hash[key] = Set.new }
     end
 
     def existing_translator_comment_block(location)

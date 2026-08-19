@@ -465,6 +465,27 @@ module Danger
             MARKDOWN
           end
 
+          it 'falls back to PR-level feedback when suggestion line lookup fails' do
+            git_diff = instance_double(I18nContextGenerator::GitDiff)
+            allow(git_diff).to receive(:changed_lines).and_raise(
+              I18nContextGenerator::Error,
+              'Git diff failed for danger_base...danger_head'
+            )
+            allow(I18nContextGenerator::GitDiff).to receive(:new).and_return(git_diff)
+
+            @plugin.check_source_changes(
+              source_paths: 'Sources',
+              inline_mode: :source_suggestion
+            )
+
+            expect(@dangerfile.status_report[:warnings]).to eq(
+              ['Translation context suggestion line lookup failed: Git diff failed for danger_base...danger_head']
+            )
+            expect(@dangerfile.status_report[:messages]).to eq(
+              ["**Translation Context Suggestion**\nTitle for the settings screen."]
+            )
+          end
+
           it 'falls back to a PR-level report when the comment line is unchanged' do
             allow(@plugin.git).to receive(:diff_for_file).with(source_path).and_return(
               GitDiffStruct.new(
