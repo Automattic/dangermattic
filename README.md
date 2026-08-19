@@ -8,7 +8,44 @@ Add to your project's `Gemfile`
 gem 'danger-dangermattic', git: 'https://github.com/Automattic/dangermattic'
 ```
 
-### Translation context plugin setup
+## Example of available plugins and their usage
+
+Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
+
+- `manifest_pr_checker` - Plugin to check if changes on a manifest file (i.e. `Gemfile`, `Podfile`) has a corresponding change in a lock file (i.e. `Gemfile.lock`, `Podfile.lock`)
+    ```ruby
+    # Reports a warning if the Gemfile was changed but the Gemfile.lock wasn't
+    manifest_pr_checker.check_gemfile_lock_updated
+    ```
+- `milestone_checker` - Plugin for performing checks on a milestone associated with a pull request
+    ```ruby
+    # Checks if the pull request's milestone is due in 3 days or less, reporting a warning if that's the case
+    milestone_checker.check_milestone_due_date(days_before_due: 3)
+    ```
+- `pr_size_checker` - Plugin to check the size of a Pull Request content and text body
+    ```ruby
+    # Reports a warning if a pull request diff size is greater than 300
+    pr_size_checker.check_diff_size(max_size: 300)
+    ```
+- `translation_context_checker` - Suggests translator-facing context for changed localization keys
+    ```ruby
+    # Suggests apply-ready comments for changed iOS localization calls
+    translation_context_checker.check_source_changes(
+      source_paths: ['WooCommerce/', 'Modules/Sources/'],
+      inline_mode: :source_suggestion
+    )
+    ```
+- `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
+    ```ruby
+    # Reports a warning if a pull request changing views doesn't have a screenshot
+    view_changes_checker.check
+    ```
+
+All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
+
+---
+
+### Setup for `translation_context_checker`
 
 Use source discovery when a project defines localization keys directly in source code, as is common on iOS:
 
@@ -46,40 +83,6 @@ provider. Enable the checker only for content that provider is permitted to proc
 required [`i18n-context-generator`](https://github.com/Automattic/i18n-context-generator) gem with Dangermattic;
 see that project for supported source syntax and advanced generator behavior.
 
-## Example of available plugins and their usage
-
-Once the main Gem is installed, all Dangermattic plugins are available in your `Dangerfile` under their corresponding namespace. A few examples:
-
-- `manifest_pr_checker` - Plugin to check if changes on a manifest file (i.e. `Gemfile`, `Podfile`) has a corresponding change in a lock file (i.e. `Gemfile.lock`, `Podfile.lock`)
-    ```ruby
-    # Reports a warning if the Gemfile was changed but the Gemfile.lock wasn't
-    manifest_pr_checker.check_gemfile_lock_updated
-    ```
-- `milestone_checker` - Plugin for performing checks on a milestone associated with a pull request
-    ```ruby
-    # Checks if the pull request's milestone is due in 3 days or less, reporting a warning if that's the case
-    milestone_checker.check_milestone_due_date(days_before_due: 3)
-    ```
-- `pr_size_checker` - Plugin to check the size of a Pull Request content and text body
-    ```ruby
-    # Reports a warning if a pull request diff size is greater than 300
-    pr_size_checker.check_diff_size(max_size: 300)
-    ```
-- `translation_context_checker` - Suggests translator-facing context for changed localization keys
-    ```ruby
-    # Suggests apply-ready comments for changed iOS localization calls
-    translation_context_checker.check_source_changes(
-      source_paths: ['WooCommerce/', 'Modules/Sources/'],
-      inline_mode: :source_suggestion
-    )
-    ```
-- `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
-    ```ruby
-    # Reports a warning if a pull request changing views doesn't have a screenshot
-    view_changes_checker.check
-    ```
-
-All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
 
 ## GitHub Workflows
 
