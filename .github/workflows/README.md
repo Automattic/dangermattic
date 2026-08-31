@@ -60,8 +60,10 @@ This workflow retries a specific job in a Buildkite pipeline.
 ### Job: `retry-buildkite-job`
 - Main step: "🔄 Retry job on the latest Buildkite Build"
   - Retrieves the latest Buildkite build for the specified commit
-  - Identifies the job to retry based on the provided step key
+  - Identifies the newest job to retry based on the provided step key
   - Retries the job if it's in an appropriate state (passed, failed, canceled, or finished)
+
+Only a Buildkite API error fails this job. Having nothing to retry does not: no build for the commit yet, no job matching `retry-step-key`, and a job in a state that cannot be retried all pass, the last two with a workflow warning annotation.
 
 ## Run Danger on GitHub
 

@@ -87,15 +87,14 @@ jobs:
           check_buildkite_error() {
             local RESPONSE=$1
 
-            # Check if the response is empty
-            if [ -z "$RESPONSE" ] || [ "$(echo "$RESPONSE" | jq 'length')" -eq 0 ]; then
+            if [ -z "$RESPONSE" ]; then
               echo "❌ Buildkite API call returned an empty response."
               exit 1
             fi
 
-            # Check if the response contains an error message
-            RESPONSE_ERROR=$(echo "$RESPONSE" | jq .message 2>/dev/null || true)
-            if [[ -n "$RESPONSE_ERROR" && "$RESPONSE_ERROR" != 'null' ]]; then
+            local RESPONSE_ERROR
+            RESPONSE_ERROR=$(echo "$RESPONSE" | jq -r '.message? // empty')
+            if [ -n "$RESPONSE_ERROR" ]; then
               echo "❌ Buildkite API call failed: $RESPONSE_ERROR"
               exit 1
             fi
@@ -104,14 +103,28 @@ jobs:
           BUILDKITE_GET_BUILD_RESPONSE=$(get_buildkite_build)
           check_buildkite_error "$BUILDKITE_GET_BUILD_RESPONSE"
 
-          LATEST_BUILD=$(echo "$BUILDKITE_GET_BUILD_RESPONSE" | jq -r '.[0]')
+          # A PR event can land before Buildkite has created a build for the head commit
+          if [ "$(echo "$BUILDKITE_GET_BUILD_RESPONSE" | jq 'length')" -eq 0 ]; then
+            echo "ℹ️ No Buildkite build for $COMMIT_SHA — nothing to retry."
+            exit 0
+          fi
+
+          LATEST_BUILD=$(echo "$BUILDKITE_GET_BUILD_RESPONSE" | jq -c '.[0]')
           LATEST_BUILD_NUMBER=$(echo "$LATEST_BUILD" | jq -r '.number')
 
-          SELECTED_JOB=$(echo "$LATEST_BUILD" | jq -r --arg step_key "$RETRY_STEP_KEY" '.jobs[] | select(.step_key == $step_key)')
+          # A retried job is appended to the build alongside the one it replaced, so take the newest attempt
+          SELECTED_JOB=$(echo "$LATEST_BUILD" | jq -c --arg step_key "$RETRY_STEP_KEY" 'last(.jobs[] | select(.step_key == $step_key)) // empty')
+
+          echo "ℹ️ Build Number: $LATEST_BUILD_NUMBER"
+
+          if [ -z "$SELECTED_JOB" ]; then
+            echo "::warning::Build $LATEST_BUILD_NUMBER has no job with step key '$RETRY_STEP_KEY' — nothing to retry."
+            exit 0
+          fi
+
           SELECTED_JOB_ID=$(echo "$SELECTED_JOB" | jq -r '.id')
           SELECTED_JOB_STATE=$(echo "$SELECTED_JOB" | jq -r '.state')
 
-          echo "ℹ️ Build Number: $LATEST_BUILD_NUMBER"
           echo "ℹ️ Job ID for step '$RETRY_STEP_KEY': $SELECTED_JOB_ID"
           echo "ℹ️ Current job state for step '$RETRY_STEP_KEY': $SELECTED_JOB_STATE"
 
@@ -121,10 +134,15 @@ jobs:
             BUILDKITE_RETRY_JOB_RESPONSE=$(retry_buildkite_job "$LATEST_BUILD_NUMBER" "$SELECTED_JOB_ID")
             check_buildkite_error "$BUILDKITE_RETRY_JOB_RESPONSE"
 
-            JOB_WEB_URL=$(echo "$BUILDKITE_RETRY_JOB_RESPONSE" | jq -r '.web_url')
-            echo "✅ Job succesfully retried: $JOB_WEB_URL"
+            JOB_WEB_URL=$(echo "$BUILDKITE_RETRY_JOB_RESPONSE" | jq -r '.web_url // empty')
+            if [ -z "$JOB_WEB_URL" ]; then
+              echo "❌ Buildkite did not confirm the retry of step '$RETRY_STEP_KEY'."
+              exit 1
+            fi
+
+            echo "✅ Job successfully retried: $JOB_WEB_URL"
           elif [[ "$SELECTED_JOB_STATE" == "running" || "$SELECTED_JOB_STATE" == "scheduled" ]]; then
             echo "⚠️ Job is already in state '$SELECTED_JOB_STATE', no need to retry."
           else
-            echo "❌ Cannot retry job in state '$SELECTED_JOB_STATE'"
+            echo "::warning::Cannot retry job for step '$RETRY_STEP_KEY' in state '$SELECTED_JOB_STATE'."
           fi
