@@ -21,7 +21,7 @@ on:
         type: string
       cancel-running-github-jobs:
         description: Cancel currently in progress Github jobs when new ones are added.
-        default: true
+        default: false
         type: boolean
         required: false
     secrets:
