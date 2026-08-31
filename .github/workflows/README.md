@@ -51,7 +51,8 @@ This workflow retries a specific job in a Buildkite pipeline.
 - `pipeline-slug`: Slug of the Buildkite pipeline to be run
 - `retry-step-key`: Key of the Buildkite job to be retried
 - `build-commit-sha`: Commit to check for running Buildkite Builds
-- `cancel-running-github-jobs`: Cancel in-progress GitHub jobs when new ones are created (default: `true`)
+- `cancel-running-github-jobs`: Cancel in-progress GitHub jobs when new ones are created (default: `false`)
+  - Callers typically trigger on several pull request event types at once, and two of them seconds apart share a concurrency group. Cancelling leaves the earlier run showing as a permanently non-green check, so leave this off unless the job is expensive enough to be worth that.
 
 ### Secrets:
 - `buildkite-api-token`: Required Buildkite API token
