@@ -17,6 +17,9 @@ steps:
     steps:
       - label: "🧪 Build and Test"
         command: |
+          echo "--- :package: Installing jq"
+          apt-get update -qq && apt-get install -y -qq --no-install-recommends jq
+
           echo "--- :rubygems: Setting up Gems"
           bundle install
 
