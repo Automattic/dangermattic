@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Arm D: the reusable workflow's concurrency shape with a hardcoded
+# `cancel-in-progress: false`, and no reusable call at all.
+# Isolates the group from the input: if this still cancels, `cancel-in-progress` is not
+# what cancels these runs, and flipping it can never have fixed the red checks.
+
+name: '[VALIDATION] Shared group, literal false'
+
+on:
+  pull_request:
+    types: [labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hold:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 25

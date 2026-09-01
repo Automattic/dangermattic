@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Arm C: passes `cancel-running-github-jobs: false` explicitly, to tell apart
+# "the new default is not being applied" from "the input does not control cancellation at all".
+
+name: '[VALIDATION] Retry concurrency (explicit false)'
+
+on:
+  pull_request:
+    types: [assigned, unassigned]
+
+jobs:
+  retry:
+    uses: ./.github/workflows/reusable-retry-buildkite-step-on-events.yml
+    with:
+      org-slug: automattic
+      pipeline-slug: dangermattic
+      retry-step-key: rubocop
+      build-commit-sha: ${{ github.event.pull_request.head.sha }}
+      cancel-running-github-jobs: false
+    secrets:
+      buildkite-api-token: no-token-available-in-this-repo
