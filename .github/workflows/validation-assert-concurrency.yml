@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 
-# [DO NOT MERGE] Reads back the two arms' run conclusions and fails on either wrong answer.
-# Runs on a push whose commit message contains `[assert]`, once both event storms have been fired.
+# [DO NOT MERGE] Reads back the newest run of each arm and fails on any wrong answer.
+# Runs on a push whose commit message contains `[assert]`, once the event storm has been fired.
 
 name: '[VALIDATION] Assert concurrency outcomes'
 
@@ -15,37 +15,51 @@ jobs:
     if: contains(github.event.head_commit.message, '[assert]')
     runs-on: ubuntu-latest
     steps:
-      - name: Compare cancellations across both arms
+      - name: Compare cancellations across every arm
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
         run: |
-          # Fails loudly rather than returning an empty list, which would read as "no cancellations"
-          conclusions() {
+          # One storm fires 5 events per arm, and the API returns newest first
+          cancelled_count() {
             local RUNS
-            RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$1/runs?branch=$BRANCH&per_page=100") || {
+            RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$1/runs?branch=$BRANCH&per_page=5") || {
               echo "::error::Could not read runs for $1 — the arm never ran, so there is nothing to compare." >&2
               return 1
             }
-            echo "$RUNS" | jq -r '.workflow_runs[] | .conclusion // "in_progress"'
+            echo "$RUNS" | jq -r '[.workflow_runs[] | select(.conclusion == "cancelled")] | length'
           }
 
-          CONTROL=$(conclusions validation-retry-concurrency-cancel-enabled.yml) || exit 1
-          TREATMENT=$(conclusions validation-retry-concurrency-default.yml) || exit 1
+          PER_RUN_GROUP=$(cancelled_count validation-group-per-run.yml) || exit 1
+          SHARED_GROUP=$(cancelled_count validation-group-shared-literal-false.yml) || exit 1
+          RETRY_DEFAULT=$(cancelled_count validation-retry-concurrency-default.yml) || exit 1
+          RETRY_EXPLICIT=$(cancelled_count validation-retry-concurrency-explicit-false.yml) || exit 1
 
-          echo "Control arm (cancel-running-github-jobs: true):"
-          echo "$CONTROL" | sort | uniq -c
-          echo "Treatment arm (default):"
-          echo "$TREATMENT" | sort | uniq -c
+          echo "Cancelled runs, newest storm, out of 5 per arm:"
+          echo "  per-run group, literal false:  $PER_RUN_GROUP"
+          echo "  shared group, literal false:   $SHARED_GROUP"
+          echo "  retry workflow, default:       $RETRY_DEFAULT"
+          echo "  retry workflow, explicit false:$RETRY_EXPLICIT"
 
-          if ! echo "$CONTROL" | grep -qx cancelled; then
-            echo "::error::Control arm cancelled nothing, so the events never overlapped and the treatment arm proves nothing. Re-fire them closer together."
-            exit 1
+          FAILED=0
+
+          # The positive control. Without a live cancellation the other arms' zeroes mean nothing,
+          # because events that never overlap also cancel nothing.
+          if [ "$SHARED_GROUP" -eq 0 ]; then
+            echo "::error::A shared group with cancel-in-progress:false cancelled nothing, so the events never overlapped and every other arm here is unfalsifiable. Re-fire them closer together."
+            FAILED=1
           fi
 
-          if echo "$TREATMENT" | grep -qx cancelled; then
-            echo "::error::Treatment arm has a cancelled run — defaulting cancel-running-github-jobs to false did not take effect."
-            exit 1
+          if [ "$PER_RUN_GROUP" -ne 0 ]; then
+            echo "::error::A per-run group cancelled $PER_RUN_GROUP runs, which should be impossible. The experiment is measuring something other than concurrency."
+            FAILED=1
           fi
 
-          echo "✅ The control arm cancelled its own runs and the treatment arm did not."
+          if [ "$RETRY_DEFAULT" -ne 0 ] || [ "$RETRY_EXPLICIT" -ne 0 ]; then
+            echo "::error::The retry workflow still cancels its own runs ($RETRY_DEFAULT by default, $RETRY_EXPLICIT with the input passed explicitly). Removing the concurrency group did not fix the red checks."
+            FAILED=1
+          fi
+
+          [ "$FAILED" -eq 0 ] || exit 1
+
+          echo "✅ A shared group still cancels $SHARED_GROUP of 5 while the retry workflow now cancels none."
