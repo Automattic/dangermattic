@@ -18,10 +18,16 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
   let(:commit_sha) { '1a2b3c4d' }
   let(:workflow) { YAML.safe_load_file(File.expand_path('../../.github/workflows/reusable-retry-buildkite-step-on-events.yml', __dir__)) }
 
-  describe 'inputs' do
-    it 'does not cancel in-progress runs by default' do
-      # Callers fire on up to six PR event types; cancelling leaves the earlier run permanently non-green.
-      expect(workflow_call_inputs.dig('cancel-running-github-jobs', 'default')).to be(false)
+  describe 'concurrency' do
+    # A shared group cancels a previously *pending* run whatever `cancel-in-progress` says, and callers
+    # fire on up to six PR event types. GitHub renders a cancelled check-run as non-success forever.
+    # Measured on https://github.com/Automattic/dangermattic/pull/146.
+    it 'declares no concurrency group that could supersede a pending run' do
+      expect(workflow['concurrency']).to be_nil
+    end
+
+    it 'keeps the now-ignored cancellation input declared for existing callers' do
+      expect(workflow_call_inputs['cancel-running-github-jobs']['description']).to start_with('Deprecated and ignored.')
     end
   end
 

@@ -20,17 +20,13 @@ on:
         required: true
         type: string
       cancel-running-github-jobs:
-        description: Cancel currently in progress Github jobs when new ones are added.
+        description: Deprecated and ignored. Kept only for backward compatibility with existing callers, and scheduled for removal in the next major release.
         default: false
         type: boolean
         required: false
     secrets:
       buildkite-api-token:
         required: true
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ inputs.cancel-running-github-jobs }}
 
 jobs:
   retry-buildkite-job:
