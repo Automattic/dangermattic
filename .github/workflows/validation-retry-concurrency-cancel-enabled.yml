@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Control arm: same call with `cancel-running-github-jobs: true`, the old default.
+# Rapid `edited` events on this PR MUST cancel each other — that is what proves the experiment
+# can detect a cancellation at all, and so that the treatment arm's silence means something.
+
+name: '[VALIDATION] Retry concurrency (cancel enabled)'
+
+on:
+  pull_request:
+    types: [edited]
+
+jobs:
+  retry:
+    uses: ./.github/workflows/reusable-retry-buildkite-step-on-events.yml
+    with:
+      org-slug: automattic
+      pipeline-slug: dangermattic
+      retry-step-key: rubocop
+      build-commit-sha: ${{ github.event.pull_request.head.sha }}
+      cancel-running-github-jobs: true
+    secrets:
+      buildkite-api-token: no-token-available-in-this-repo

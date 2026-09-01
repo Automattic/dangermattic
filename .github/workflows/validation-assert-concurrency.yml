@@ -1,0 +1,51 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Reads back the two arms' run conclusions and fails on either wrong answer.
+# Runs on a push whose commit message contains `[assert]`, once both event storms have been fired.
+
+name: '[VALIDATION] Assert concurrency outcomes'
+
+on: push
+
+permissions:
+  actions: read
+
+jobs:
+  assert:
+    if: contains(github.event.head_commit.message, '[assert]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare cancellations across both arms
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # Fails loudly rather than returning an empty list, which would read as "no cancellations"
+          conclusions() {
+            local RUNS
+            RUNS=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$1/runs?branch=$BRANCH&per_page=100") || {
+              echo "::error::Could not read runs for $1 — the arm never ran, so there is nothing to compare." >&2
+              return 1
+            }
+            echo "$RUNS" | jq -r '.workflow_runs[] | .conclusion // "in_progress"'
+          }
+
+          CONTROL=$(conclusions validation-retry-concurrency-cancel-enabled.yml) || exit 1
+          TREATMENT=$(conclusions validation-retry-concurrency-default.yml) || exit 1
+
+          echo "Control arm (cancel-running-github-jobs: true):"
+          echo "$CONTROL" | sort | uniq -c
+          echo "Treatment arm (default):"
+          echo "$TREATMENT" | sort | uniq -c
+
+          if ! echo "$CONTROL" | grep -qx cancelled; then
+            echo "::error::Control arm cancelled nothing, so the events never overlapped and the treatment arm proves nothing. Re-fire them closer together."
+            exit 1
+          fi
+
+          if echo "$TREATMENT" | grep -qx cancelled; then
+            echo "::error::Treatment arm has a cancelled run — defaulting cancel-running-github-jobs to false did not take effect."
+            exit 1
+          fi
+
+          echo "✅ The control arm cancelled its own runs and the treatment arm did not."
