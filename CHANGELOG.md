@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-_None_
+- Add `translation_context_checker` to generate translator context for localization keys changed in source code or source-language resource files, with inline and summary reporting options. [#112]
 
 ### Bug Fixes
 
@@ -18,7 +18,8 @@ _None_
 
 ### Internal Changes
 
-_None_
+- Require Danger 9.6 and use its native ranged Markdown support instead of a custom GitHub posting layer. [#112]
+- Bound lint and documentation development dependencies to prevent rule drift. [#112]
 
 ## 1.4.1
 

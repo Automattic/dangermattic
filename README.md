@@ -27,6 +27,14 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     # Reports a warning if a pull request diff size is greater than 300
     pr_size_checker.check_diff_size(max_size: 300)
     ```
+- `translation_context_checker` - Suggests translator-facing context for changed localization keys
+    ```ruby
+    # Suggests apply-ready comments for changed iOS localization calls
+    translation_context_checker.check_source_changes(
+      source_paths: ['WooCommerce/', 'Modules/Sources/'],
+      inline_mode: :source_suggestion
+    )
+    ```
 - `view_changes_checker` - Detects view changes in a PR and reports a warning if there are no attached screenshots
     ```ruby
     # Reports a warning if a pull request changing views doesn't have a screenshot
@@ -34,6 +42,47 @@ Once the main Gem is installed, all Dangermattic plugins are available in your `
     ```
 
 All available plugins are defined here: https://github.com/Automattic/dangermattic/tree/trunk/lib/dangermattic/plugins
+
+---
+
+### Setup for `translation_context_checker`
+
+Use source discovery when a project defines localization keys directly in source code, as is common on iOS:
+
+```ruby
+translation_context_checker.check_source_changes(
+  source_paths: ['WooCommerce/', 'Modules/Sources/'],
+  inline_mode: :source_suggestion
+)
+```
+
+Use resource discovery when keys are added to a source-language localization file, as is common on Android:
+
+```ruby
+translation_context_checker.check_resource_changes(
+  source_paths: ['app/src/main/java/'],
+  resource_paths: ['app/src/main/res/values/strings.xml']
+)
+```
+
+`source_paths` is the source-code search scope in both workflows. In a pull request that changes both source
+calls and localization resources, call the checker once for each workflow if both sets of keys need context.
+Extraction and suggestion eligibility use the `danger_base...danger_head` range prepared by Danger, preserving
+Danger's merge-base behavior in shallow CI clones.
+
+Anthropic is the default provider and reads `ANTHROPIC_API_KEY` from the environment. Pass `provider: :openai`
+to use OpenAI with `OPENAI_API_KEY`. Store the matching key as a CI secret.
+
+The checker posts inline comments by default. Use `inline_mode: :source_suggestion` or
+`inline_mode: :resource_suggestion` for apply-ready suggestions, or `inline_mode: :none` to disable inline
+output. Use `summary: true` for a pull-request summary. Optional `context_files` are included in full;
+`include_pull_request_context: false` excludes the pull request title and description.
+
+Relevant source snippets, context files, and pull request metadata are sent to the configured external LLM
+provider. Enable the checker only for content that provider is permitted to process. Bundler installs the
+required [`i18n-context-generator`](https://github.com/Automattic/i18n-context-generator) gem with Dangermattic;
+see that project for supported source syntax and advanced generator behavior.
+
 
 ## GitHub Workflows
 
