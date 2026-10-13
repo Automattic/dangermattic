@@ -1,0 +1,36 @@
+Bump stripe-terminal from 5.1.1 to 5.6.0
+
+Bumps `stripe-terminal` from 5.1.1 to 5.6.0.
+
+Updates `com.stripe:stripeterminal-taptopay` from 5.1.1 to 5.6.0
+- [Release notes](https://github.com/stripe/stripe-terminal-android/releases)
+- [Changelog](https://github.com/stripe/stripe-terminal-android/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/stripe/stripe-terminal-android/compare/v5.1.1...v5.6.0)
+
+Updates `com.stripe:stripeterminal-core` from 5.1.1 to 5.6.0
+- [Release notes](https://github.com/stripe/stripe-terminal-android/releases)
+- [Changelog](https://github.com/stripe/stripe-terminal-android/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/stripe/stripe-terminal-android/compare/v5.1.1...v5.6.0)
+
+Updates `com.stripe:stripeterminal-ktx` from 5.1.1 to 5.6.0
+- [Release notes](https://github.com/stripe/stripe-terminal-android/releases)
+- [Changelog](https://github.com/stripe/stripe-terminal-android/blob/master/CHANGELOG.md)
+- [Commits](https://github.com/stripe/stripe-terminal-android/compare/v5.1.1...v5.6.0)
+
+---
+updated-dependencies:
+- dependency-name: com.stripe:stripeterminal-taptopay
+  dependency-version: 5.6.0
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+- dependency-name: com.stripe:stripeterminal-core
+  dependency-version: 5.6.0
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+- dependency-name: com.stripe:stripeterminal-ktx
+  dependency-version: 5.6.0
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
