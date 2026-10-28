@@ -64,6 +64,7 @@ This workflow retries a specific job in a Buildkite pipeline.
   - Retries the job if it's in an appropriate state (passed, failed, canceled, or finished)
 
 Only a Buildkite API error fails this job. Having nothing to retry does not: no build for the commit yet, no job matching `retry-step-key`, and a job in a state that cannot be retried all pass, the last two with a workflow warning annotation.
+Neither does losing a race: when two runs for near-simultaneous events try to retry the same job, the one Buildkite refuses passes once it confirms the job was retried.
 
 ## Run Danger on GitHub
 

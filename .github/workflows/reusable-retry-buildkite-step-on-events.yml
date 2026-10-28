@@ -79,6 +79,11 @@ jobs:
             perform_buildkite_request "PUT" "builds/$BUILD_ID/jobs/$JOB_ID/retry"
           }
 
+          # Succeeds if the job with the given id ($1) has been retried, by this run or any other
+          job_was_retried() {
+            get_buildkite_build | jq -e --arg id "$1" 'any(.[]? | objects | .jobs[]?; .id == $id and .retried == true)' > /dev/null
+          }
+
           # Validates a Buildkite response ($1)
           check_buildkite_error() {
             local RESPONSE=$1
@@ -128,6 +133,13 @@ jobs:
           ALLOWED_JOB_STATES=("passed" "failed" "canceled" "finished")
           if [[ " ${ALLOWED_JOB_STATES[*]} " =~ [[:space:]]${SELECTED_JOB_STATE}[[:space:]] ]]; then
             BUILDKITE_RETRY_JOB_RESPONSE=$(retry_buildkite_job "$LATEST_BUILD_NUMBER" "$SELECTED_JOB_ID")
+
+            # Runs for near-simultaneous PR events can read the same job, and Buildkite retries a job only once
+            if [ -n "$(echo "$BUILDKITE_RETRY_JOB_RESPONSE" | jq -r '.message? // empty')" ] && job_was_retried "$SELECTED_JOB_ID"; then
+              echo "ℹ️ Step '$RETRY_STEP_KEY' was already retried by another run — nothing to do."
+              exit 0
+            fi
+
             check_buildkite_error "$BUILDKITE_RETRY_JOB_RESPONSE"
 
             JOB_WEB_URL=$(echo "$BUILDKITE_RETRY_JOB_RESPONSE" | jq -r '.web_url // empty')
