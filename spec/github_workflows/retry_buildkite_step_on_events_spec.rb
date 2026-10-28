@@ -101,6 +101,29 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
       expect(result[:output]).to include("❌ Buildkite did not confirm the retry of step '#{step_key}'.")
     end
 
+    # With no concurrency group, two runs a second apart can both read the same failed job before either
+    # retries it. Buildkite retries a job ID only once, so the slower run's retry is refused.
+    it 'succeeds when a concurrent run retried the job first' do
+      result = run_step(
+        builds: [build(jobs: [job(id: 'job-1', state: 'failed')])],
+        retry_response: { 'message' => 'Only failed, timed out or canceled jobs can be retried' },
+        builds_after_retry: [build(jobs: [job(id: 'job-1', state: 'failed', retried: true), job(id: 'job-2', state: 'scheduled')])]
+      )
+
+      expect(result[:status]).to be_success
+      expect(result[:output]).to include("ℹ️ Step '#{step_key}' was already retried by another run — nothing to do.")
+    end
+
+    it 'fails when Buildkite refuses the retry and nothing else retried the job' do
+      result = run_step(
+        builds: [build(jobs: [job(id: 'job-1', state: 'failed')])],
+        retry_response: { 'message' => 'Forbidden' }
+      )
+
+      expect(result[:status]).not_to be_success
+      expect(result[:output]).to include('❌ Buildkite API call failed: Forbidden')
+    end
+
     it 'does not call Buildkite at all in read-only mode' do
       result = run_step(builds: [build(jobs: [job(id: 'job-1', state: 'failed')])], read_only: true)
 
@@ -128,10 +151,11 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
     script
   end
 
-  def run_step(builds:, retry_response: { 'web_url' => 'https://buildkite.com/retried' }, read_only: false)
+  def run_step(builds:, retry_response: { 'web_url' => 'https://buildkite.com/retried' }, builds_after_retry: builds, read_only: false)
     Dir.mktmpdir do |dir|
       File.write(File.join(dir, 'script.sh'), step_script)
       File.write(File.join(dir, 'get.json'), JSON.generate(builds))
+      File.write(File.join(dir, 'get_after_retry.json'), JSON.generate(builds_after_retry))
       File.write(File.join(dir, 'retry.json'), JSON.generate(retry_response))
       File.write(File.join(dir, 'requests.log'), '')
       write_curl_stub(File.join(dir, 'curl'))
@@ -141,6 +165,7 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
         'READ_ONLY_MODE' => read_only.to_s,
         'STUB_REQUEST_LOG' => File.join(dir, 'requests.log'),
         'STUB_GET_RESPONSE' => File.join(dir, 'get.json'),
+        'STUB_GET_RESPONSE_AFTER_RETRY' => File.join(dir, 'get_after_retry.json'),
         'STUB_RETRY_RESPONSE' => File.join(dir, 'retry.json')
       }
       output, status = Open3.capture2e(env, 'bash', '-e', File.join(dir, 'script.sh'))
@@ -149,7 +174,8 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
     end
   end
 
-  # Writes a `curl` that logs "<method> <url>" and replies with the canned response for that method.
+  # Writes a `curl` that logs "<method> <url>" and replies with the canned response for that method,
+  # switching GETs to the after-retry builds once a retry has been attempted.
   def write_curl_stub(path)
     File.write(path, <<~BASH)
       #!/usr/bin/env bash
@@ -168,7 +194,13 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
 
       echo "$METHOD $URL" >> "$STUB_REQUEST_LOG"
 
-      if [ "$METHOD" = GET ]; then cat "$STUB_GET_RESPONSE"; else cat "$STUB_RETRY_RESPONSE"; fi
+      if [ "$METHOD" != GET ]; then
+        cat "$STUB_RETRY_RESPONSE"
+      elif grep -q '^PUT ' "$STUB_REQUEST_LOG"; then
+        cat "$STUB_GET_RESPONSE_AFTER_RETRY"
+      else
+        cat "$STUB_GET_RESPONSE"
+      fi
     BASH
     File.chmod(0o755, path)
   end
@@ -177,8 +209,8 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
     { 'number' => number, 'jobs' => jobs }
   end
 
-  def job(id:, state:, key: step_key)
-    { 'id' => id, 'state' => state, 'step_key' => key }
+  def job(id:, state:, key: step_key, retried: false)
+    { 'id' => id, 'state' => state, 'step_key' => key, 'retried' => retried }
   end
 
   def api_url(path)
