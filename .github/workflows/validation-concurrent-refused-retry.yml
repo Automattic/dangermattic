@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Runs the retry step's real shell on a real runner, five copies at once, against a fake Buildkite.
+# The fake is the stated limit of this evidence: no Actions secret here can reach the real API.
+
+name: '[VALIDATION] Concurrent refused retry (stubbed Buildkite)'
+
+on: push
+
+jobs:
+  race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Race five copies of the step
+        run: |
+          WORK=$(mktemp -d)
+          mkdir "$WORK/bin"
+
+          cat > "$WORK/bin/curl" <<'STUB'
+          #!/usr/bin/env bash
+          # Fake Buildkite: `--fail-with-body` semantics, one retry per job id, and a barrier so every copy reads the job before any retries it.
+          METHOD=GET
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -X) METHOD=$2; shift 2 ;;
+              -H) shift 2 ;;
+              *) shift ;;
+            esac
+          done
+
+          BEFORE='[{"number":7,"jobs":[{"id":"job-1","state":"failed","step_key":"rubocop","retried":false}]}]'
+          AFTER='[{"number":7,"jobs":[{"id":"job-1","state":"failed","step_key":"rubocop","retried":'"$STUB_RETRIED_AFTER"'},{"id":"job-2","state":"scheduled","step_key":"rubocop","retried":false}]}]'
+
+          if [ "$METHOD" = PUT ]; then
+            echo "PUT" >> "$STUB_DIR/puts.log"
+            if mkdir "$STUB_DIR/won" 2>/dev/null; then
+              echo '{"web_url":"https://buildkite.com/retried"}'
+              exit 0
+            fi
+            echo '{"message":"You can only retry each job.id once"}'
+            exit 22
+          fi
+
+          if [ ! -e "$STUB_DIR/read-$STUB_COPY" ]; then
+            touch "$STUB_DIR/read-$STUB_COPY"
+            for _ in $(seq 1 150); do
+              [ "$(find "$STUB_DIR" -name 'read-*' | wc -l)" -ge "$STUB_COPIES" ] && break
+              sleep 0.1
+            done
+            echo "$BEFORE"
+          else
+            echo "$AFTER"
+          fi
+          STUB
+          chmod +x "$WORK/bin/curl"
+
+          step_script() {
+            git show "$1:.github/workflows/reusable-retry-buildkite-step-on-events.yml" | ruby -ryaml -e '
+              # Spelled out so GitHub does not evaluate it as an expression in this file.
+              open = "\x24{{"
+              script = YAML.safe_load($stdin.read, aliases: true).dig("jobs", "retry-buildkite-job", "steps", 0, "run")
+              { "inputs.org-slug" => "automattic", "inputs.pipeline-slug" => "dangermattic", "inputs.retry-step-key" => "rubocop",
+                "inputs.build-commit-sha" => "abc123", "secrets.buildkite-api-token" => "stub" }.each { |k, v| script = script.gsub("#{open} #{k} }}", v) }
+              abort "Unsubstituted expression" if script.include?(open)
+              puts script'
+          }
+
+          # race <label> <ref> <retried-after>
+          race() {
+            local DIR="$WORK/$1"
+            mkdir "$DIR"
+            step_script "$2" > "$DIR/step.sh"
+            local PIDS=()
+            for COPY in 1 2 3 4 5; do
+              (
+                if PATH="$WORK/bin:$PATH" READ_ONLY_MODE=false STUB_DIR="$DIR" STUB_COPY="$COPY" STUB_COPIES=5 STUB_RETRIED_AFTER="$3" \
+                  bash -e "$DIR/step.sh" > "$DIR/out-$COPY" 2>&1; then
+                  echo 0 > "$DIR/status-$COPY"
+                else
+                  echo $? > "$DIR/status-$COPY"
+                fi
+              ) &
+              PIDS+=($!)
+            done
+            wait "${PIDS[@]}"
+            OK=$(cat "$DIR"/status-* | grep -c '^0$' || true)
+            BAD=$(cat "$DIR"/status-* | grep -vc '^0$' || true)
+            PUTS=$(wc -l < "$DIR/puts.log" | tr -d ' ')
+            WON=$(cat "$DIR"/out-* | grep -c '✅ Job successfully retried' || true)
+            TOLERATED=$(cat "$DIR"/out-* | grep -c 'already retried by another run' || true)
+            REFUSED=$(cat "$DIR"/out-* | grep -c '❌ Buildkite API call failed: You can only retry' || true)
+            echo "$1: exit0=$OK nonzero=$BAD puts=$PUTS won=$WON tolerated=$TOLERATED refused_fatal=$REFUSED"
+          }
+
+          expect() {
+            if [ "$2" != "$3" ]; then
+              echo "::error::$1: expected $3, got $2"
+              FAILED=1
+            fi
+          }
+
+          FAILED=0
+
+          race fixed "$GITHUB_SHA" true
+          expect "fixed exit0" "$OK" 5
+          expect "fixed puts" "$PUTS" 5
+          expect "fixed won" "$WON" 1
+          expect "fixed tolerated" "$TOLERATED" 4
+
+          # A refusal nothing explains must stay fatal.
+          race unexplained-refusal "$GITHUB_SHA" false
+          expect "unexplained nonzero" "$BAD" 4
+          expect "unexplained won" "$WON" 1
+          expect "unexplained refused_fatal" "$REFUSED" 4
+
+          # The commit before the tolerance: the harness must be able to produce the FAILURE row.
+          race before-tolerance 78c44a7f818c2bcd14029db4cdd555a891cbfe09 true
+          expect "before nonzero" "$BAD" 4
+          expect "before refused_fatal" "$REFUSED" 4
+
+          echo "--- sample output, fixed, every copy"
+          for F in "$WORK"/fixed/out-*; do tail -n 1 "$F"; done
+
+          [ "$FAILED" -eq 0 ]
+          echo "✅ Five concurrent copies: one retried, four tolerated, none failed."

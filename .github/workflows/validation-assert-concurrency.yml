@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Runs on a push whose commit message contains `[assert]`, after the label storm has settled.
+
+name: '[VALIDATION] Assert concurrency outcomes'
+
+on: push
+
+permissions:
+  actions: read
+
+jobs:
+  assert:
+    if: contains(github.event.head_commit.message, '[assert]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare conclusions across every arm
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # Newest five pull_request runs of an arm, which is one storm.
+          arm() {
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$1/runs?branch=$BRANCH&event=pull_request&per_page=5" --jq '.workflow_runs'
+          }
+          count() { jq --arg c "$2" '[.[] | select(.conclusion == $c)] | length' <<<"$1"; }
+
+          SHARED=$(arm validation-group-shared-literal-false.yml)
+          PER_RUN=$(arm validation-group-per-run.yml)
+          DEFAULT=$(arm validation-retry-concurrency-default.yml)
+          CANCEL_TRUE=$(arm validation-retry-concurrency-cancel-true.yml)
+
+          FAILED=0
+          for ARM in SHARED PER_RUN DEFAULT CANCEL_TRUE; do
+            RUNS=${!ARM}
+            TOTAL=$(jq 'length' <<<"$RUNS")
+            echo "$ARM: total=$TOTAL cancelled=$(count "$RUNS" cancelled) failure=$(count "$RUNS" failure) success=$(count "$RUNS" success)"
+            if [ "$TOTAL" -ne 5 ]; then
+              echo "::error::$ARM has $TOTAL runs, expected 5."
+              FAILED=1
+            fi
+          done
+
+          if [ "$(count "$SHARED" cancelled)" -eq 0 ]; then
+            echo "::error::The shared group cancelled nothing, so the events never overlapped and every zero here is unfalsifiable."
+            FAILED=1
+          fi
+          if [ "$(count "$PER_RUN" cancelled)" -ne 0 ]; then
+            echo "::error::A per-run group cancelled runs, so the experiment is measuring something other than concurrency."
+            FAILED=1
+          fi
+          for ARM in DEFAULT CANCEL_TRUE; do
+            RUNS=${!ARM}
+            if [ "$(count "$RUNS" cancelled)" -ne 0 ]; then
+              echo "::error::$ARM still cancels its own runs."
+              FAILED=1
+            fi
+            if [ "$(count "$RUNS" failure)" -ne 5 ]; then
+              echo "::error::$ARM should fail 5 of 5 on the placeholder token; anything else means the step did not run as intended."
+              FAILED=1
+            fi
+          done
+
+          [ "$FAILED" -eq 0 ]
+          echo "✅ Shared group cancelled $(count "$SHARED" cancelled) of 5; the retry workflow cancelled none."

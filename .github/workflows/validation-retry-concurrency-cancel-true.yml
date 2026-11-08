@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Callers that still pass `true` must not cancel either, now that the input is ignored.
+# Expected conclusion is `failure` (placeholder token, Buildkite 401). `cancelled` is the defect.
+
+name: '[VALIDATION] Retry concurrency (cancel true)'
+
+on:
+  pull_request:
+    types: [labeled, unlabeled]
+
+jobs:
+  retry:
+    uses: ./.github/workflows/reusable-retry-buildkite-step-on-events.yml
+    with:
+      org-slug: automattic
+      pipeline-slug: dangermattic
+      retry-step-key: rubocop
+      build-commit-sha: ${{ github.event.pull_request.head.sha }}
+      cancel-running-github-jobs: true
+    secrets:
+      buildkite-api-token: no-token-available-in-this-repo

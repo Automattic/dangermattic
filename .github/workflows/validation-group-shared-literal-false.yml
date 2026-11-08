@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+
+# [DO NOT MERGE] Positive control: without a live cancellation here, the zeroes in the other arms mean nothing.
+
+name: '[VALIDATION] Shared group, literal false'
+
+on:
+  pull_request:
+    types: [labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  hold:
+    runs-on: ubuntu-latest
+    steps:
+      - run: sleep 25
