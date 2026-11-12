@@ -22,7 +22,7 @@ esac
 
 : "${RETRY_TOKEN:?RETRY_TOKEN must hold a Buildkite token with write_builds}"
 
-REPO_ROOT=$(git rev-parse --show-toplevel)
+REPO_ROOT=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
 WORK=$(mktemp -d)
 echo "ℹ️ Working in $WORK"
 
