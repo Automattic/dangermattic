@@ -79,9 +79,10 @@ jobs:
             perform_buildkite_request "PUT" "builds/$BUILD_ID/jobs/$JOB_ID/retry"
           }
 
-          # Succeeds if the job with the given id ($1) has been retried, by this run or any other
+          # Succeeds if the job with the given id ($1) has been retried, by this run or any other.
+          # Buildkite lists only the newest attempt of each job unless asked for the retried ones.
           job_was_retried() {
-            get_buildkite_build | jq -e --arg id "$1" 'any(.[]? | objects | .jobs[]?; .id == $id and .retried == true)' > /dev/null
+            perform_buildkite_request "GET" "builds?commit=$COMMIT_SHA&include_retried_jobs=true" | jq -e --arg id "$1" 'any(.[]? | objects | .jobs[]?; .id == $id and .retried == true)' > /dev/null
           }
 
           # Validates a Buildkite response ($1)

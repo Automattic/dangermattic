@@ -106,7 +106,7 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
     it 'succeeds when a concurrent run retried the job first' do
       result = run_step(
         builds: [build(jobs: [job(id: 'job-1', state: 'failed')])],
-        retry_response: { 'message' => 'Only failed, timed out or canceled jobs can be retried' },
+        retry_response: { 'message' => 'Jobs can only be retried once' },
         builds_after_retry: [build(jobs: [job(id: 'job-1', state: 'failed', retried: true), job(id: 'job-2', state: 'scheduled')])]
       )
 
@@ -196,11 +196,18 @@ describe 'reusable-retry-buildkite-step-on-events.yml' do
 
       if [ "$METHOD" != GET ]; then
         cat "$STUB_RETRY_RESPONSE"
+        exit 0
       elif grep -q '^PUT ' "$STUB_REQUEST_LOG"; then
-        cat "$STUB_GET_RESPONSE_AFTER_RETRY"
+        RESPONSE=$STUB_GET_RESPONSE_AFTER_RETRY
       else
-        cat "$STUB_GET_RESPONSE"
+        RESPONSE=$STUB_GET_RESPONSE
       fi
+
+      # Like Buildkite, list only the newest attempt of each job unless asked for the retried ones
+      case "$URL" in
+        *include_retried_jobs=true*) cat "$RESPONSE" ;;
+        *) jq 'if type == "array" then map(.jobs |= map(select(.retried != true))) else . end' "$RESPONSE" ;;
+      esac
     BASH
     File.chmod(0o755, path)
   end
