@@ -55,7 +55,20 @@ This workflow retries a specific job in a Buildkite pipeline.
   - The workflow declares no concurrency group at all. It used to share one across a caller's pull request events, which cancelled the earlier of two runs fired seconds apart and left it as a permanently non-green check. Turning `cancel-in-progress` off does not fix that — GitHub cancels a previously *pending* run in a shared group regardless — so the group is gone instead. The job is two `curl` calls, and never had anything to gain from cancellation.
 
 ### Secrets:
-- `buildkite-api-token`: Required Buildkite API token
+- `buildkite-api-token`: Required Buildkite API token, with the `write_builds` scope
+
+### Requirements on the Buildkite step:
+
+Buildkite refuses to retry a passed job unless its step allows it, and the job is usually a passed Danger run.
+Set this on the step named by `retry-step-key`:
+
+```yaml
+retry:
+  manual:
+    permit_on_passed: true
+```
+
+Without it, every retry of a passed job fails this workflow with `Only failed, timed out, canceled or expired jobs can be retried`.
 
 ### Job: `retry-buildkite-job`
 - Main step: "🔄 Retry job on the latest Buildkite Build"
