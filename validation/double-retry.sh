@@ -62,18 +62,16 @@ git -C "$REPO_ROOT" show "$WORKFLOW_REF:$WORKFLOW" | ruby -ryaml -e '
   puts run
 ' "$ORG_SLUG" "$PIPELINE_SLUG" "$STEP_KEY" "$COMMIT_SHA" > "$WORK/step.sh"
 
-GATE="$WORK/gate"
-mkfifo "$GATE"
 for i in $(seq "$COPIES"); do
   (
-    cat "$GATE" > /dev/null
+    until [ -e "$WORK/go" ]; do sleep 0.01; done
     set +e
     READ_ONLY_MODE=false bash -e "$WORK/step.sh" > "$WORK/out.$i" 2>&1
     echo $? > "$WORK/status.$i"
   ) &
 done
-exec 3> "$GATE"
-exec 3>&-
+sleep 1
+touch "$WORK/go"
 wait
 
 for i in $(seq "$COPIES"); do
