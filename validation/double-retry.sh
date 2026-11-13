@@ -79,7 +79,7 @@ for i in $(seq "$COPIES"); do
   cat "$WORK/out.$i"
 done
 
-count() { grep -l -- "$1" "$WORK"/out.* 2> /dev/null | wc -l | tr -d ' '; }
+count() { cat "$WORK"/out.* | grep -c -- "$1" || true; }
 FAILED=0
 for i in $(seq "$COPIES"); do [ "$(cat "$WORK/status.$i")" -eq 0 ] || FAILED=$((FAILED + 1)); done
 RETRIED=$(count '✅ Job successfully retried')
