@@ -39,6 +39,9 @@ steps:
       echo "--- :rubocop: Run Rubocop"
       bundle exec rubocop
     plugins: *common_plugins
+    retry:
+      manual:
+        permit_on_passed: true
 
   #################
   # Danger Lint
