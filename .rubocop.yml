@@ -65,3 +65,8 @@ RSpec/MultipleMemoizedHelpers:
 
 RSpec/MultipleExpectations:
   Max: 2
+
+# The workflow specs exercise YAML and shell rather than a Ruby class.
+RSpec/DescribeClass:
+  Exclude:
+    - spec/github_workflows/**/*_spec.rb
