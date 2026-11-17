@@ -88,10 +88,15 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
   end
 
   describe 'the decision step' do
-    it 'reads every input the script relies on from the environment' do
-      # Guards the wiring between the workflow and the script: a renamed input must be renamed in both.
-      expect(WorkflowScript.step('decision').fetch('env').keys)
-        .to include('UPDATE_TYPE', 'DEPENDENCY_NAMES', 'MINOR_ALLOWLIST', 'DENYLIST', 'MERGE_METHOD')
+    it 'feeds the script from the Dependabot metadata and the workflow inputs' do
+      # The script examples set these variables directly, so only this guards where the workflow sources them.
+      expect(WorkflowScript.step('decision').fetch('env')).to include(
+        'UPDATE_TYPE' => '${{ steps.metadata.outputs.update-type }}',
+        'DEPENDENCY_NAMES' => '${{ steps.metadata.outputs.dependency-names }}',
+        'MINOR_ALLOWLIST' => '${{ inputs.minor-update-allowlist }}',
+        'DENYLIST' => '${{ inputs.denylist }}',
+        'MERGE_METHOD' => '${{ inputs.merge-method }}'
+      )
     end
   end
 
