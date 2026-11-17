@@ -16,7 +16,7 @@ module WorkflowScript
   module_function
 
   def workflow
-    @workflow ||= YAML.load_file(WORKFLOW)
+    @workflow ||= YAML.safe_load_file(WORKFLOW)
   end
 
   def step(id)
