@@ -112,7 +112,8 @@ with:
 ```
 
 For grouped updates, a denylisted dependency anywhere in the group blocks the pull request, and a minor update is only auto-merged when every dependency in the group is on the allowlist.
-Names are matched exactly, so `okhttp` on the denylist does not block `okhttp-urlconnection`.
+Entries match whole dependency names, so `okhttp` on the denylist does not block `okhttp-urlconnection`.
+A `*` matches any run of characters, so `@wordpress/*` covers every package in the `@wordpress` scope.
 
 ### Secrets:
 - `github-token`: Optional GitHub token, defaulting to `GITHUB_TOKEN`

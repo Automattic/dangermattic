@@ -9,13 +9,13 @@ on:
         type: string
         required: false
       minor-update-allowlist:
-        description: Dependencies that may also be auto-merged on minor updates; must be a JSON array of strings.
+        description: Dependencies that may also be auto-merged on minor updates; must be a JSON array of strings, where `*` matches any characters.
         default: |
           []
         type: string
         required: false
       denylist:
-        description: Dependencies that must never be auto-merged, whatever the update type; must be a JSON array of strings.
+        description: Dependencies that must never be auto-merged, whatever the update type; must be a JSON array of strings, where `*` matches any characters.
         default: |
           []
         type: string
@@ -80,8 +80,12 @@ jobs:
             fi
           }
 
+          # Entries match whole names, with `*` matching any run of characters.
           in_list() {
-            printf '%s\n' "$2" | jq -e --arg name "$1" 'index($name) != null' > /dev/null
+            printf '%s\n' "$2" | jq -e --arg name "$1" '
+              any(.[]; . as $pattern
+                | $name | test("^" + ($pattern | gsub("(?<c>[.+?^$(){}|\\[\\]\\\\])"; "\\\(.c)") | gsub("\\*"; ".*")) + "$"))
+            ' > /dev/null
           }
 
           case "$MERGE_METHOD" in
