@@ -178,11 +178,37 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
       result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp-urlconnection', denylist: '["okhttp"]')
       expect(result).to include(success: true, merge: true)
     end
+
+    it 'blocks every dependency a wildcard entry covers' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: '@wordpress/env', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'blocks a group when a wildcard entry covers any one of its dependencies' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'react, @wordpress/block-editor', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'anchors wildcard entries to the whole name' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'acme/@wordpress/env', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'treats characters other than the wildcard literally' do
+      # `.` would match any character if the entry were used as a regular expression.
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'comxgoogle:ksp', denylist: '["com.google*"]')
+      expect(result).to include(success: true, merge: true)
+    end
   end
 
   describe 'the minor update allowlist', :runs_script do
     it 'auto-merges a minor update to an allowlisted dependency' do
       result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'auto-merges a minor update to a dependency a wildcard entry covers' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'com.automattic:tracks, com.automattic:encryptedlogging', minor_allowlist: '["com.automattic:*"]')
       expect(result).to include(success: true, merge: true)
     end
 
