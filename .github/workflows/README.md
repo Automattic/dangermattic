@@ -96,6 +96,7 @@ Auto-merge is enabled rather than merging directly, so the pull request still ha
 - `merge-method`: The merge method to use, one of `merge`, `squash` or `rebase` (default: `merge`)
 - `minor-update-allowlist`: JSON array of dependency names that may also be auto-merged on minor updates (default: `[]`)
 - `denylist`: JSON array of dependency names that are never auto-merged, whatever the update type (default: `[]`)
+- `ecosystems`: JSON array of package ecosystems to auto-merge, leaving the others for a human (default: `[]`, meaning every ecosystem)
 
 Example:
 
@@ -110,6 +111,9 @@ with:
       "some-fragile-dependency"
     ]
 ```
+
+Ecosystems use the names Dependabot puts in its branch names, which differ from some `dependabot.yml` names: `npm_and_yarn` rather than `npm`, `github_actions` rather than `github-actions`.
+To auto-merge Ruby updates but not Node ones, pass `ecosystems: '["bundler"]'`.
 
 For grouped updates, a denylisted dependency anywhere in the group blocks the pull request, and a minor update is only auto-merged when every dependency in the group is on the allowlist.
 Entries match whole dependency names, so `okhttp` on the denylist does not block `okhttp-urlconnection`.

@@ -20,6 +20,12 @@ on:
           []
         type: string
         required: false
+      ecosystems:
+        description: Package ecosystems to auto-merge, as Dependabot names them in its branches (e.g. `bundler`, `npm_and_yarn`); must be a JSON array of strings. Empty means every ecosystem.
+        default: |
+          []
+        type: string
+        required: false
     secrets:
       github-token:
         required: false
@@ -52,6 +58,8 @@ jobs:
           DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
           MINOR_ALLOWLIST: ${{ inputs.minor-update-allowlist }}
           DENYLIST: ${{ inputs.denylist }}
+          PACKAGE_ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          ECOSYSTEMS: ${{ inputs.ecosystems }}
           MERGE_METHOD: ${{ inputs.merge-method }}
         run: |
           #!/usr/bin/env bash
@@ -98,6 +106,11 @@ jobs:
 
           validate_json_array "$MINOR_ALLOWLIST" minor-update-allowlist
           validate_json_array "$DENYLIST" denylist
+          validate_json_array "$ECOSYSTEMS" ecosystems
+
+          if [ "$(printf '%s\n' "$ECOSYSTEMS" | jq 'length')" -gt 0 ] && ! in_list "$PACKAGE_ECOSYSTEM" "$ECOSYSTEMS"; then
+            deny "the '$PACKAGE_ECOSYSTEM' ecosystem is not on the ecosystems list."
+          fi
 
           readarray -t dependencies < <(printf '%s' "$DEPENDENCY_NAMES" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' || true)
 
