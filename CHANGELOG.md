@@ -10,7 +10,7 @@ _None_
 
 ### New Features
 
-_None_
+- Added the `reusable-dependabot-auto-merge` workflow, which approves and enables auto-merge on Dependabot pull requests. Patch updates are auto-merged by default, with optional support for a denylist and for minor updates from an allowlist, both accepting `*` wildcards, and for limiting it to some package ecosystems. [#135]
 
 ### Bug Fixes
 
