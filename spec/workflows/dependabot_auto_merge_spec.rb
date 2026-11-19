@@ -42,7 +42,7 @@ module WorkflowScript
 
   # Runs the decision script with the given inputs, returning whether it succeeded and what it decided.
   # `merge` is nil when the script exits without writing a decision.
-  def decide(update_type:, dependency_names:, denylist: '[]', minor_allowlist: '[]', merge_method: 'merge')
+  def decide(update_type:, dependency_names:, denylist: '[]', minor_allowlist: '[]', merge_method: 'merge', ecosystem: 'bundler', ecosystems: '[]')
     Dir.mktmpdir do |dir|
       script = File.join(dir, 'decision.sh')
       github_output = File.join(dir, 'github_output')
@@ -53,6 +53,8 @@ module WorkflowScript
         'UPDATE_TYPE' => update_type,
         'DEPENDENCY_NAMES' => dependency_names,
         'DENYLIST' => denylist,
+        'PACKAGE_ECOSYSTEM' => ecosystem,
+        'ECOSYSTEMS' => ecosystems,
         'MINOR_ALLOWLIST' => minor_allowlist,
         'MERGE_METHOD' => merge_method,
         'GITHUB_OUTPUT' => github_output
@@ -95,6 +97,8 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
         'DEPENDENCY_NAMES' => '${{ steps.metadata.outputs.dependency-names }}',
         'MINOR_ALLOWLIST' => '${{ inputs.minor-update-allowlist }}',
         'DENYLIST' => '${{ inputs.denylist }}',
+        'PACKAGE_ECOSYSTEM' => '${{ steps.metadata.outputs.package-ecosystem }}',
+        'ECOSYSTEMS' => '${{ inputs.ecosystems }}',
         'MERGE_METHOD' => '${{ inputs.merge-method }}'
       )
     end
@@ -218,6 +222,28 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
     end
   end
 
+  describe 'the ecosystems list', :runs_script do
+    it 'auto-merges every ecosystem when the list is empty' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'eslint', ecosystem: 'npm_and_yarn')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'auto-merges an update from a listed ecosystem' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'rubocop', ecosystem: 'bundler', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'leaves an update from an unlisted ecosystem for a human' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'eslint', ecosystem: 'npm_and_yarn', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'does not widen the update types it auto-merges' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'rubocop', ecosystem: 'bundler', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: false)
+    end
+  end
+
   describe 'malformed input', :runs_script do
     it 'does not auto-merge when Dependabot reports no dependencies' do
       expect(WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: '')).to include(success: true, merge: false)
@@ -234,6 +260,11 @@ RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/D
 
     it 'fails when the denylist holds values that are not strings' do
       result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', denylist: '[1, 2]')
+      expect(result).to include(success: false, merge: nil)
+    end
+
+    it 'fails when the ecosystems list is not a JSON array' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'rubocop', ecosystems: '"bundler"')
       expect(result).to include(success: false, merge: nil)
     end
 
