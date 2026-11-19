@@ -1,0 +1,282 @@
+# frozen_string_literal: true
+
+require 'open3'
+require 'tmpdir'
+require 'yaml'
+
+# Drives the decision script exactly as it is embedded in the workflow, rather than a copy of it.
+# A test against an extracted script would keep passing if the workflow stopped passing it the right environment.
+module WorkflowScript
+  WORKFLOW = File.expand_path('../../.github/workflows/reusable-dependabot-auto-merge.yml', __dir__)
+
+  # Bash 4 is the floor because the script uses `readarray`. The Buildkite image is Debian, which satisfies it;
+  # macOS ships bash 3.2, so developers need a Homebrew bash on their PATH.
+  MINIMUM_BASH_VERSION = 4
+
+  module_function
+
+  def workflow
+    @workflow ||= YAML.safe_load_file(WORKFLOW)
+  end
+
+  def step(id)
+    workflow.fetch('jobs').fetch('dependabot-auto-merge').fetch('steps').find { |step| step['id'] == id }
+  end
+
+  def decision_script
+    step('decision').fetch('run')
+  end
+
+  def modern_bash
+    @modern_bash ||= ['bash', '/opt/homebrew/bin/bash', '/usr/local/bin/bash'].find do |candidate|
+      major, = Open3.capture2e(candidate, '-c', 'echo "${BASH_VERSINFO[0]}"')
+      major.to_i >= MINIMUM_BASH_VERSION
+    rescue Errno::ENOENT
+      false
+    end
+  end
+
+  def jq?
+    @jq ||= system('command -v jq > /dev/null 2>&1')
+  end
+
+  # Runs the decision script with the given inputs, returning whether it succeeded and what it decided.
+  # `merge` is nil when the script exits without writing a decision.
+  def decide(update_type:, dependency_names:, denylist: '[]', minor_allowlist: '[]', merge_method: 'merge', ecosystem: 'bundler', ecosystems: '[]')
+    Dir.mktmpdir do |dir|
+      script = File.join(dir, 'decision.sh')
+      github_output = File.join(dir, 'github_output')
+      File.write(script, decision_script)
+      File.write(github_output, '')
+
+      env = {
+        'UPDATE_TYPE' => update_type,
+        'DEPENDENCY_NAMES' => dependency_names,
+        'DENYLIST' => denylist,
+        'PACKAGE_ECOSYSTEM' => ecosystem,
+        'ECOSYSTEMS' => ecosystems,
+        'MINOR_ALLOWLIST' => minor_allowlist,
+        'MERGE_METHOD' => merge_method,
+        'GITHUB_OUTPUT' => github_output
+      }
+      output, status = Open3.capture2e(env, modern_bash, script)
+      step_output = File.read(github_output)
+
+      {
+        success: status.success?,
+        merge: { 'true' => true, 'false' => false }[step_output[/^should-merge=(.*)$/, 1]],
+        reason: step_output[/^reason=(.*)$/, 1],
+        output: output
+      }
+    end
+  end
+end
+
+RSpec.describe 'reusable-dependabot-auto-merge.yml' do # rubocop:disable RSpec/DescribeClass
+  # Only the examples that shell out need bash and jq; the ones that merely read the YAML always run.
+  before do |example|
+    next unless example.metadata[:runs_script]
+
+    missing = []
+    missing << 'a bash >= 4' if WorkflowScript.modern_bash.nil?
+    missing << 'jq' unless WorkflowScript.jq?
+    next if missing.empty?
+
+    message = "Cannot exercise the workflow's decision script without #{missing.join(' and ')}."
+    # Skipping on CI would quietly delete this file's coverage, so fail there instead.
+    raise message if ENV['CI']
+
+    skip message
+  end
+
+  describe 'the decision step' do
+    it 'feeds the script from the Dependabot metadata and the workflow inputs' do
+      # The script examples set these variables directly, so only this guards where the workflow sources them.
+      expect(WorkflowScript.step('decision').fetch('env')).to include(
+        'UPDATE_TYPE' => '${{ steps.metadata.outputs.update-type }}',
+        'DEPENDENCY_NAMES' => '${{ steps.metadata.outputs.dependency-names }}',
+        'MINOR_ALLOWLIST' => '${{ inputs.minor-update-allowlist }}',
+        'DENYLIST' => '${{ inputs.denylist }}',
+        'PACKAGE_ECOSYSTEM' => '${{ steps.metadata.outputs.package-ecosystem }}',
+        'ECOSYSTEMS' => '${{ inputs.ecosystems }}',
+        'MERGE_METHOD' => '${{ inputs.merge-method }}'
+      )
+    end
+  end
+
+  describe 'the approval step' do
+    it 'quotes the reason the decision step emits' do
+      # The approval comment is only as good as this wiring: `reason` must survive the step boundary.
+      approve = WorkflowScript.workflow.fetch('jobs').fetch('dependabot-auto-merge').fetch('steps')
+                              .find { |step| step['name'].include?('Approve') }
+
+      expect(approve.fetch('env')).to include('REASON' => a_string_including('steps.decision.outputs.reason'))
+      expect(approve.fetch('run')).to include('--body', '$REASON')
+    end
+  end
+
+  describe 'the reason for auto-merging', :runs_script do
+    it 'explains a patch update' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp')
+      expect(result).to include(success: true, merge: true, reason: 'all updates are patch level.')
+    end
+
+    it 'explains an allowlisted minor update' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: true, reason: 'every dependency in this minor update is on the allowlist.')
+    end
+
+    it 'emits no reason when it declines to auto-merge' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-major', dependency_names: 'okhttp')
+      expect(result).to include(success: true, merge: false, reason: nil)
+    end
+  end
+
+  describe 'update types', :runs_script do
+    it 'auto-merges a patch update' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp')).to include(success: true, merge: true)
+    end
+
+    it 'does not auto-merge a minor update by default' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'okhttp')).to include(success: true, merge: false)
+    end
+
+    it 'does not auto-merge a major update' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-major', dependency_names: 'okhttp')).to include(success: true, merge: false)
+    end
+
+    it 'does not auto-merge an unrecognised update type' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-unknown', dependency_names: 'okhttp')).to include(success: true, merge: false)
+    end
+  end
+
+  describe 'grouped updates', :runs_script do
+    it 'auto-merges a group where every dependency is a patch' do
+      # Dependabot reports the highest bump across a group, so `semver-patch` means the whole group is a patch.
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp, retrofit, moshi')).to include(success: true, merge: true)
+    end
+
+    it 'does not auto-merge when a single dependency in the group is denylisted' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'retrofit,okhttp', denylist: '["okhttp"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'does not auto-merge a minor group where only some dependencies are allowlisted' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit,okhttp', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: false)
+    end
+  end
+
+  describe 'the denylist', :runs_script do
+    it 'blocks a patch update to a denylisted dependency' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', denylist: '["okhttp"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'takes precedence over the minor update allowlist' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit', denylist: '["release-toolkit"]', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'matches dependency names exactly rather than by prefix' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp-urlconnection', denylist: '["okhttp"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'blocks every dependency a wildcard entry covers' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: '@wordpress/env', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'blocks a group when a wildcard entry covers any one of its dependencies' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'react, @wordpress/block-editor', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'anchors wildcard entries to the whole name' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'acme/@wordpress/env', denylist: '["@wordpress/*"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'treats characters other than the wildcard literally' do
+      # `.` would match any character if the entry were used as a regular expression.
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'comxgoogle:ksp', denylist: '["com.google*"]')
+      expect(result).to include(success: true, merge: true)
+    end
+  end
+
+  describe 'the minor update allowlist', :runs_script do
+    it 'auto-merges a minor update to an allowlisted dependency' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'release-toolkit', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'auto-merges a minor update to a dependency a wildcard entry covers' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'com.automattic:tracks, com.automattic:encryptedlogging', minor_allowlist: '["com.automattic:*"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'does not extend to major updates' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-major', dependency_names: 'release-toolkit', minor_allowlist: '["release-toolkit"]')
+      expect(result).to include(success: true, merge: false)
+    end
+  end
+
+  describe 'the ecosystems list', :runs_script do
+    it 'auto-merges every ecosystem when the list is empty' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'eslint', ecosystem: 'npm_and_yarn')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'auto-merges an update from a listed ecosystem' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'rubocop', ecosystem: 'bundler', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: true)
+    end
+
+    it 'leaves an update from an unlisted ecosystem for a human' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'eslint', ecosystem: 'npm_and_yarn', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: false)
+    end
+
+    it 'does not widen the update types it auto-merges' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-minor', dependency_names: 'rubocop', ecosystem: 'bundler', ecosystems: '["bundler"]')
+      expect(result).to include(success: true, merge: false)
+    end
+  end
+
+  describe 'malformed input', :runs_script do
+    it 'does not auto-merge when Dependabot reports no dependencies' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: '')).to include(success: true, merge: false)
+    end
+
+    it 'tolerates surrounding whitespace in the dependency list' do
+      expect(WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: "  okhttp \n")).to include(success: true, merge: true)
+    end
+
+    it 'fails when the denylist is not a JSON array' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', denylist: '"okhttp"')
+      expect(result).to include(success: false, merge: nil)
+    end
+
+    it 'fails when the denylist holds values that are not strings' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', denylist: '[1, 2]')
+      expect(result).to include(success: false, merge: nil)
+    end
+
+    it 'fails when the ecosystems list is not a JSON array' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'rubocop', ecosystems: '"bundler"')
+      expect(result).to include(success: false, merge: nil)
+    end
+
+    it 'fails when the merge method is not one GitHub supports' do
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', merge_method: 'fast-forward')
+      expect(result).to include(success: false, merge: nil)
+    end
+
+    it 'fails rather than interpolating a merge method that smuggles in a shell command' do
+      # `merge-method` reaches `gh pr merge` as an argument, so a caller must not be able to inject through it.
+      result = WorkflowScript.decide(update_type: 'version-update:semver-patch', dependency_names: 'okhttp', merge_method: 'merge; touch /tmp/pwned')
+      expect(result).to include(success: false, merge: nil)
+    end
+  end
+end
