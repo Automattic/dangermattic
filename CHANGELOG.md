@@ -20,6 +20,16 @@ _None_
 
 _None_
 
+## 1.4.2
+
+### Bug Fixes
+
+- `reusable-run-danger.yml`: bump `ruby/setup-ruby` to 1.343.0, which supports Ruby 3.4.13, so the workflow no longer fails with `Unknown version` in repos whose `.ruby-version` is 3.4.13. [#159]
+
+### Internal Changes
+
+- Bump Ruby to 3.4.13. [#160]
+
 ## 1.4.1
 
 ### Bug Fixes
